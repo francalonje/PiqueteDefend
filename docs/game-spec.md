@@ -161,12 +161,14 @@ El jugador inferior siempre controla su mano. El jugador superior ve su mano en 
 
 ---
 
-## 12. Pendiente de definir
+## 12. Parámetros definidos
 
-- [ ] Cantidad de cartas visibles por jugador (sugerencia: 6)
-- [ ] Cantidad de slots de unidades por jugador (sugerencia: 3 tipos distintos)
-- [ ] ¿Puede haber múltiples unidades del mismo tipo en el mismo slot o son tipos únicos?
-- [ ] ¿Hay un máximo en el contador de una unidad?
+| Parámetro | Valor |
+|-----------|-------|
+| Cartas visibles en mano | 6 |
+| Slots de unidades por jugador | 3 |
+| Unidades apilables | Sí — hasta x5 por slot |
+| Slots fijos por tipo | No — cualquier unidad ocupa cualquier slot libre |
 
 ---
 
