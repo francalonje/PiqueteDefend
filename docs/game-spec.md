@@ -142,22 +142,57 @@ Se despliega en la zona de unidades. Es **siempre pasiva** — actúa automátic
 
 ## 11. UI / Pantalla
 
+### 11.1 Menú principal
+
+Pantalla de inicio con un botón central **Jugar**. Espacio reservado para futuras opciones (Ajustes, Créditos, etc.) sin implementarlas en v1.
+
+### 11.2 Selección de facción
+
+Tras iniciar, cada jugador elige su facción: **Manifestantes** o **Policías**.
+
+### 11.3 Pantalla de juego
+
+Pantalla única compartida dividida horizontalmente en dos mitades enfrentadas. El jugador de abajo ve su mitad derecha hacia arriba; el jugador de arriba ve su mitad rotada 180°.
+
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  [POLICÍAS]   HP: 100   $: 12  ⚡: 8  📣: 5                    │
-│  Unidades: [Comisaría x2] [Patrullero x1] [        ]           │
-│─────────────────────────────────────────────────────────────────│
-│                      ZONA CENTRAL / LOG                         │
-│─────────────────────────────────────────────────────────────────│
-│  Unidades: [Olla Popular x3] [Piquetero x2] [        ]         │
+┌─────────────────────────────────────────────────────────────────┐  ▲
+│  Mano: [c1][c2][c3][c4][c5][c6]              [DESCARTAR][JUGAR]│  │
+│  Unidades: [Slot A] [Slot B] [Slot C]                          │  JUGADOR
+│  [POLICÍAS]  HP: 100  $: 12  ⚡: 8  📣: 5                     │  ARRIBA
+│═════════════════════════════════════════════════════════════════│  (rotado 180°)
 │  [MANIFESTANTES]  HP: 85   $: 9   ⚡: 6  📣: 14               │
-│                                                                 │
-│  Mano: [carta1] [carta2] [carta3] [carta4] [carta5] [carta6]   │
-│                                          [DESCARTAR] [JUGAR]   │
-└─────────────────────────────────────────────────────────────────┘
+│  Unidades: [Slot A] [Slot B] [Slot C]                          │  JUGADOR
+│  Mano: [c1][c2][c3][c4][c5][c6]              [DESCARTAR][JUGAR]│  ABAJO
+└─────────────────────────────────────────────────────────────────┘  ▼
 ```
 
-El jugador inferior siempre controla su mano. El jugador superior ve su mano en la parte de arriba (pantalla compartida o rotando el monitor).
+**Privacidad de mano:** las cartas propias son siempre visibles. Las cartas del oponente también son visibles (información abierta).
+
+**Indicador de turno:** banner simple que indica de quién es el turno activo.
+
+### 11.4 Input
+
+| Acción | Mouse | Teclado | Gamepad |
+|--------|-------|---------|---------|
+| Seleccionar carta | Click | Teclas 1–6 | D-pad |
+| Jugar carta | Click "Jugar" | Enter | A / X |
+| Descartar carta | Click "Descartar" | Backspace | B / O |
+| Seleccionar slot enemigo (sabotaje) | Click slot | Tab + Enter | D-pad + A |
+
+### 11.5 Anatomía de una carta
+
+Cada carta muestra:
+- **Imagen** (placeholder en v1)
+- **Nombre**
+- **Costo** — íconos de los recursos requeridos con su cantidad
+- **Efecto** — texto corto con `+` o `-` y el recurso/unidad afectado, o descripción del efecto especial
+
+### 11.6 Pantalla de victoria
+
+Overlay sobre la pantalla de juego con:
+- Mensaje de victoria (nombre de facción ganadora + condición)
+- Botón **Revancha** — reinicia la partida con las mismas facciones
+- Botón **Menú principal** — vuelve al inicio
 
 ---
 
