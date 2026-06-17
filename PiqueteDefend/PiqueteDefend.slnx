@@ -1,5 +1,6 @@
 ﻿<Solution>
   <Project Path="PiqueteDefend.Core.csproj" />
   <Project Path="PiqueteDefend.Tests.EditMode.csproj" />
+  <Project Path="PiqueteDefend.Presentation.csproj" />
   <Project Path="PiqueteDefend.Editor.csproj" />
 </Solution>

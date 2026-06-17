@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="root" class="screen screen--menu">
+        <Style src="Common.uss" />
+        <Style src="MainMenu.uss" />
+        <ui:VisualElement class="menu__panel">
+            <ui:Label text="PiqueteDefend" class="menu__title" />
+            <ui:Label text="Manifestantes vs Policías" class="menu__subtitle" />
+            <ui:VisualElement class="menu__buttons">
+                <ui:Button name="play-button" text="Jugar" class="btn btn--primary" />
+                <ui:Button name="settings-button" text="Ajustes" class="btn" />
+                <ui:Button name="credits-button" text="Créditos" class="btn" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

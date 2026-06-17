@@ -1,0 +1,41 @@
+/* Estilos compartidos por todas las pantallas. */
+
+.screen {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    background-color: rgb(24, 26, 33);
+}
+
+.btn {
+    min-width: 220px;
+    height: 52px;
+    margin: 6px 0;
+    border-radius: 8px;
+    border-width: 0;
+    font-size: 20px;
+    color: rgb(235, 237, 242);
+    background-color: rgb(55, 60, 74);
+    -unity-font-style: bold;
+    transition-duration: 0.1s;
+}
+
+.btn:hover {
+    background-color: rgb(72, 79, 98);
+}
+
+.btn:active {
+    background-color: rgb(40, 44, 56);
+}
+
+.btn:disabled {
+    opacity: 0.4;
+}
+
+.btn--primary {
+    background-color: rgb(214, 92, 56);
+}
+
+.btn--primary:hover {
+    background-color: rgb(232, 108, 70);
+}

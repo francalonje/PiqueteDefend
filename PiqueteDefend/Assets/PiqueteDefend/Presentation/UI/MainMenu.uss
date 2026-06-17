@@ -1,0 +1,21 @@
+.menu__panel {
+    align-items: center;
+    justify-content: center;
+}
+
+.menu__title {
+    font-size: 72px;
+    color: rgb(235, 237, 242);
+    -unity-font-style: bold;
+    margin-bottom: 4px;
+}
+
+.menu__subtitle {
+    font-size: 22px;
+    color: rgb(150, 156, 170);
+    margin-bottom: 48px;
+}
+
+.menu__buttons {
+    align-items: center;
+}

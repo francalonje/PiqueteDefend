@@ -2,7 +2,9 @@
     "name": "PiqueteDefend.Editor",
     "rootNamespace": "PiqueteDefend.EditorTools",
     "references": [
-        "PiqueteDefend.Core"
+        "PiqueteDefend.Core",
+        "PiqueteDefend.Presentation",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [
         "Editor"
