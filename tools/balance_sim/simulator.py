@@ -137,21 +137,21 @@ def _build_cards():
         # ── MANIFESTANTES ─────────────────────────────────────────────────────
         # Units
         CardData("piquetero",       "Piquetero",        M, UNIT, cost_dinero=2, cost_fuerza=2, unit_subtype=ATK),
-        CardData("escudo_humano",   "Escudo Humano",    M, UNIT, cost_dinero=5, cost_fuerza=1, unit_subtype=DEF),
+        CardData("jubilado",        "Jubilado",         M, UNIT, cost_dinero=5, cost_fuerza=1, unit_subtype=DEF),
         CardData("olla_popular",    "Olla Popular",     M, UNIT, cost_dinero=2, cost_social=1,  unit_subtype=PROD, production_resource=D),
-        CardData("fogon",           "Fogón",            M, UNIT, cost_fuerza=4, cost_social=1,  unit_subtype=PROD, production_resource=F),
-        CardData("megafono",        "Megáfono",         M, UNIT, cost_dinero=1, cost_social=1,  unit_subtype=PROD, production_resource=S),
+        CardData("quilombero",      "Quilombero",       M, UNIT, cost_fuerza=4, cost_social=1,  unit_subtype=PROD, production_resource=F),
+        CardData("tuitero",         "Tuitero Militante",M, UNIT, cost_dinero=1, cost_social=1,  unit_subtype=PROD, production_resource=S),
         # Boost
         CardData("colecta",         "Colecta",          M, ACT, cost_social=3,
                  effects=[ce(MRES, SELF, D, 6)]),
-        CardData("adrenalina",      "Adrenalina",       M, ACT, cost_dinero=1,
+        CardData("fernet",          "Fernet con Cola",  M, ACT, cost_dinero=1,
                  effects=[ce(MRES, SELF, F, 3)]),
         CardData("viral_redes",     "Viral en Redes",   M, ACT, cost_dinero=2,
                  effects=[ce(MRES, SELF, S, 7)]),
         # Sabotaje
         CardData("saqueo",          "Saqueo",           M, ACT, cost_fuerza=1,
                  effects=[ce(MRES, OPP, D, -3)]),
-        CardData("agotamiento",     "Agotamiento",      M, ACT, cost_dinero=2,
+        CardData("asamblea_6hs",    "Asamblea de 6 Horas", M, ACT, cost_dinero=2,
                  effects=[ce(MRES, OPP, F, -7)]),
         CardData("fake_news",       "Fake News",        M, ACT, cost_social=3,
                  effects=[ce(MRES, OPP, S, -5)]),
@@ -173,12 +173,12 @@ def _build_cards():
         CardData("patrullero",      "Patrullero",           P, UNIT, cost_fuerza=4, cost_dinero=2, unit_subtype=ATK),
         CardData("comisaria",       "Comisaría",            P, UNIT, cost_dinero=2, cost_fuerza=1, unit_subtype=DEF),
         CardData("subsidio",        "Subsidio",             P, UNIT, cost_dinero=4, cost_social=1,  unit_subtype=PROD, production_resource=D),
-        CardData("entrenamiento",   "Entrenamiento",        P, UNIT, cost_fuerza=1, cost_social=2,  unit_subtype=PROD, production_resource=F),
+        CardData("gorra_barrio",    "Gorra de Barrio",      P, UNIT, cost_fuerza=1, cost_social=2,  unit_subtype=PROD, production_resource=F),
         CardData("conferencia",     "Conferencia de Prensa",P, UNIT, cost_dinero=3, cost_social=2,  unit_subtype=PROD, production_resource=S),
         # Boost
         CardData("partida",         "Partida Presupuestaria",P, ACT, cost_social=1,
                  effects=[ce(MRES, SELF, D, 7)]),
-        CardData("refuerzo",        "Refuerzo",             P, ACT, cost_dinero=3,
+        CardData("licitacion",      "Licitación Express",   P, ACT, cost_dinero=3,
                  effects=[ce(MRES, SELF, F, 8)]),
         CardData("cadena_nacional", "Cadena Nacional",      P, ACT, cost_fuerza=2,
                  effects=[ce(MRES, SELF, S, 4)]),
@@ -192,9 +192,9 @@ def _build_cards():
         CardData("infiltrado",      "Infiltrado",           P, ACT, cost_dinero=3, cost_social=1,
                  effects=[ce(RUNIT, OPP, val=-1)]),
         # Ataque / Defensa
-        CardData("operativo",       "Operativo Especial",   P, ACT, cost_dinero=4, cost_fuerza=2,
+        CardData("operativo",       "Operativo Apretón",    P, ACT, cost_dinero=4, cost_fuerza=2,
                  effects=[ce(MHP, OPP, val=-18)]),
-        CardData("escudo_anti",     "Escudo Antidisturbios",P, ACT, cost_dinero=2, cost_social=3,
+        CardData("balas_goma",      "Balas de Goma",        P, ACT, cost_dinero=2, cost_social=3,
                  effects=[ce(MHP, SELF, val=12)]),
         # Especiales
         CardData("toque_queda",     "Toque de Queda",       P, ACT, cost_dinero=4, cost_fuerza=1,

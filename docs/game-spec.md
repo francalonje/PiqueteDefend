@@ -336,80 +336,80 @@ Se despliega en la zona de unidades. Su efecto es siempre pasivo — el `GameMan
 ## 9. Cartas — Manifestantes
 
 ### Unidades
-| Carta | Subtipo | Costo | Efecto |
-|-------|---------|-------|--------|
-| **Piquetero** | Atacante | 2 ⚡ + 2 $ | +1 Piquetero. Cada uno suma +1 de daño al oponente por turno |
-| **Escudo Humano** | Defensiva | 5 $ + 1 ⚡ | +1 Escudo Humano. Cada uno resta -1 al daño entrante por turno |
-| **Olla Popular** | Productora $ | 2 $ + 1 📣 | +1 Olla Popular. Cada una produce +1 $/turno |
-| **Fogón** | Productora ⚡ | 4 ⚡ + 1 📣 | +1 Fogón. Cada uno produce +1 ⚡/turno |
-| **Megáfono** | Productora 📣 | 1 📣 + 1 $ | +1 Megáfono. Cada uno produce +1 📣/turno |
+| Carta | Subtipo | Costo | Efecto | Descripción |
+|-------|---------|-------|--------|-------------|
+| **Piquetero** | Atacante | 2 ⚡ + 2 $ | +1 Piquetero. Cada uno suma +1 de daño al oponente por turno | *Lleva el bombo, la bandera y las ganas de parar todo. El GPS del camionero lo odia.* |
+| **Jubilado** | Defensiva | 5 $ + 1 ⚡ | +1 Jubilado. Cada uno resta -1 al daño entrante por turno | *83 años, bastón y primera fila. La policía tiene miedo de lo que van a decir en la tele.* |
+| **Olla Popular** | Productora $ | 2 $ + 1 📣 | +1 Olla Popular. Cada una produce +1 $/turno | *Arroz, fideos, solidaridad y una receta que nadie sabe de dónde salió.* |
+| **Quilombero** | Productora ⚡ | 4 ⚡ + 1 📣 | +1 Quilombero. Cada uno produce +1 ⚡/turno | *No sabe bien por qué pelea pero lo hace con todo. Indispensable.* |
+| **Tuitero Militante** | Productora 📣 | 1 📣 + 1 $ | +1 Tuitero. Cada uno produce +1 📣/turno | *2.300 seguidores. Siente que cambió la historia con cada hilo.* |
 
 ### Acciones — Boost
-| Carta | Costo | Efecto |
-|-------|-------|--------|
-| **Colecta** | 3 📣 | Gana +6 $ |
-| **Adrenalina** | 1 $ | Gana +3 ⚡ |
-| **Viral en Redes** | 2 $ | Gana +7 📣 |
+| Carta | Costo | Efecto | Descripción |
+|-------|-------|--------|-------------|
+| **Colecta** | 3 📣 | Gana +6 $ | *Pasamos el sombrero. No el de la policía. El de los compañeros.* |
+| **Fernet con Cola** | 1 $ | Gana +3 ⚡ | *Hidratación táctica. Técnicamente no es doping si lo toma todo el mundo.* |
+| **Viral en Redes** | 2 $ | Gana +7 📣 | *Un video de 14 segundos. Tres millones de reproducciones. El ministerio ya llamó.* |
 
 ### Acciones — Sabotaje
-| Carta | Costo | Efecto |
-|-------|-------|--------|
-| **Saqueo** | 1 ⚡ | Oponente pierde 3 $ |
-| **Agotamiento** | 2 $ | Oponente pierde 7 ⚡ |
-| **Fake News** | 3 📣 | Oponente pierde 5 📣 |
-| **Romper la Marcha** | 1 ⚡ + 3 📣 | -1 a una unidad del oponente (el atacante elige el slot) |
+| Carta | Costo | Efecto | Descripción |
+|-------|-------|--------|-------------|
+| **Saqueo** | 1 ⚡ | Oponente pierde 3 $ | *No es saqueo. Es redistribución urgente de recursos.* |
+| **Asamblea de 6 Horas** | 2 $ | Oponente pierde 7 ⚡ | *Todos hablan. Nadie escucha. El orden del día tiene 47 puntos.* |
+| **Fake News** | 3 📣 | Oponente pierde 5 📣 | *Una historia bien contada a tiempo. La verdad puede esperar.* |
+| **Romper la Marcha** | 1 ⚡ + 3 📣 | -1 a una unidad del oponente (el atacante elige el slot) | *Alguien tira una piedra donde no era. La marcha pierde el hilo. Todos se miran.* |
 
 ### Acciones — Ataque / Defensa
-| Carta | Subtipo | Costo | Efecto |
-|-------|---------|-------|--------|
-| **Paro General** | Ataque | 2 $ + 3 ⚡ | Inflige 14 daño directo al oponente |
-| **Abrazo Colectivo** | Defensa | 4 $ + 1 📣 | Recupera 16 HP propios |
+| Carta | Subtipo | Costo | Efecto | Descripción |
+|-------|---------|-------|--------|-------------|
+| **Paro General** | Ataque | 2 $ + 3 ⚡ | Inflige 14 daño directo al oponente | *24 horas de nada. El país en pausa. El bondi no viene. Ni el delivery.* |
+| **Abrazo Colectivo** | Defensa | 4 $ + 1 📣 | Recupera 16 HP propios | *El abrazo que cura todo. Menos la deuda. Pero todo lo demás.* |
 
 ### Acciones — Efecto especial
-| Carta | Costo | Efecto |
-|-------|-------|--------|
-| **Corte de Ruta** | 1 ⚡ + 2 📣 | El oponente no recibe producción en su próximo turno |
-| **Asamblea Popular** | 6 📣 | El jugador recibe el doble de su producción propia en su próximo turno |
+| Carta | Costo | Efecto | Descripción |
+|-------|-------|--------|-------------|
+| **Corte de Ruta** | 1 ⚡ + 2 📣 | El oponente no recibe producción en su próximo turno | *Neumáticos quemados, humo negro y el GPS del camionero obsoleto.* |
+| **Asamblea Popular** | 6 📣 | El jugador recibe el doble de su producción propia en su próximo turno | *Se vota a mano alzada. Algo sale. Esta vez salió bien.* |
 
 ---
 
 ## 10. Cartas — Policías
 
 ### Unidades
-| Carta | Subtipo | Costo | Efecto |
-|-------|---------|-------|--------|
-| **Patrullero** | Atacante | 4 ⚡ + 2 $ | +1 Patrullero. Cada uno suma +1 de daño al oponente por turno |
-| **Comisaría** | Defensiva | 2 $ + 1 ⚡ | +1 Comisaría. Cada una resta -1 al daño entrante por turno |
-| **Subsidio** | Productora $ | 4 $ + 1 📣 | +1 Subsidio. Cada uno produce +1 $/turno |
-| **Entrenamiento** | Productora ⚡ | 1 ⚡ + 2 📣 | +1 Entrenamiento. Cada uno produce +1 ⚡/turno |
-| **Conferencia de Prensa** | Productora 📣 | 3 $ + 2 📣 | +1 Conferencia. Cada una produce +1 📣/turno |
+| Carta | Subtipo | Costo | Efecto | Descripción |
+|-------|---------|-------|--------|-------------|
+| **Patrullero** | Atacante | 4 ⚡ + 2 $ | +1 Patrullero. Cada uno suma +1 de daño al oponente por turno | *Sirena, luces y un oficial que lleva 14 horas de turno. No preguntes cómo está.* |
+| **Comisaría** | Defensiva | 2 $ + 1 ⚡ | +1 Comisaría. Cada una resta -1 al daño entrante por turno | *El edificio más antiguo del barrio. Sobrevivió cuatro gobiernos y una inundación.* |
+| **Subsidio** | Productora $ | 4 $ + 1 📣 | +1 Subsidio. Cada uno produce +1 $/turno | *El Estado se financia a sí mismo. Sostenible, dicen.* |
+| **Gorra de Barrio** | Productora ⚡ | 1 ⚡ + 2 📣 | +1 Gorra. Cada uno produce +1 ⚡/turno | *Lo conoce todo el mundo. Nadie sabe exactamente qué hace. Siempre está.* |
+| **Conferencia de Prensa** | Productora 📣 | 3 $ + 2 📣 | +1 Conferencia. Cada una produce +1 📣/turno | *El ministro sonríe. Los periodistas anotan. Nadie pregunta nada difícil.* |
 
 ### Acciones — Boost
-| Carta | Costo | Efecto |
-|-------|-------|--------|
-| **Partida Presupuestaria** | 1 📣 | Gana +7 $ |
-| **Refuerzo** | 3 $ | Gana +8 ⚡ |
-| **Cadena Nacional** | 2 ⚡ | Gana +4 📣 |
+| Carta | Costo | Efecto | Descripción |
+|-------|-------|--------|-------------|
+| **Partida Presupuestaria** | 1 📣 | Gana +7 $ | *Existe en el papel. Se aprobó a las 3 AM. Nadie sabe bien para qué.* |
+| **Licitación Express** | 3 $ | Gana +8 ⚡ | *Una empresa, un sobre, 48 horas. El pliego lo hicieron el lunes.* |
+| **Cadena Nacional** | 2 ⚡ | Gana +4 📣 | *Interrumpe la novela. El presidente habla 40 minutos. Nadie pidió que pare.* |
 
 ### Acciones — Sabotaje
-| Carta | Costo | Efecto |
-|-------|-------|--------|
-| **Embargo** | 3 ⚡ | Oponente pierde 7 $ |
-| **Detención** | 1 $ | Oponente pierde 3 ⚡ |
-| **Censura** | 2 📣 | Oponente pierde 5 📣 |
-| **Infiltrado** | 3 $ + 1 📣 | -1 a una unidad del oponente (el atacante elige el slot) |
+| Carta | Costo | Efecto | Descripción |
+|-------|-------|--------|-------------|
+| **Embargo** | 3 ⚡ | Oponente pierde 7 $ | *El juez firmó. La plata se fue. El afectado ya lo sospechaba.* |
+| **Detención** | 1 $ | Oponente pierde 3 ⚡ | *Demorado para averiguación de antecedentes. O por las dudas. Principalmente por las dudas.* |
+| **Censura** | 2 📣 | Oponente pierde 5 📣 | *El artículo fue dado de baja. Por razones técnicas. Técnicas.* |
+| **Infiltrado** | 3 $ + 1 📣 | -1 a una unidad del oponente (el atacante elige el slot) | *Un tipo raro en la marcha. Nadie lo conoce pero todos lo sospechaban.* |
 
 ### Acciones — Ataque / Defensa
-| Carta | Subtipo | Costo | Efecto |
-|-------|---------|-------|--------|
-| **Operativo Especial** | Ataque | 4 $ + 2 ⚡ | Inflige 18 daño directo al oponente |
-| **Escudo Antidisturbios** | Defensa | 2 $ + 3 📣 | Recupera 12 HP propios |
+| Carta | Subtipo | Costo | Efecto | Descripción |
+|-------|---------|-------|--------|-------------|
+| **Operativo Apretón** | Ataque | 4 $ + 2 ⚡ | Inflige 18 daño directo al oponente | *Cuatro camiones, veinte efectivos, un drone. Para un jubilado con un cartel.* |
+| **Balas de Goma** | Defensa | 2 $ + 3 📣 | Recupera 12 HP propios | *No matan, dicen. Técnicamente. El protocolo fue actualizado en 2019.* |
 
 ### Acciones — Efecto especial
-| Carta | Costo | Efecto |
-|-------|-------|--------|
-| **Toque de Queda** | 4 $ + 1 ⚡ | El oponente no recibe producción en su próximo turno |
-| **Decreto de Emergencia** | 3 $ | El jugador recibe el doble de su producción propia en su próximo turno |
+| Carta | Costo | Efecto | Descripción |
+|-------|-------|--------|-------------|
+| **Toque de Queda** | 4 $ + 1 ⚡ | El oponente no recibe producción en su próximo turno | *A las 22hs, todos adentro. El que salga averigua.* |
+| **Decreto de Emergencia** | 3 $ | El jugador recibe el doble de su producción propia en su próximo turno | *El Congreso estaba de feria. Había urgencia. Siempre hay urgencia.* |
 
 ---
 
