@@ -297,7 +297,7 @@ def check_victory(active: PlayerState, opp: PlayerState) -> Optional[Tuple[Facti
     if active.hp <= 0:
         return (opp.faction, WinCondition.KO)
     for player in (active, opp):
-        if player.social >= 60:
+        if player.social >= 70:
             return (player.faction, WinCondition.SOCIAL)
     for player in (active, opp):
         if player.dinero >= 100:

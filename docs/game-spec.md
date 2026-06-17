@@ -53,14 +53,14 @@ Un jugador gana si ocurre **cualquiera** de estas condiciones:
 | Condición | Descripción |
 |-----------|-------------|
 | **KO** | Reducir los HP del oponente a 0 |
-| **Hegemonía Social** | Acumular 60 puntos de Social |
+| **Hegemonía Social** | Acumular 70 puntos de Social |
 | **Poder Económico** | Acumular 100 puntos de Dinero |
 
 No hay empate. Existe un límite de turnos como salvavidas (ver §5.1).
 
 ### Orden de prioridad de victoria (en orden):
 1. **KO** — si el HP del oponente llega a 0, gana quien causó el daño (prioridad máxima)
-2. **Hegemonía Social** — acumular ≥ 60 📣
+2. **Hegemonía Social** — acumular ≥ 70 📣
 3. **Poder Económico** — acumular ≥ 100 $
 
 Si KO y una condición de recurso se cumplen simultáneamente, gana por KO.
@@ -415,7 +415,7 @@ Se despliega en la zona de unidades. Su efecto es siempre pasivo — el `GameMan
 
 ## Balance verificable entre facciones
 
-> Valores validados con simulación de 10.000 partidas (AI greedy vs greedy). Win rate resultante: Manifestantes 47.7% — Policías 52.3% (gap ±5pp, rango GOOD).
+> Valores validados con simulación de 10.000 partidas (AI greedy vs greedy). Win rate resultante: Manifestantes 49.4% — Policías 50.6% (gap ±1pp, rango EXCELLENT). KO al 81%, Hegemonía Social al 19%, Poder Económico requiere juego activo de acumulación.
 
 | Categoría | Manifestantes | Policías |
 |-----------|--------------|----------|
@@ -505,7 +505,7 @@ Overlay sobre la pantalla de juego con:
 | HP inicial | 100 |
 | Recursos iniciales | Dinero 3, Fuerza 2, Social 1 |
 | Producción base por turno | Dinero 5, Fuerza 3, Social 2 |
-| Umbral Hegemonía Social | 60 📣 |
+| Umbral Hegemonía Social | 70 📣 |
 | Umbral Poder Económico | 100 $ |
 | Primer jugador | Coinflip aleatorio |
 | `suddenDeathStart` | Turno 40 (configurable) |
