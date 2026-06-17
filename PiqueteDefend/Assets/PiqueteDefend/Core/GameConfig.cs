@@ -19,7 +19,7 @@ namespace PiqueteDefend.Core
         public int initialFuerza = 2;
         public int initialSocial = 1;
 
-        public int baseProdDinero = 5;
+        public int baseProdDinero = 3;
         public int baseProdFuerza = 3;
         public int baseProdSocial = 2;
 

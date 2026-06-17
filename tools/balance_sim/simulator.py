@@ -216,12 +216,16 @@ POOL = {
 # PlayerState
 # ──────────────────────────────────────────────────────────────────────────────
 
-BASE_PROD = {ResourceType.DINERO: 5, ResourceType.FUERZA: 3, ResourceType.SOCIAL: 2}
+BASE_PROD = {ResourceType.DINERO: 3, ResourceType.FUERZA: 3, ResourceType.SOCIAL: 2}
 MAX_RESOURCE = 100
 HP_INITIAL = 100
 HAND_SIZE = 6
 MAX_SLOTS = 3
 MAX_STACK = 5
+
+# Victory thresholds (tunable via CLI for balancing)
+SOCIAL_THRESHOLD = 70
+ECON_THRESHOLD = 100
 
 
 class PlayerState:
@@ -291,16 +295,16 @@ class PlayerState:
 # ──────────────────────────────────────────────────────────────────────────────
 
 def check_victory(active: PlayerState, opp: PlayerState) -> Optional[Tuple[Faction, WinCondition]]:
-    """Priority: KO > Social ≥ 50 > Dinero ≥ 75. Returns (winner, condition) or None."""
+    """Priority: KO > Social ≥ SOCIAL_THRESHOLD > Dinero ≥ ECON_THRESHOLD. Returns (winner, condition) or None."""
     if opp.hp <= 0:
         return (active.faction, WinCondition.KO)
     if active.hp <= 0:
         return (opp.faction, WinCondition.KO)
     for player in (active, opp):
-        if player.social >= 70:
+        if player.social >= SOCIAL_THRESHOLD:
             return (player.faction, WinCondition.SOCIAL)
     for player in (active, opp):
-        if player.dinero >= 100:
+        if player.dinero >= ECON_THRESHOLD:
             return (player.faction, WinCondition.ECONOMICO)
     return None
 
@@ -613,10 +617,29 @@ if __name__ == "__main__":
                         help="AI for Policias (default: greedy)")
     parser.add_argument("--seed", type=int, default=None,
                         help="Random seed for reproducibility")
+    # Tunable balance knobs
+    parser.add_argument("--base-dinero", type=int, default=3, help="Base Dinero production/turn")
+    parser.add_argument("--base-fuerza", type=int, default=3, help="Base Fuerza production/turn")
+    parser.add_argument("--base-social", type=int, default=2, help="Base Social production/turn")
+    parser.add_argument("--max-resource", type=int, default=100, help="Resource cap")
+    parser.add_argument("--econ-threshold", type=int, default=100, help="Poder Económico threshold")
+    parser.add_argument("--social-threshold", type=int, default=70, help="Hegemonía Social threshold")
+    parser.add_argument("--sudden-death", type=int, default=40, help="Sudden death start (half-turn)")
+    parser.add_argument("--max-turns", type=int, default=100, help="Hard turn cap (half-turns)")
     args = parser.parse_args()
 
     if args.seed is not None:
         random.seed(args.seed)
+
+    # Apply tunable knobs to module globals
+    BASE_PROD[ResourceType.DINERO] = args.base_dinero
+    BASE_PROD[ResourceType.FUERZA] = args.base_fuerza
+    BASE_PROD[ResourceType.SOCIAL] = args.base_social
+    MAX_RESOURCE = args.max_resource
+    ECON_THRESHOLD = args.econ_threshold
+    SOCIAL_THRESHOLD = args.social_threshold
+    SUDDEN_DEATH_START = args.sudden_death
+    MAX_TURNS = args.max_turns
 
     ai1 = args.ai if args.ai else args.ai1
     ai2 = args.ai if args.ai else args.ai2

@@ -26,7 +26,7 @@ Cada jugador maneja 3 recursos independientes. Al inicio de cada turno **antes d
 
 | Recurso | Descripción | Producción inicial | Máximo |
 |---------|-------------|-------------------|--------|
-| **Dinero** ($) | Plata para movilizar gente y pagar logística | 5 / turno | 100 |
+| **Dinero** ($) | Plata para movilizar gente y pagar logística | 3 / turno | 100 |
 | **Fuerza** (⚡) | Capacidad física, represión o resistencia | 3 / turno | 100 |
 | **Social** (📣) | Apoyo popular, organización, narrativa | 2 / turno | 100 |
 
@@ -415,7 +415,9 @@ Se despliega en la zona de unidades. Su efecto es siempre pasivo — el `GameMan
 
 ## Balance verificable entre facciones
 
-> Valores validados con simulación de 10.000 partidas (AI greedy vs greedy). Win rate resultante: Manifestantes 49.4% — Policías 50.6% (gap ±1pp, rango EXCELLENT). KO al 81%, Hegemonía Social al 19%, Poder Económico requiere juego activo de acumulación.
+> Valores validados con simulación de 10.000 partidas (AI greedy vs greedy) con producción base de Dinero = 3 y cap de recursos = 100. Win rate resultante: Manifestantes 51.4% — Policías 48.6% (gap 2.8pp, rango EXCELLENT). Condiciones de victoria: KO 77%, Hegemonía Social 17.8%, Poder Económico 5.2% (viable pero raro). Ventaja del primer jugador: 52.3%.
+>
+> Nota de balance: la producción base de Dinero se bajó de 5 a 3. Con base 5 y umbral económico 100, Poder Económico se alcanzaba casi pasivamente y dominaba (~78% de las partidas), desbalanceando a favor de Manifestantes. Con base 3 la carrera económica queda por debajo del ritmo del KO, devolviéndole a Económico su rol de desenlace alternativo y raro.
 
 | Categoría | Manifestantes | Policías |
 |-----------|--------------|----------|

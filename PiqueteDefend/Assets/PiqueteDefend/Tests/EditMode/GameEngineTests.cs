@@ -60,13 +60,14 @@ namespace PiqueteDefend.Tests
         [Test]
         public void BeginTurn_AppliesBaseProduction()
         {
-            var e = NewEngine();
+            var cfg = new GameConfig();
+            var e = NewEngine(cfg);
             e.BeginTurn();
             var p0 = e.PlayerAt(0);
 
-            Assert.AreEqual(3 + 5, p0.dinero);
-            Assert.AreEqual(2 + 3, p0.fuerza);
-            Assert.AreEqual(1 + 2, p0.social);
+            Assert.AreEqual(cfg.initialDinero + cfg.baseProdDinero, p0.dinero);
+            Assert.AreEqual(cfg.initialFuerza + cfg.baseProdFuerza, p0.fuerza);
+            Assert.AreEqual(cfg.initialSocial + cfg.baseProdSocial, p0.social);
             Assert.AreEqual(1, e.HalfTurn);
             Assert.AreEqual(GamePhase.AwaitingAction, e.Phase);
         }
@@ -96,7 +97,7 @@ namespace PiqueteDefend.Tests
 
             Assert.AreEqual(ActionResult.Success, e.PlayCard(0));
 
-            Assert.AreEqual(8 + 6, p0.dinero);
+            Assert.AreEqual(6 + 6, p0.dinero);   // base dinero 3: 3+3=6, +6 colecta
             Assert.AreEqual(3 - 3, p0.social);
             Assert.AreEqual("piquetero", p0.hand[0].id);   // repuesta con pool[0]
             Assert.AreEqual(GamePhase.AwaitingTurnStart, e.Phase);  // turno pasó al oponente
@@ -127,7 +128,7 @@ namespace PiqueteDefend.Tests
             Assert.AreEqual(1, p1.activeStatuses.Count);
 
             e.BeginTurn();                       // player1: status dispara, producción omitida
-            Assert.AreEqual(3, p1.dinero);       // sigue en inicial, NO 3+5
+            Assert.AreEqual(3, p1.dinero);       // sigue en inicial, NO 3+3
             Assert.AreEqual(2, p1.fuerza);
             Assert.AreEqual(1, p1.social);
             Assert.IsEmpty(p1.activeStatuses);   // status consumido
@@ -137,7 +138,7 @@ namespace PiqueteDefend.Tests
         public void AsambleaPopular_DoublesOwnNextProduction()
         {
             var e = NewEngine();
-            e.BeginTurn();                       // player0: dinero 8
+            e.BeginTurn();                       // player0: dinero 6 (3+3)
             var p0 = e.PlayerAt(0);
             p0.social += 6;                      // alcanza para asamblea_popular (6 social)
             p0.hand[0] = Man("asamblea_popular");
@@ -147,7 +148,7 @@ namespace PiqueteDefend.Tests
             e.DiscardCard(0);
 
             e.BeginTurn();                       // player0: DoubleProduction dispara
-            Assert.AreEqual(8 + 5 * 2, p0.dinero);   // producción base duplicada
+            Assert.AreEqual(6 + 3 * 2, p0.dinero);   // producción base (3) duplicada
         }
 
         // ── Victoria ─────────────────────────────────────────────────────────────
