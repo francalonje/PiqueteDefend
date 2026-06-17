@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="root" class="screen screen--faction">
+        <Style src="Common.uss" />
+        <Style src="FactionSelect.uss" />
+        <ui:VisualElement class="faction__panel">
+            <ui:Label name="prompt" text="Jugador 1 — elegí tu facción" class="faction__prompt" />
+            <ui:VisualElement class="faction__options">
+                <ui:Button name="manifestantes-button" class="faction__card faction__card--manif">
+                    <ui:Label text="Manifestantes" class="faction__name" />
+                    <ui:Label text="Bombos, banderas y ollas populares" class="faction__desc" />
+                </ui:Button>
+                <ui:Button name="policias-button" class="faction__card faction__card--pol">
+                    <ui:Label text="Policías" class="faction__name" />
+                    <ui:Label text="Escudos, patrulleros y comunicados" class="faction__desc" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

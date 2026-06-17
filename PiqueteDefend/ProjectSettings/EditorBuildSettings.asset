@@ -6,7 +6,10 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/SampleScene.unity
-    guid: 99c9720ab356a0642a771bea13969a05
+    path: Assets/PiqueteDefend/Scenes/Main.unity
+    guid: 0d19d350f98b04a448a3a058e45ca7d3
+  - enabled: 1
+    path: Assets/PiqueteDefend/Scenes/FactionSelect.unity
+    guid: cf3a5061c45e35a46b193422855ab7cb
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

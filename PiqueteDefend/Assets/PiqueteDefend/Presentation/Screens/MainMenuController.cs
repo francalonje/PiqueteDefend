@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
 namespace PiqueteDefend.Presentation
@@ -39,8 +40,7 @@ namespace PiqueteDefend.Presentation
 
         private void OnPlay()
         {
-            // TODO Fase 4: navegar a selección de facción.
-            Debug.Log("[MainMenu] Jugar.");
+            SceneManager.LoadScene("FactionSelect");
         }
     }
 }

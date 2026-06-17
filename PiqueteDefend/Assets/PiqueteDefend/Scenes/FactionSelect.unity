@@ -210,7 +210,7 @@ GameObject:
   - component: {fileID: 1877092645}
   - component: {fileID: 1877092644}
   m_Layer: 0
-  m_Name: Main
+  m_Name: FactionSelect
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -225,9 +225,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1877092643}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5b273d4d60650174f8b6139e0ab696a3, type: 3}
+  m_Script: {fileID: 11500000, guid: 081705b56c0e2bd4a958d462027d3a3c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: PiqueteDefend.Presentation::PiqueteDefend.Presentation.MainMenuController
+  m_EditorClassIdentifier: PiqueteDefend.Presentation::PiqueteDefend.Presentation.FactionSelectController
 --- !u!114 &1877092645
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -242,7 +242,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
   m_PanelSettings: {fileID: 0}
   m_ParentUI: {fileID: 0}
-  sourceAsset: {fileID: 9197481963319205126, guid: d405d2b29ce0ae7488244f3b870531b2, type: 3}
+  sourceAsset: {fileID: 9197481963319205126, guid: 673f3f7afcd70e54eba132a953f01759, type: 3}
   m_SortingOrder: 0
   m_Position: 0
   m_WorldSpaceSizeMode: 1

@@ -1,0 +1,56 @@
+.faction__panel {
+    align-items: center;
+    justify-content: center;
+}
+
+.faction__prompt {
+    font-size: 34px;
+    color: rgb(235, 237, 242);
+    -unity-font-style: bold;
+    margin-bottom: 40px;
+}
+
+.faction__options {
+    flex-direction: row;
+    align-items: stretch;
+}
+
+.faction__card {
+    width: 280px;
+    height: 220px;
+    margin: 0 16px;
+    border-radius: 12px;
+    border-width: 3px;
+    border-color: rgba(255, 255, 255, 0.08);
+    align-items: center;
+    justify-content: center;
+    transition-duration: 0.1s;
+}
+
+.faction__card:hover {
+    border-color: rgb(235, 237, 242);
+    scale: 1.03 1.03;
+}
+
+.faction__card--manif {
+    background-color: rgb(176, 58, 46);
+}
+
+.faction__card--pol {
+    background-color: rgb(40, 72, 120);
+}
+
+.faction__name {
+    font-size: 30px;
+    color: rgb(245, 246, 250);
+    -unity-font-style: bold;
+    margin-bottom: 10px;
+}
+
+.faction__desc {
+    font-size: 15px;
+    color: rgba(245, 246, 250, 0.85);
+    white-space: normal;
+    -unity-text-align: middle-center;
+    max-width: 220px;
+}

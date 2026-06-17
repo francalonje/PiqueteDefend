@@ -26,8 +26,20 @@ namespace PiqueteDefend.EditorTools
         [MenuItem("PiqueteDefend/Setup UI Scenes")]
         public static void SetupAll()
         {
-            PanelSettings panel = GetOrCreatePanelSettings();
-            BuildMainMenuScene(panel);
+            GetOrCreatePanelSettings();
+
+            if (!AssetDatabase.IsValidFolder(ScenesDir))
+                AssetDatabase.CreateFolder("Assets/PiqueteDefend", "Scenes");
+
+            BuildScene("Main", "MainMenu", typeof(MainMenuController));
+            BuildScene("FactionSelect", "FactionSelect", typeof(FactionSelectController));
+
+            EditorBuildSettings.scenes = new[]
+            {
+                new EditorBuildSettingsScene(ScenesDir + "/Main.unity", true),
+                new EditorBuildSettingsScene(ScenesDir + "/FactionSelect.unity", true),
+            };
+
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("[SceneSetup] Listo.");
@@ -56,11 +68,13 @@ namespace PiqueteDefend.EditorTools
             return panel;
         }
 
-        private static void BuildMainMenuScene(PanelSettings panel)
+        /// <summary>
+        /// Construye una escena de pantalla: cámara + UIDocument (con el UXML dado) + el controller
+        /// indicado + EventSystem. El PanelSettings NO se setea acá (no persiste de forma fiable);
+        /// cada controller lo carga en runtime desde Resources.
+        /// </summary>
+        private static void BuildScene(string sceneName, string uxmlName, System.Type controllerType)
         {
-            if (!AssetDatabase.IsValidFolder(ScenesDir))
-                AssetDatabase.CreateFolder("Assets/PiqueteDefend", "Scenes");
-
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             // Cámara (fondo sólido; evita el aviso "No cameras rendering")
@@ -71,18 +85,16 @@ namespace PiqueteDefend.EditorTools
             camGo.AddComponent<AudioListener>();
             camGo.tag = "MainCamera";
 
-            // GameObject con UIDocument (renderiza el UXML del menú)
-            var uiGo = new GameObject("MainMenu");
+            // GameObject con UIDocument + controller
+            var uiGo = new GameObject(sceneName);
             var doc = uiGo.AddComponent<UIDocument>();
-            var uxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(UiDir + "/MainMenu.uxml");
+            var uxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>($"{UiDir}/{uxmlName}.uxml");
 
-            // Asignar por SerializedObject: la propiedad pública no siempre se serializa al guardar.
             var so = new SerializedObject(doc);
-            so.FindProperty("m_PanelSettings").objectReferenceValue = panel;
             so.FindProperty("sourceAsset").objectReferenceValue = uxml;
             so.ApplyModifiedPropertiesWithoutUndo();
 
-            uiGo.AddComponent<MainMenuController>();
+            uiGo.AddComponent(controllerType);
 
             // EventSystem (Input System) para que la UI reciba clicks en runtime
             var esGo = new GameObject("EventSystem");
@@ -91,7 +103,7 @@ namespace PiqueteDefend.EditorTools
 
             EditorUtility.SetDirty(doc);
             EditorSceneManager.MarkSceneDirty(scene);
-            EditorSceneManager.SaveScene(scene, ScenesDir + "/Main.unity");
+            EditorSceneManager.SaveScene(scene, $"{ScenesDir}/{sceneName}.unity");
         }
     }
 }
