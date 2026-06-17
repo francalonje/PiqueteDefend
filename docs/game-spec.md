@@ -39,9 +39,10 @@ Cada jugador maneja 3 recursos independientes. Al inicio de cada turno **antes d
 Cada jugador tiene:
 
 - **HP (Health Points):** 100 puntos al inicio. Llegar a 0 = derrota.
-- **Dinero, Fuerza, Social:** recursos actuales + producción por turno.
-- **Mano:** X cartas visibles en pantalla en todo momento (cantidad fija, a definir).
-- **Zona de unidades:** slots para unidades pasivas activas, cada una con un contador de cantidad.
+- **Recursos:** Dinero, Fuerza, Social — valor actual + producción base por turno.
+- **Mano:** 6 cartas siempre visibles.
+- **Zona de unidades:** 3 slots, cada uno con tipo de unidad y contador (x1–x5).
+- **activeEffects:** `List<PlayerEffect>` — efectos activos sobre este jugador (buffs y debuffs temporales). Procesados al inicio de cada turno antes de la producción.
 
 ---
 
@@ -72,101 +73,157 @@ Los recursos nunca bajan de **0**. El exceso de reducción se descarta. Este com
 ## 6. Estructura de un turno
 
 ```
-1. PRODUCCIÓN   — El jugador activo recibe:
-                    a) Producción base de sus recursos
-                    b) Producción de unidades pasivas activas
-                    c) Daño de unidades atacantes enemigas (tras absorción de escudos)
-                  → Se evalúan condiciones de victoria aquí (ver §5)
+1. EFECTOS      — Procesar activeEffects del jugador activo:
+                    → Aplicar cada efecto con turnsRemaining > 0
+                    → Decrementar turnsRemaining de cada efecto
+                    → Eliminar efectos con turnsRemaining == 0
 
-2. ACCIÓN       — El jugador ELIGE una de dos opciones:
-                    a) Jugar 1 carta (pagar su costo y aplicar su efecto)
-                    b) Descartar 1 carta (sin costo, sin efecto)
+2. PRODUCCIÓN   — Si no hay efecto SkipProduction activo:
+                    a) Producción base de recursos (× 2 si hay DoubleProduction activo)
+                    b) Producción de unidades Productoras activas
+                    c) Daño neto de unidades enemigas (ver fórmula abajo)
+                  → Evaluar condiciones de victoria (ver §5)
 
-3. FIN DE TURNO — Pasa el turno al oponente
+3. ACCIÓN       — El jugador ELIGE una de dos opciones:
+                    a) Jugar 1 carta: pagar costo → aplicar cada PlayerEffect de la carta
+                    b) Descartar 1 carta: sin costo, sin efecto
+
+4. FIN DE TURNO — Pasa el turno al oponente
 ```
 
-> No hay robo de cartas. Las cartas son **siempre visibles** en pantalla. La mano es fija.
+> No hay robo de cartas. La mano es fija y siempre visible.
 
-### Resolución de daño en producción
-
-El daño de unidades atacantes enemigas se resuelve así cada turno:
+### Resolución de daño (paso 2c)
 
 ```
-daño_total = suma(unidades_atacantes_enemigas × valor_por_unidad)
-absorción   = suma(unidades_defensivas_propias × valor_por_unidad)   ← se aplica primero
-daño_neto   = max(0, daño_total - absorción)
-HP_propio  -= daño_neto
+daño_total = suma(contador × 1) de todas las unidades Atacantes enemigas
+absorción  = suma(contador × 1) de todas las unidades Defensivas propias  ← primero
+daño_neto  = max(0, daño_total - absorción)
+HP_propio -= daño_neto
 ```
 
 ---
 
-## 7. Implementación técnica de cartas (Unity)
+## 7. Arquitectura técnica (Unity)
 
-Las cartas se implementan como **ScriptableObjects** (`CardData`). Cada carta es un asset independiente con los siguientes campos:
+### 7.1 PlayerEffect (clase serializable)
+
+Unidad mínima de efecto. Toda acción del juego que modifica el estado de un jugador se modela como uno o más `PlayerEffect`.
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `effectType` | EffectType | Qué hace el efecto |
+| `resourceTarget` | ResourceType | Recurso afectado (solo para efectos de recurso) |
+| `value` | int | Magnitud del efecto |
+| `turnsRemaining` | int | Turnos que dura. `1` = se aplica este turno y expira. `0` = ya expiró |
+
+**EffectType (enum)**
+
+| Valor | Descripción |
+|-------|-------------|
+| `DamageOpponent` | Inflige daño directo al HP del oponente |
+| `HealSelf` | Recupera HP propio |
+| `GainResource` | Suma recursos al jugador que lo tiene |
+| `DrainOpponentResource` | Resta recursos al oponente |
+| `RemoveOpponentUnit` | -1 al contador de una unidad enemiga (requiere selección de slot) |
+| `SkipOpponentProduction` | El oponente no recibe producción en su próximo turno |
+| `DoubleOwnProduction` | El jugador recibe producción x2 en su próximo turno |
+
+> Agregar un nuevo tipo de efecto al juego = agregar un valor al enum + su lógica de resolución en `GameManager`. Las cartas no necesitan cambios.
+
+**ResourceType (enum):** `Dinero` / `Fuerza` / `Social`
+
+---
+
+### 7.2 CardData (ScriptableObject)
+
+Cada carta es un asset independiente. Una carta puede aplicar **múltiples efectos**.
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
 | `id` | string | Identificador único |
 | `cardName` | string | Nombre visible |
-| `faction` | enum | Manifestantes / Policías |
-| `cardType` | enum | Accion / Unidad |
-| `subtype` | enum | Ataque / Defensa / Sabotaje / Boost / Productora / Atacante / Defensiva |
+| `faction` | Faction | Manifestantes / Policías |
+| `cardType` | CardType | Accion / Unidad |
+| `unitSubtype` | UnitSubtype | Atacante / Defensiva / Productora (solo si cardType == Unidad) |
+| `productionResource` | ResourceType | Recurso que produce (solo si unitSubtype == Productora) |
 | `costDinero` | int | Costo en $ |
 | `costFuerza` | int | Costo en ⚡ |
 | `costSocial` | int | Costo en 📣 |
-| `effectValue` | int | Valor del efecto para acciones (daño directo, HP ganado, recursos ganados/robados). Para unidades siempre es 1 (ver §9) |
-| `effectResource` | enum | Recurso afectado: Dinero / Fuerza / Social / HP / Unidad (para Productora / Boost / Sabotaje) |
+| `effects` | List\<PlayerEffect\> | Efectos que aplica la carta al jugarse |
 | `sprite` | Sprite | Imagen de la carta |
-| `descriptionText` | string | Texto de efecto visible en la carta |
+| `descriptionText` | string | Texto visible en la carta |
 
-El pool de cada facción es una lista de referencias a estos assets. El sistema de reemplazo toma una carta aleatoria del pool al jugar o descartar.
-
----
-
-## 8. Sistema de cartas (sin mazo)
-
-- No existe un mazo ni descarte.
-- Cada jugador tiene **X cartas** permanentemente visibles en pantalla (cantidad a definir, ej: 6).
-- Al jugar o descartar una carta, esa carta se **reemplaza automáticamente** por una nueva del pool disponible de la facción.
-- El pool de cartas es el set completo de la facción — puede repetirse.
+> Las cartas de **Unidad** no usan `effects` — su efecto es pasivo y lo maneja `GameManager` por el tipo y contador del slot. Las cartas de **Acción** usan `effects` para aplicar sus consecuencias.
 
 ---
 
-## 8. Tipos de carta
+### 7.3 UnitSlot (clase serializable)
 
-### 8.1 Acción (un solo uso)
-Se juega, produce su efecto inmediatamente y se reemplaza por una carta nueva.
+Representa un slot ocupado en la zona de unidades de un jugador.
 
-| Subtipo | Efecto |
-|---------|--------|
-| **Ataque** | Daña los HP del oponente |
-| **Defensa** | Suma HP propios |
-| **Sabotaje** | Reduce recursos o unidades del oponente |
-| **Boost** | Aumenta recursos propios este turno |
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `unitData` | CardData | Referencia a la carta de unidad |
+| `count` | int | Contador actual (1–5) |
 
-### 8.2 Unidad (persistente y pasiva)
-Se despliega en la zona de unidades. Es **siempre pasiva** — actúa automáticamente cada turno sin intervención del jugador.
+---
 
-**Las unidades funcionan con contadores de cantidad, no con HP individuales:**
+### 7.4 PlayerState (clase)
 
-- Cada tipo de unidad ocupa un slot con un contador (ej: `Piquetero x3`).
-- Cada carta de despliegue suma **+1** al contador de esa unidad (máximo x5).
-- Cartas de sabotaje enemigo restan **-1** al contador de una unidad elegida por el atacante.
-- Si el contador llega a **0**, la unidad desaparece y libera el slot.
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `hp` | int | HP actual |
+| `dinero` | int | Dinero actual |
+| `fuerza` | int | Fuerza actual |
+| `social` | int | Social actual |
+| `hand` | List\<CardData\> | Cartas en mano (siempre 6) |
+| `unitSlots` | List\<UnitSlot\> | Slots de unidades activas (máx. 3) |
+| `activeEffects` | List\<PlayerEffect\> | Efectos temporales activos |
+| `faction` | Faction | Facción del jugador |
 
-**El efecto de cada unidad es siempre de valor 1 por instancia en el contador:**
+---
 
-| Subtipo | Efecto pasivo por turno |
-|---------|------------------------|
-| **Defensiva** | Resta **-1 de daño entrante** por instancia. Con x3 → absorbe 3 de daño total antes de que llegue al HP |
-| **Atacante** | Suma **+1 de daño saliente** por instancia. Con x3 → inflige 3 de daño extra al oponente por turno |
-| **Productora** | Genera **+1 del recurso definido** por instancia. Con x3 → produce +3 de ese recurso por turno |
+### 7.5 GameManager — flujo de resolución
 
-> Ejemplo de resolución: oponente tiene `Patrullero x4` (4 daño). Yo tengo `Escudo Humano x2` (absorbe 2). Daño neto = 4 - 2 = **2 de daño a mi HP**.
+Único responsable de aplicar efectos y transiciones de turno. Procesa `activeEffects` antes de la producción, garantizando que cualquier nuevo `EffectType` se integre en un solo lugar.
 
-**Slots llenos (3/3 ocupados):** si el jugador quiere desplegar una unidad nueva, debe elegir entre:
-- **Reemplazar** un slot existente (el slot se vacía y se ocupa con la nueva unidad en x1)
-- **Cancelar** la jugada (la carta permanece en mano, no se gastan recursos)
+El pool de cartas de cada facción es una `List<CardData>` filtrada por `faction`. Al jugar o descartar, se reemplaza la carta por una aleatoria del pool.
+
+---
+
+## 8. Sistema de cartas
+
+### 8.1 Pool y mano
+
+- No existe mazo ni descarte.
+- Cada jugador tiene **6 cartas** siempre visibles en pantalla.
+- Al jugar o descartar una carta, se reemplaza automáticamente por una aleatoria del pool de la facción.
+- El pool puede repetir cartas.
+
+### 8.2 Acción (un solo uso)
+
+Se juega, se aplican todos sus `PlayerEffect` en orden, y se reemplaza por una carta nueva.
+
+Los subtipos (Ataque, Defensa, Sabotaje, Boost, EfectoEspecial) son solo una categoría visual/temática — la lógica real la define la lista `effects` de la carta.
+
+### 8.3 Unidad (persistente y pasiva)
+
+Se despliega en la zona de unidades. Su efecto es siempre pasivo — el `GameManager` lo resuelve automáticamente cada turno según el `unitSubtype` y el `count` del slot.
+
+- Cada despliegue suma **+1** al contador del slot correspondiente (máximo x5).
+- El efecto de sabotaje `RemoveOpponentUnit` resta **-1** al contador de un slot elegido por el atacante.
+- Si el contador llega a **0**, el slot se libera.
+
+| UnitSubtype | Efecto pasivo por turno |
+|-------------|------------------------|
+| `Atacante` | +1 daño al oponente por instancia en el contador |
+| `Defensiva` | -1 daño entrante por instancia en el contador |
+| `Productora` | +1 del recurso definido en `productionResource` por instancia |
+
+> Ejemplo: oponente tiene `Patrullero x4` → 4 daño. Yo tengo `Escudo Humano x2` → absorbe 2. Daño neto = **2 HP**.
+
+**Slots llenos (3/3):** el jugador elige entre reemplazar un slot existente (queda en x1 con la nueva unidad) o cancelar la jugada sin gastar recursos.
 
 ---
 
@@ -282,27 +339,26 @@ Tras iniciar, cada jugador elige su facción: **Manifestantes** o **Policías**.
 
 ### 11.3 Pantalla de juego
 
-Pantalla única sin divisiones. Ambos jugadores están enfrentados horizontalmente: uno a la izquierda y otro a la derecha. El campo de batalla es el espacio central compartido.
+Pantalla única sin divisiones. Jugadores enfrentados horizontalmente. Torres en el centro. Stats y slots siempre visibles para ambos. La mano y botones pertenecen solo al jugador activo — al cambiar el turno, la mano anterior desaparece y aparece la del nuevo jugador activo en su lado.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                                                                        │
-│  HP: 100                    [TURNO: MANIFESTANTES]              HP: 100│
-│  $: 5  ⚡: 3  📣: 2                                    $: 5  ⚡: 3  📣: 2│
+│  MANIFESTANTES                [TURNO: MANIFESTANTES]         POLICÍAS  │
+│  HP: 85  $: 9  ⚡: 6  📣: 14    [efectos activos]   HP: 100  $:12 ⚡:8 │
 │                                                                        │
 │  [Slot 1]                                                   [Slot 1]  │
 │  [Slot 2]          [TORRE]              [TORRE]             [Slot 2]  │
 │  [Slot 3]                                                   [Slot 3]  │
 │                                                                        │
-│  [c1][c2][c3]                                          [c1][c2][c3]   │
-│  [c4][c5][c6]  [JUGAR] [DESCARTAR]  [JUGAR] [DESCARTAR][c4][c5][c6]  │
+│  [c1]  [c2]  [c3]  [c4]  [c5]  [c6]                                  │
+│                         [JUGAR]  [DESCARTAR]                          │
 └────────────────────────────────────────────────────────────────────────┘
-  ◄── MANIFESTANTES                                      POLICÍAS ──►
+  ◄── jugador activo (mano visible)
 ```
 
-**Privacidad de mano:** información abierta — ambos jugadores ven todas las cartas en todo momento.
+**Efectos activos:** cada jugador muestra un indicador visual si tiene `activeEffects` vigentes (ej: ícono de producción bloqueada, ícono de producción doble).
 
-**Indicador de turno:** banner central que indica qué facción está jugando. Los botones de acción del jugador inactivo se deshabilitan durante el turno del oponente.
+**Indicador de turno:** banner central con el nombre de la facción activa.
 
 ### 11.4 Input
 
