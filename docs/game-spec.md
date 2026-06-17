@@ -56,21 +56,62 @@ Un jugador gana si ocurre **cualquiera** de estas condiciones:
 | **Hegemonía Social** | Acumular 50 puntos de Social |
 | **Poder Económico** | Acumular 75 puntos de Dinero |
 
-No hay empate ni límite de turnos.
+No hay empate. Existe un límite de turnos como salvavidas (ver §5.1).
 
-### Orden de prioridad de victoria (evaluado al inicio de cada turno, en orden):
+### Orden de prioridad de victoria (en orden):
 1. **KO** — si el HP del oponente llega a 0, gana quien causó el daño (prioridad máxima)
 2. **Hegemonía Social** — acumular ≥ 50 📣
 3. **Poder Económico** — acumular ≥ 75 $
 
 Si KO y una condición de recurso se cumplen simultáneamente, gana por KO.
 
+### Momentos de evaluación
+Las condiciones se chequean en **dos momentos**, para que una victoria por recurso alcanzada en el propio turno no pueda ser revertida por el oponente antes de contar:
+
+1. **Al inicio del turno**, tras la fase de producción (cubre KO por unidades atacantes y recursos generados pasivamente).
+2. **Inmediatamente después de resolver los efectos de una carta jugada** (cubre boost de recursos y daño directo que cruzan el umbral en el acto).
+
+Si una condición se cumple en cualquiera de los dos momentos, la partida termina de inmediato.
+
 ### Recursos negativos
 Los recursos nunca bajan de **0**. El exceso de reducción se descarta. Este comportamiento es configurable a futuro por balanceo.
+
+### 5.1 Terminación garantizada (anti-stalemate)
+
+Como la partida no tiene mazo que se agote y los recursos tienen piso 0, dos jugadores pasivos podrían loopear infinito. Hay dos salvavidas, ambos con parámetros configurables:
+
+**Muerte súbita (mecanismo principal):**
+- A partir del turno `suddenDeathStart` (default: **40**), al final de cada turno ambos jugadores reciben daño incremental.
+- El daño escala: turno 40 → 1, turno 41 → 2, turno 42 → 3, … Garantiza un KO mucho antes del límite duro.
+- Este daño ignora la absorción de unidades defensivas (es inevitable).
+
+**Límite de turnos (backstop duro):**
+- `maxTurns` (default: **100**). Si se alcanza sin un ganador, la partida termina por desempate determinista:
+  1. Mayor HP gana.
+  2. Si empatan en HP → mayor suma de recursos (Dinero + Fuerza + Social).
+  3. Si aún empatan → gana el jugador que **no** fue primero (compensa la ventaja de iniciativa).
+
+> Con muerte súbita activa el límite de 100 prácticamente nunca se alcanza; queda solo como red de seguridad.
 
 ---
 
 ## 6. Estructura de un turno
+
+### Inicio de partida (setup)
+
+1. Cada jugador elige su facción (§11.2).
+2. Estado inicial de cada `PlayerState`:
+   - **HP:** 100
+   - **Recursos iniciales:** Dinero 3, Fuerza 2, Social 1 (suficiente para jugar una carta barata en el primer turno, incluso antes de la producción).
+   - **Unidades:** 0 slots ocupados.
+   - **activeStatuses:** vacío.
+   - **Mano:** 6 cartas aleatorias del pool de su facción.
+3. **Coinflip** determina qué jugador juega primero (a futuro: animación o pantalla de sorteo).
+4. Comienza el turno 1 con el jugador elegido.
+
+> Nota de balance a validar: el jugador que va primero tiene una ventaja de iniciativa. El desempate del límite de turnos la compensa parcialmente (§5.1). Verificar magnitud con la simulación.
+
+### Loop de turno
 
 ```
 1. EFECTOS      — Procesar activeStatuses del jugador activo:
@@ -88,9 +129,14 @@ Los recursos nunca bajan de **0**. El exceso de reducción se descarta. Este com
 
 3. ACCIÓN       — El jugador ELIGE una de dos opciones:
                     a) Jugar 1 carta: pagar costo → resolver cada CardEffect en orden
+                       → Evaluar condiciones de victoria (ver §5)
                     b) Descartar 1 carta: sin costo, sin efecto
+                  → Reponer la mano a 6 con una carta aleatoria del pool
 
-4. FIN DE TURNO — Pasa el turno al oponente
+4. FIN DE TURNO — Si turno ≥ suddenDeathStart: aplicar daño incremental de
+                  muerte súbita a ambos jugadores (ignora defensas, ver §5.1)
+                  → Evaluar condiciones de victoria
+                  → Pasa el turno al oponente (o termina si turno == maxTurns)
 ```
 
 > No hay robo de cartas. La mano es fija y siempre visible.
@@ -202,6 +248,7 @@ Cada carta es un asset independiente. Una carta de acción puede aplicar **múlt
 | `cardName` | string | Nombre visible |
 | `faction` | Faction | Manifestantes / Policías |
 | `cardType` | CardType | Accion / Unidad |
+| `actionCategory` | ActionCategory | Ataque / Defensa / Sabotaje / Boost / EfectoEspecial (solo si cardType == Accion). Categoría visual/temática para UI; no afecta la lógica |
 | `unitSubtype` | UnitSubtype | Atacante / Defensiva / Productora (solo si cardType == Unidad) |
 | `productionResource` | ResourceType | Recurso que produce (solo si unitSubtype == Productora) |
 | `costDinero` | int | Costo en $ |
@@ -212,6 +259,8 @@ Cada carta es un asset independiente. Una carta de acción puede aplicar **múlt
 | `descriptionText` | string | Texto visible en la carta |
 
 > Las cartas de **Unidad** dejan `effects` vacío — su efecto es pasivo y lo maneja `GameManager` por el `unitSubtype` y el contador del slot. Las cartas de **Acción** usan `effects`.
+
+**ActionCategory (enum):** `Ataque` / `Defensa` / `Sabotaje` / `Boost` / `EfectoEspecial`. Solo organiza la presentación (color, ícono, agrupación). La lógica real siempre la define la lista `effects`.
 
 ---
 
@@ -451,6 +500,12 @@ Overlay sobre la pantalla de juego con:
 | Slots de unidades por jugador | 3 |
 | Unidades apilables | Sí — hasta x5 por slot |
 | Slots fijos por tipo | No — cualquier unidad ocupa cualquier slot libre |
+| HP inicial | 100 |
+| Recursos iniciales | Dinero 3, Fuerza 2, Social 1 |
+| Producción base por turno | Dinero 5, Fuerza 3, Social 2 |
+| Primer jugador | Coinflip aleatorio |
+| `suddenDeathStart` | Turno 40 (configurable) |
+| `maxTurns` | 100 (configurable) |
 
 ---
 
