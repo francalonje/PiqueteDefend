@@ -44,6 +44,7 @@ namespace PiqueteDefend.Presentation
             if (root == null) return;
 
             CacheRefs(root);
+            ApplyBackground(root);
 
             var catalog = Resources.Load<CardCatalog>(CatalogResource);
             if (catalog == null)
@@ -58,6 +59,7 @@ namespace PiqueteDefend.Presentation
             _playButton.clicked += OnPlay;
             _discardButton.clicked += OnDiscard;
 
+            AudioManager.Instance?.PlayMusic(AudioId.MusicGame);
             BeginActiveTurn();
         }
 
@@ -83,6 +85,23 @@ namespace PiqueteDefend.Presentation
             _status[0] = root.Q<Label>("p0-status"); _status[1] = root.Q<Label>("p1-status");
         }
 
+        private static void ApplyBackground(VisualElement root)
+        {
+            SetBackground(root.Q<VisualElement>("bg-left"), "bg-left");
+            SetBackground(root.Q<VisualElement>("bg-right"), "bg-right");
+        }
+
+        private static void SetBackground(VisualElement element, string resourceName)
+        {
+            if (element == null) return;
+
+            var texture = Resources.Load<Texture2D>(resourceName);
+            if (texture != null) { element.style.backgroundImage = new StyleBackground(texture); return; }
+
+            var sprite = Resources.Load<Sprite>(resourceName);
+            if (sprite != null) element.style.backgroundImage = new StyleBackground(sprite);
+        }
+
         // ── Flujo de turno ────────────────────────────────────────────────────
 
         private void BeginActiveTurn()
@@ -97,6 +116,8 @@ namespace PiqueteDefend.Presentation
 
         private void OnPlay()
         {
+            AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+
             if (_mode == Mode.TargetRemove || _mode == Mode.TargetSlotReplace)
             {
                 CancelTargeting();
@@ -113,6 +134,8 @@ namespace PiqueteDefend.Presentation
 
         private void OnDiscard()
         {
+            AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+
             if (_mode == Mode.TargetRemove || _mode == Mode.TargetSlotReplace) { CancelTargeting(); return; }
             if (_mode != Mode.Acting || _selectedCard < 0) return;
             Resolve(_engine.DiscardCard(_selectedCard));
@@ -250,6 +273,7 @@ namespace PiqueteDefend.Presentation
         private void SelectCard(int index)
         {
             if (_mode != Mode.Acting) return;
+            AudioManager.Instance?.PlaySfx(AudioId.CardClick);
             _selectedCard = index;
             RenderHand();
             UpdateActionButtons();
@@ -282,13 +306,21 @@ namespace PiqueteDefend.Presentation
             _overlayMsg.text = msg;
 
             _overlayPrimary.text = primary;
-            _overlayPrimary.clickable = new Clickable(() => onPrimary?.Invoke());
+            _overlayPrimary.clickable = new Clickable(() =>
+            {
+                AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+                onPrimary?.Invoke();
+            });
 
             if (secondary != null)
             {
                 _overlaySecondary.style.display = DisplayStyle.Flex;
                 _overlaySecondary.text = secondary;
-                _overlaySecondary.clickable = new Clickable(() => onSecondary?.Invoke());
+                _overlaySecondary.clickable = new Clickable(() =>
+                {
+                    AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+                    onSecondary?.Invoke();
+                });
             }
             else
             {

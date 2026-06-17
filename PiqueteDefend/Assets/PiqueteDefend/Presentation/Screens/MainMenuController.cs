@@ -31,6 +31,8 @@ namespace PiqueteDefend.Presentation
             // v1: sin Ajustes ni Créditos
             SetDisabled(root.Q<Button>("settings-button"));
             SetDisabled(root.Q<Button>("credits-button"));
+
+            AudioManager.Instance?.PlayMusic(AudioId.MusicLobby);
         }
 
         private static void SetDisabled(Button button)
@@ -40,6 +42,7 @@ namespace PiqueteDefend.Presentation
 
         private void OnPlay()
         {
+            AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
             SceneManager.LoadScene("FactionSelect");
         }
     }

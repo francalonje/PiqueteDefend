@@ -1,6 +1,22 @@
 .screen--game {
     justify-content: flex-start;
-    padding: 16px;
+    padding: 20px;
+}
+
+/* ── Fondo partido (izquierda / derecha) ──────────────────────────────── */
+.game__bg {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    flex-direction: row;
+}
+
+.game__bg-half {
+    flex-grow: 1;
+    height: 100%;
+    -unity-background-scale-mode: stretch-to-fill;
 }
 
 /* ── Top: stats ───────────────────────────────────────────────────────── */
@@ -13,7 +29,7 @@
 
 .pstats {
     width: 30%;
-    padding: 12px;
+    padding: 16px;
     border-radius: 10px;
     background-color: rgb(34, 37, 46);
 }
@@ -23,38 +39,38 @@
 }
 
 .pstats__faction {
-    font-size: 22px;
+    font-size: 30px;
     -unity-font-style: bold;
     color: rgb(235, 237, 242);
 }
 
 .pstats__hp {
-    font-size: 20px;
+    font-size: 28px;
     color: rgb(232, 108, 70);
-    margin-top: 4px;
+    margin-top: 6px;
 }
 
 .pstats__res {
-    font-size: 17px;
+    font-size: 23px;
     color: rgb(200, 205, 215);
-    margin-top: 2px;
+    margin-top: 4px;
 }
 
 .pstats__status {
-    font-size: 14px;
+    font-size: 19px;
     color: rgb(150, 200, 150);
-    margin-top: 4px;
+    margin-top: 6px;
     white-space: normal;
 }
 
 .game__banner {
     align-items: center;
     justify-content: center;
-    padding-top: 10px;
+    padding-top: 12px;
 }
 
 .game__turn {
-    font-size: 22px;
+    font-size: 32px;
     -unity-font-style: bold;
     color: rgb(245, 246, 250);
 }
@@ -65,7 +81,7 @@
     justify-content: space-between;
     width: 100%;
     flex-grow: 1;
-    margin-top: 12px;
+    margin-top: 16px;
 }
 
 .slots {
@@ -77,15 +93,15 @@
 }
 
 .slot {
-    height: 56px;
-    margin: 4px 0;
-    padding: 8px 12px;
+    height: 72px;
+    margin: 6px 0;
+    padding: 10px 16px;
     border-radius: 8px;
     border-width: 2px;
     border-color: rgba(255, 255, 255, 0.06);
     background-color: rgb(44, 48, 60);
     justify-content: center;
-    min-width: 200px;
+    min-width: 250px;
 }
 
 .slot--empty {
@@ -102,13 +118,13 @@
 }
 
 .slot__name {
-    font-size: 15px;
+    font-size: 20px;
     color: rgb(235, 237, 242);
     -unity-font-style: bold;
 }
 
 .slot__meta {
-    font-size: 13px;
+    font-size: 17px;
     color: rgb(170, 176, 188);
 }
 
@@ -118,24 +134,24 @@
 
 /* ── Hand ─────────────────────────────────────────────────────────────── */
 .game__hint {
-    font-size: 15px;
+    font-size: 20px;
     color: rgb(220, 200, 120);
     -unity-text-align: middle-center;
-    height: 20px;
-    margin-bottom: 4px;
+    height: 26px;
+    margin-bottom: 6px;
 }
 
 .hand {
     flex-direction: row;
     justify-content: center;
-    margin-top: 8px;
+    margin-top: 10px;
 }
 
 .card {
-    width: 130px;
-    height: 170px;
-    margin: 0 5px;
-    padding: 8px;
+    width: 165px;
+    height: 215px;
+    margin: 0 6px;
+    padding: 12px;
     border-radius: 8px;
     border-width: 2px;
     border-color: rgba(255, 255, 255, 0.08);
@@ -159,34 +175,36 @@
 }
 
 .card__name {
-    font-size: 15px;
+    font-size: 19px;
     -unity-font-style: bold;
     color: rgb(240, 242, 247);
     white-space: normal;
 }
 
 .card__cost {
-    font-size: 14px;
+    font-size: 18px;
     color: rgb(220, 200, 120);
-    margin-top: 4px;
+    margin-top: 6px;
 }
 
 .card__body {
-    font-size: 12px;
+    font-size: 15px;
     color: rgb(190, 196, 208);
     white-space: normal;
-    margin-top: 6px;
+    margin-top: 8px;
 }
 
 .game__actions {
     flex-direction: row;
     justify-content: center;
-    margin-top: 10px;
+    margin-top: 14px;
 }
 
 .game__actions .btn {
-    min-width: 150px;
-    margin: 0 8px;
+    min-width: 180px;
+    height: 60px;
+    font-size: 24px;
+    margin: 0 10px;
 }
 
 /* ── Overlay ──────────────────────────────────────────────────────────── */
@@ -205,18 +223,18 @@
 .overlay__panel {
     align-items: center;
     justify-content: center;
-    padding: 32px;
+    padding: 40px;
 }
 
 .overlay__title {
-    font-size: 40px;
+    font-size: 52px;
     -unity-font-style: bold;
     color: rgb(245, 246, 250);
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .overlay__msg {
-    font-size: 20px;
+    font-size: 26px;
     color: rgb(190, 196, 208);
-    margin-bottom: 28px;
+    margin-bottom: 32px;
 }

@@ -26,6 +26,8 @@ namespace PiqueteDefend.Presentation
             VisualElement root = doc.rootVisualElement;
             if (root == null) return;
 
+            AudioManager.Instance?.PlayMusic(AudioId.MusicLobby);
+
             _step = 0;
             _prompt = root.Q<Label>("prompt");
 
@@ -37,6 +39,8 @@ namespace PiqueteDefend.Presentation
 
         private void Pick(Faction faction)
         {
+            AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+
             if (_step == 0)
             {
                 MatchConfig.Player0 = faction;
