@@ -57,23 +57,73 @@ Un jugador gana si ocurre **cualquiera** de estas condiciones:
 
 No hay empate ni límite de turnos.
 
+### Orden de prioridad de victoria (evaluado al inicio de cada turno, en orden):
+1. **KO** — si el HP del oponente llega a 0, gana quien causó el daño (prioridad máxima)
+2. **Hegemonía Social** — acumular ≥ 50 📣
+3. **Poder Económico** — acumular ≥ 75 $
+
+Si KO y una condición de recurso se cumplen simultáneamente, gana por KO.
+
+### Recursos negativos
+Los recursos nunca bajan de **0**. El exceso de reducción se descarta. Este comportamiento es configurable a futuro por balanceo.
+
 ---
 
 ## 6. Estructura de un turno
 
 ```
-1. PRODUCCIÓN   — El jugador activo recibe recursos de producción + de unidades activas
+1. PRODUCCIÓN   — El jugador activo recibe:
+                    a) Producción base de sus recursos
+                    b) Producción de unidades pasivas activas
+                    c) Daño de unidades atacantes enemigas (tras absorción de escudos)
+                  → Se evalúan condiciones de victoria aquí (ver §5)
+
 2. ACCIÓN       — El jugador ELIGE una de dos opciones:
                     a) Jugar 1 carta (pagar su costo y aplicar su efecto)
                     b) Descartar 1 carta (sin costo, sin efecto)
+
 3. FIN DE TURNO — Pasa el turno al oponente
 ```
 
 > No hay robo de cartas. Las cartas son **siempre visibles** en pantalla. La mano es fija.
 
+### Resolución de daño en producción
+
+El daño de unidades atacantes enemigas se resuelve así cada turno:
+
+```
+daño_total = suma(unidades_atacantes_enemigas × valor_por_unidad)
+absorción   = suma(unidades_defensivas_propias × valor_por_unidad)   ← se aplica primero
+daño_neto   = max(0, daño_total - absorción)
+HP_propio  -= daño_neto
+```
+
 ---
 
-## 7. Sistema de cartas (sin mazo)
+## 7. Implementación técnica de cartas (Unity)
+
+Las cartas se implementan como **ScriptableObjects** (`CardData`). Cada carta es un asset independiente con los siguientes campos:
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `id` | string | Identificador único |
+| `cardName` | string | Nombre visible |
+| `faction` | enum | Manifestantes / Policías |
+| `cardType` | enum | Accion / Unidad |
+| `subtype` | enum | Ataque / Defensa / Sabotaje / Boost / Productora / Atacante / Defensiva |
+| `costDinero` | int | Costo en $ |
+| `costFuerza` | int | Costo en ⚡ |
+| `costSocial` | int | Costo en 📣 |
+| `effectValue` | int | Valor principal del efecto (daño, absorción, producción, etc.) |
+| `effectResource` | enum | Recurso afectado (para Productora/Boost/Sabotaje) |
+| `sprite` | Sprite | Imagen de la carta |
+| `descriptionText` | string | Texto de efecto visible en la carta |
+
+El pool de cada facción es una lista de referencias a estos assets. El sistema de reemplazo toma una carta aleatoria del pool al jugar o descartar.
+
+---
+
+## 8. Sistema de cartas (sin mazo)
 
 - No existe un mazo ni descarte.
 - Cada jugador tiene **X cartas** permanentemente visibles en pantalla (cantidad a definir, ej: 6).
@@ -100,9 +150,13 @@ Se despliega en la zona de unidades. Es **siempre pasiva** — actúa automátic
 **Las unidades funcionan con contadores de cantidad, no con HP individuales:**
 
 - Cada tipo de unidad tiene un slot con un número (ej: `Piquetero x3`).
-- Cartas positivas propias: **+1** a esa unidad.
-- Cartas de sabotaje enemigas: **-1** a esa unidad.
-- Si el contador llega a **0**, la unidad desaparece del slot.
+- Cartas positivas propias: **+1** a esa unidad (máximo x5).
+- Cartas de sabotaje enemigas: **-1** a una unidad elegida por el jugador atacante.
+- Si el contador llega a **0**, la unidad desaparece y libera el slot.
+
+**Slots llenos (3/3 ocupados):** si el jugador quiere desplegar una unidad nueva, debe elegir entre:
+- **Reemplazar** un slot existente (el slot se vacía y se ocupa con la nueva unidad en x1)
+- **Cancelar** la jugada (la carta permanece en la mano sin gastar recursos)
 
 | Subtipo | Efecto pasivo (por unidad en el contador) |
 |---------|------------------------------------------|
