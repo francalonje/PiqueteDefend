@@ -172,37 +172,41 @@ Se despliega en la zona de unidades. Es **siempre pasiva** — actúa automátic
 
 ## 9. Cartas — Manifestantes
 
-Cobertura completa: todas las categorías disponibles para ambas facciones.
-
 ### Unidades
 | Carta | Subtipo | Costo | Efecto |
 |-------|---------|-------|--------|
-| **Piquetero** | Atacante | 3 ⚡ + 2 $ | +1 Piquetero. Cada uno suma +1 de daño al oponente por turno |
-| **Escudo Humano** | Defensiva | 2 $ + 3 ⚡ | +1 Escudo Humano. Cada uno resta -1 al daño entrante por turno |
-| **Olla Popular** | Productora $ | 2 $ + 2 📣 | +1 Olla Popular. Cada una produce +1 $/turno |
-| **Fogón** | Productora ⚡ | 2 ⚡ + 2 📣 | +1 Fogón. Cada uno produce +1 ⚡/turno |
-| **Megáfono** | Productora 📣 | 3 📣 | +1 Megáfono. Cada uno produce +1 📣/turno |
+| **Piquetero** | Atacante | 2 ⚡ + 2 $ | +1 Piquetero. Cada uno suma +1 de daño al oponente por turno |
+| **Escudo Humano** | Defensiva | 5 $ + 1 ⚡ | +1 Escudo Humano. Cada uno resta -1 al daño entrante por turno |
+| **Olla Popular** | Productora $ | 2 $ + 1 📣 | +1 Olla Popular. Cada una produce +1 $/turno |
+| **Fogón** | Productora ⚡ | 4 ⚡ + 1 📣 | +1 Fogón. Cada uno produce +1 ⚡/turno |
+| **Megáfono** | Productora 📣 | 1 📣 + 1 $ | +1 Megáfono. Cada uno produce +1 📣/turno |
 
-### Acciones — Boost (ganar recursos propios)
+### Acciones — Boost
 | Carta | Costo | Efecto |
 |-------|-------|--------|
-| **Colecta** | 2 📣 | Gana +5 $ inmediatamente |
-| **Adrenalina** | 2 $ | Gana +5 ⚡ inmediatamente |
-| **Viral en Redes** | 3 $ | Gana +5 📣 inmediatamente |
+| **Colecta** | 3 📣 | Gana +8 $ |
+| **Adrenalina** | 1 $ | Gana +3 ⚡ |
+| **Viral en Redes** | 2 $ | Gana +7 📣 |
 
-### Acciones — Sabotaje (reducir recursos del oponente)
+### Acciones — Sabotaje
 | Carta | Costo | Efecto |
 |-------|-------|--------|
-| **Saqueo** | 3 ⚡ | El oponente pierde 5 $ |
-| **Agotamiento** | 3 $ | El oponente pierde 5 ⚡ |
-| **Fake News** | 3 📣 | El oponente pierde 5 📣 |
-| **Romper la Marcha** | 2 ⚡ + 2 📣 | -1 a una unidad del oponente (el atacante elige el slot) |
+| **Saqueo** | 1 ⚡ | Oponente pierde 3 $ |
+| **Agotamiento** | 2 $ | Oponente pierde 7 ⚡ |
+| **Fake News** | 3 📣 | Oponente pierde 5 📣 |
+| **Romper la Marcha** | 1 ⚡ + 3 📣 | -1 a una unidad del oponente (el atacante elige el slot) |
 
 ### Acciones — Ataque / Defensa
 | Carta | Subtipo | Costo | Efecto |
 |-------|---------|-------|--------|
-| **Paro General** | Ataque | 4 $ + 3 ⚡ | Inflige 10 daño directo al oponente |
-| **Abrazo Colectivo** | Defensa | 3 $ + 2 📣 | Recupera 10 HP propios |
+| **Paro General** | Ataque | 2 $ + 3 ⚡ | Inflige 9 daño directo al oponente |
+| **Abrazo Colectivo** | Defensa | 4 $ + 1 📣 | Recupera 13 HP propios |
+
+### Acciones — Efecto especial
+| Carta | Costo | Efecto |
+|-------|-------|--------|
+| **Corte de Ruta** | 1 ⚡ + 2 📣 | El oponente no recibe producción en su próximo turno |
+| **Asamblea Popular** | 6 📣 | El jugador recibe el doble de su producción propia en su próximo turno |
 
 ---
 
@@ -211,32 +215,58 @@ Cobertura completa: todas las categorías disponibles para ambas facciones.
 ### Unidades
 | Carta | Subtipo | Costo | Efecto |
 |-------|---------|-------|--------|
-| **Patrullero** | Atacante | 3 ⚡ + 2 $ | +1 Patrullero. Cada uno suma +1 de daño al oponente por turno |
-| **Comisaría** | Defensiva | 2 $ + 3 ⚡ | +1 Comisaría. Cada una resta -1 al daño entrante por turno |
-| **Subsidio** | Productora $ | 2 $ + 2 📣 | +1 Subsidio. Cada uno produce +1 $/turno |
-| **Entrenamiento** | Productora ⚡ | 2 ⚡ + 2 📣 | +1 Entrenamiento. Cada uno produce +1 ⚡/turno |
-| **Conferencia de Prensa** | Productora 📣 | 3 📣 | +1 Conferencia. Cada una produce +1 📣/turno |
+| **Patrullero** | Atacante | 4 ⚡ + 2 $ | +1 Patrullero. Cada uno suma +1 de daño al oponente por turno |
+| **Comisaría** | Defensiva | 2 $ + 1 ⚡ | +1 Comisaría. Cada una resta -1 al daño entrante por turno |
+| **Subsidio** | Productora $ | 4 $ + 1 📣 | +1 Subsidio. Cada uno produce +1 $/turno |
+| **Entrenamiento** | Productora ⚡ | 1 ⚡ + 2 📣 | +1 Entrenamiento. Cada uno produce +1 ⚡/turno |
+| **Conferencia de Prensa** | Productora 📣 | 3 $ + 2 📣 | +1 Conferencia. Cada una produce +1 📣/turno |
 
-### Acciones — Boost (ganar recursos propios)
+### Acciones — Boost
 | Carta | Costo | Efecto |
 |-------|-------|--------|
-| **Partida Presupuestaria** | 2 📣 | Gana +5 $ inmediatamente |
-| **Refuerzo** | 2 $ | Gana +5 ⚡ inmediatamente |
-| **Cadena Nacional** | 3 $ | Gana +5 📣 inmediatamente |
+| **Partida Presupuestaria** | 1 📣 | Gana +3 $ |
+| **Refuerzo** | 3 $ | Gana +8 ⚡ |
+| **Cadena Nacional** | 2 ⚡ | Gana +4 📣 |
 
-### Acciones — Sabotaje (reducir recursos del oponente)
+### Acciones — Sabotaje
 | Carta | Costo | Efecto |
 |-------|-------|--------|
-| **Embargo** | 3 ⚡ | El oponente pierde 5 $ |
-| **Detención** | 3 $ | El oponente pierde 5 ⚡ |
-| **Censura** | 3 📣 | El oponente pierde 5 📣 |
-| **Infiltrado** | 2 ⚡ + 2 📣 | -1 a una unidad del oponente (el atacante elige el slot) |
+| **Embargo** | 3 ⚡ | Oponente pierde 7 $ |
+| **Detención** | 1 $ | Oponente pierde 3 ⚡ |
+| **Censura** | 2 📣 | Oponente pierde 5 📣 |
+| **Infiltrado** | 3 $ + 1 📣 | -1 a una unidad del oponente (el atacante elige el slot) |
 
 ### Acciones — Ataque / Defensa
 | Carta | Subtipo | Costo | Efecto |
 |-------|---------|-------|--------|
-| **Operativo Especial** | Ataque | 4 $ + 3 ⚡ | Inflige 10 daño directo al oponente |
-| **Escudo Antidisturbios** | Defensa | 3 $ + 2 📣 | Recupera 10 HP propios |
+| **Operativo Especial** | Ataque | 4 $ + 2 ⚡ | Inflige 13 daño directo al oponente |
+| **Escudo Antidisturbios** | Defensa | 2 $ + 3 📣 | Recupera 9 HP propios |
+
+### Acciones — Efecto especial
+| Carta | Costo | Efecto |
+|-------|-------|--------|
+| **Toque de Queda** | 4 $ + 1 ⚡ | El oponente no recibe producción en su próximo turno |
+| **Decreto de Emergencia** | 3 $ | El jugador recibe el doble de su producción propia en su próximo turno |
+
+---
+
+## Balance verificable entre facciones
+
+| Categoría | Manifestantes | Policías |
+|-----------|--------------|----------|
+| Boost $ | +8 (caro) | +3 (barato) |
+| Boost ⚡ | +3 (barato) | +8 (caro) |
+| Boost 📣 | +7 (medio) | +4 (medio) |
+| **Total boost** | **+18** | **+15** |
+| Sabotaje $ | -3 (barato) | -7 (caro) |
+| Sabotaje ⚡ | -7 (caro) | -3 (barato) |
+| Sabotaje 📣 | -5 (medio) | -5 (medio) |
+| **Total sabotaje** | **-15** | **-15** |
+| Daño directo | 9 | 13 |
+| Recuperación HP | 13 | 9 |
+| **Daño + recuperación** | **22** | **22** |
+
+> El boost total difiere en 3 puntos. Esto se compensa con que Policías tiene el daño directo más alto (+4) y Manifestantes la recuperación más alta (+4). Balance neto equivalente.
 
 ---
 
