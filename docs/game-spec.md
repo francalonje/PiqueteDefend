@@ -252,23 +252,27 @@ Tras iniciar, cada jugador elige su facción: **Manifestantes** o **Policías**.
 
 ### 11.3 Pantalla de juego
 
-Pantalla única compartida dividida horizontalmente en dos mitades enfrentadas. El jugador de abajo ve su mitad derecha hacia arriba; el jugador de arriba ve su mitad rotada 180°.
+Pantalla única sin divisiones. Ambos jugadores están enfrentados horizontalmente: uno a la izquierda y otro a la derecha. El campo de batalla es el espacio central compartido.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐  ▲
-│  Mano: [c1][c2][c3][c4][c5][c6]              [DESCARTAR][JUGAR]│  │
-│  Unidades: [Slot A] [Slot B] [Slot C]                          │  JUGADOR
-│  [POLICÍAS]  HP: 100  $: 12  ⚡: 8  📣: 5                     │  ARRIBA
-│═════════════════════════════════════════════════════════════════│  (rotado 180°)
-│  [MANIFESTANTES]  HP: 85   $: 9   ⚡: 6  📣: 14               │
-│  Unidades: [Slot A] [Slot B] [Slot C]                          │  JUGADOR
-│  Mano: [c1][c2][c3][c4][c5][c6]              [DESCARTAR][JUGAR]│  ABAJO
-└─────────────────────────────────────────────────────────────────┘  ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                                                                        │
+│  HP: 100                    [TURNO: MANIFESTANTES]              HP: 100│
+│  $: 5  ⚡: 3  📣: 2                                    $: 5  ⚡: 3  📣: 2│
+│                                                                        │
+│  [Slot 1]                                                   [Slot 1]  │
+│  [Slot 2]          [TORRE]              [TORRE]             [Slot 2]  │
+│  [Slot 3]                                                   [Slot 3]  │
+│                                                                        │
+│  [c1][c2][c3]                                          [c1][c2][c3]   │
+│  [c4][c5][c6]  [JUGAR] [DESCARTAR]  [JUGAR] [DESCARTAR][c4][c5][c6]  │
+└────────────────────────────────────────────────────────────────────────┘
+  ◄── MANIFESTANTES                                      POLICÍAS ──►
 ```
 
-**Privacidad de mano:** las cartas propias son siempre visibles. Las cartas del oponente también son visibles (información abierta).
+**Privacidad de mano:** información abierta — ambos jugadores ven todas las cartas en todo momento.
 
-**Indicador de turno:** banner simple que indica de quién es el turno activo.
+**Indicador de turno:** banner central que indica qué facción está jugando. Los botones de acción del jugador inactivo se deshabilitan durante el turno del oponente.
 
 ### 11.4 Input
 
