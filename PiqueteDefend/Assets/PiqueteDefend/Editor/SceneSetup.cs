@@ -17,8 +17,11 @@ namespace PiqueteDefend.EditorTools
     public static class SceneSetup
     {
         private const string UiDir = "Assets/PiqueteDefend/Presentation/UI";
-        private const string DataDir = "Assets/PiqueteDefend/Data";
+        private const string ResourcesDir = "Assets/PiqueteDefend/Presentation/Resources";
         private const string ScenesDir = "Assets/PiqueteDefend/Scenes";
+
+        /// <summary>Nombre con el que el runtime carga el PanelSettings vía Resources.Load.</summary>
+        public const string PanelSettingsResourceName = "UIPanelSettings";
 
         [MenuItem("PiqueteDefend/Setup UI Scenes")]
         public static void SetupAll()
@@ -32,7 +35,13 @@ namespace PiqueteDefend.EditorTools
 
         private static PanelSettings GetOrCreatePanelSettings()
         {
-            const string path = DataDir + "/UIPanelSettings.asset";
+            // Limpia el asset viejo bajo Data/ (ya no se usa; ahora va en Resources/).
+            AssetDatabase.DeleteAsset("Assets/PiqueteDefend/Data/UIPanelSettings.asset");
+
+            if (!AssetDatabase.IsValidFolder(ResourcesDir))
+                AssetDatabase.CreateFolder("Assets/PiqueteDefend/Presentation", "Resources");
+
+            string path = ResourcesDir + "/" + PanelSettingsResourceName + ".asset";
             var panel = AssetDatabase.LoadAssetAtPath<PanelSettings>(path);
             if (panel != null) return panel;
 
@@ -54,11 +63,25 @@ namespace PiqueteDefend.EditorTools
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
+            // Cámara (fondo sólido; evita el aviso "No cameras rendering")
+            var camGo = new GameObject("Main Camera");
+            var cam = camGo.AddComponent<Camera>();
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.094f, 0.102f, 0.129f);
+            camGo.AddComponent<AudioListener>();
+            camGo.tag = "MainCamera";
+
             // GameObject con UIDocument (renderiza el UXML del menú)
             var uiGo = new GameObject("MainMenu");
             var doc = uiGo.AddComponent<UIDocument>();
-            doc.panelSettings = panel;
-            doc.visualTreeAsset = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(UiDir + "/MainMenu.uxml");
+            var uxml = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(UiDir + "/MainMenu.uxml");
+
+            // Asignar por SerializedObject: la propiedad pública no siempre se serializa al guardar.
+            var so = new SerializedObject(doc);
+            so.FindProperty("m_PanelSettings").objectReferenceValue = panel;
+            so.FindProperty("sourceAsset").objectReferenceValue = uxml;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
             uiGo.AddComponent<MainMenuController>();
 
             // EventSystem (Input System) para que la UI reciba clicks en runtime
@@ -66,6 +89,8 @@ namespace PiqueteDefend.EditorTools
             esGo.AddComponent<EventSystem>();
             esGo.AddComponent<InputSystemUIInputModule>();
 
+            EditorUtility.SetDirty(doc);
+            EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene, ScenesDir + "/Main.unity");
         }
     }

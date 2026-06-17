@@ -10,9 +10,19 @@ namespace PiqueteDefend.Presentation
     [RequireComponent(typeof(UIDocument))]
     public sealed class MainMenuController : MonoBehaviour
     {
+        /// <summary>PanelSettings cargado de Resources (lo genera SceneSetup con este nombre).</summary>
+        private const string PanelSettingsResource = "UIPanelSettings";
+
         private void OnEnable()
         {
-            VisualElement root = GetComponent<UIDocument>().rootVisualElement;
+            var doc = GetComponent<UIDocument>();
+
+            // Garantiza el PanelSettings en runtime (la serialización del campo en escena es poco fiable).
+            if (doc.panelSettings == null)
+                doc.panelSettings = Resources.Load<PanelSettings>(PanelSettingsResource);
+
+            VisualElement root = doc.rootVisualElement;
+            if (root == null) return;
 
             Button play = root.Q<Button>("play-button");
             if (play != null) play.clicked += OnPlay;
