@@ -114,8 +114,8 @@ Las cartas se implementan como **ScriptableObjects** (`CardData`). Cada carta es
 | `costDinero` | int | Costo en $ |
 | `costFuerza` | int | Costo en ⚡ |
 | `costSocial` | int | Costo en 📣 |
-| `effectValue` | int | Valor principal del efecto (daño, absorción, producción, etc.) |
-| `effectResource` | enum | Recurso afectado (para Productora/Boost/Sabotaje) |
+| `effectValue` | int | Valor del efecto para acciones (daño directo, HP ganado, recursos ganados/robados). Para unidades siempre es 1 (ver §9) |
+| `effectResource` | enum | Recurso afectado: Dinero / Fuerza / Social / HP / Unidad (para Productora / Boost / Sabotaje) |
 | `sprite` | Sprite | Imagen de la carta |
 | `descriptionText` | string | Texto de efecto visible en la carta |
 
@@ -149,48 +149,94 @@ Se despliega en la zona de unidades. Es **siempre pasiva** — actúa automátic
 
 **Las unidades funcionan con contadores de cantidad, no con HP individuales:**
 
-- Cada tipo de unidad tiene un slot con un número (ej: `Piquetero x3`).
-- Cartas positivas propias: **+1** a esa unidad (máximo x5).
-- Cartas de sabotaje enemigas: **-1** a una unidad elegida por el jugador atacante.
+- Cada tipo de unidad ocupa un slot con un contador (ej: `Piquetero x3`).
+- Cada carta de despliegue suma **+1** al contador de esa unidad (máximo x5).
+- Cartas de sabotaje enemigo restan **-1** al contador de una unidad elegida por el atacante.
 - Si el contador llega a **0**, la unidad desaparece y libera el slot.
+
+**El efecto de cada unidad es siempre de valor 1 por instancia en el contador:**
+
+| Subtipo | Efecto pasivo por turno |
+|---------|------------------------|
+| **Defensiva** | Resta **-1 de daño entrante** por instancia. Con x3 → absorbe 3 de daño total antes de que llegue al HP |
+| **Atacante** | Suma **+1 de daño saliente** por instancia. Con x3 → inflige 3 de daño extra al oponente por turno |
+| **Productora** | Genera **+1 del recurso definido** por instancia. Con x3 → produce +3 de ese recurso por turno |
+
+> Ejemplo de resolución: oponente tiene `Patrullero x4` (4 daño). Yo tengo `Escudo Humano x2` (absorbe 2). Daño neto = 4 - 2 = **2 de daño a mi HP**.
 
 **Slots llenos (3/3 ocupados):** si el jugador quiere desplegar una unidad nueva, debe elegir entre:
 - **Reemplazar** un slot existente (el slot se vacía y se ocupa con la nueva unidad en x1)
-- **Cancelar** la jugada (la carta permanece en la mano sin gastar recursos)
-
-| Subtipo | Efecto pasivo (por unidad en el contador) |
-|---------|------------------------------------------|
-| **Productora** | Genera +X de un recurso por turno |
-| **Atacante** | Inflige X daño al oponente por turno |
-| **Defensiva** | Absorbe X daño automáticamente antes de que llegue al HP del jugador |
+- **Cancelar** la jugada (la carta permanece en mano, no se gastan recursos)
 
 ---
 
-## 9. Ejemplo de cartas (Manifestantes)
+## 9. Cartas — Manifestantes
 
-| Carta | Tipo | Costo | Efecto |
-|-------|------|-------|--------|
-| **Paro General** | Acción - Ataque | 4 $ + 2 ⚡ | Inflige 15 daño al oponente |
-| **Olla Popular** | Unidad - Productora | 3 $ + 2 📣 | +1 Olla Popular. Cada una genera +2 $/turno y +1 📣/turno |
-| **Corte de Ruta** | Acción - Sabotaje | 2 ⚡ + 3 📣 | El oponente no recibe producción en su próximo turno |
-| **Escudo Humano** | Unidad - Defensiva | 2 $ + 3 ⚡ | +1 Escudo Humano. Cada uno absorbe 5 daño/turno automáticamente |
-| **Viral en Redes** | Acción - Boost | 4 📣 | Gana +10 📣 inmediatamente |
-| **Piquetero Duro** | Unidad - Atacante | 3 ⚡ + 2 $ | +1 Piquetero Duro. Cada uno inflige 4 daño/turno |
-| **Romper la Marcha** | Acción - Sabotaje | 3 ⚡ | -1 a una unidad atacante del oponente |
+Cobertura completa: todas las categorías disponibles para ambas facciones.
+
+### Unidades
+| Carta | Subtipo | Costo | Efecto |
+|-------|---------|-------|--------|
+| **Piquetero** | Atacante | 3 ⚡ + 2 $ | +1 Piquetero. Cada uno suma +1 de daño al oponente por turno |
+| **Escudo Humano** | Defensiva | 2 $ + 3 ⚡ | +1 Escudo Humano. Cada uno resta -1 al daño entrante por turno |
+| **Olla Popular** | Productora $ | 2 $ + 2 📣 | +1 Olla Popular. Cada una produce +1 $/turno |
+| **Fogón** | Productora ⚡ | 2 ⚡ + 2 📣 | +1 Fogón. Cada uno produce +1 ⚡/turno |
+| **Megáfono** | Productora 📣 | 3 📣 | +1 Megáfono. Cada uno produce +1 📣/turno |
+
+### Acciones — Boost (ganar recursos propios)
+| Carta | Costo | Efecto |
+|-------|-------|--------|
+| **Colecta** | 2 📣 | Gana +5 $ inmediatamente |
+| **Adrenalina** | 2 $ | Gana +5 ⚡ inmediatamente |
+| **Viral en Redes** | 3 $ | Gana +5 📣 inmediatamente |
+
+### Acciones — Sabotaje (reducir recursos del oponente)
+| Carta | Costo | Efecto |
+|-------|-------|--------|
+| **Saqueo** | 3 ⚡ | El oponente pierde 5 $ |
+| **Agotamiento** | 3 $ | El oponente pierde 5 ⚡ |
+| **Fake News** | 3 📣 | El oponente pierde 5 📣 |
+| **Romper la Marcha** | 2 ⚡ + 2 📣 | -1 a una unidad del oponente (el atacante elige el slot) |
+
+### Acciones — Ataque / Defensa
+| Carta | Subtipo | Costo | Efecto |
+|-------|---------|-------|--------|
+| **Paro General** | Ataque | 4 $ + 3 ⚡ | Inflige 10 daño directo al oponente |
+| **Abrazo Colectivo** | Defensa | 3 $ + 2 📣 | Recupera 10 HP propios |
 
 ---
 
-## 10. Ejemplo de cartas (Policías)
+## 10. Cartas — Policías
 
-| Carta | Tipo | Costo | Efecto |
-|-------|------|-------|--------|
-| **Gas Lacrimógeno** | Acción - Ataque | 3 ⚡ + 2 $ | Inflige 12 daño + reduce 2 📣 del oponente |
-| **Comisaría** | Unidad - Defensiva | 4 $ + 2 ⚡ | +1 Comisaría. Cada una absorbe 6 daño/turno automáticamente |
-| **Operativo Especial** | Acción - Ataque | 5 ⚡ | Inflige 20 daño al oponente |
-| **Patrullero** | Unidad - Atacante | 4 $ + 1 ⚡ | +1 Patrullero. Cada uno inflige 3 daño/turno |
-| **Subsidio Político** | Acción - Boost | 2 📣 | Gana +8 $ inmediatamente |
-| **Infiltrado** | Acción - Sabotaje | 3 $ + 2 📣 | -1 a una unidad productora del oponente |
-| **Refuerzo Policial** | Unidad - Productora | 3 $ + 1 ⚡ | +1 Refuerzo. Cada uno genera +3 ⚡/turno |
+### Unidades
+| Carta | Subtipo | Costo | Efecto |
+|-------|---------|-------|--------|
+| **Patrullero** | Atacante | 3 ⚡ + 2 $ | +1 Patrullero. Cada uno suma +1 de daño al oponente por turno |
+| **Comisaría** | Defensiva | 2 $ + 3 ⚡ | +1 Comisaría. Cada una resta -1 al daño entrante por turno |
+| **Subsidio** | Productora $ | 2 $ + 2 📣 | +1 Subsidio. Cada uno produce +1 $/turno |
+| **Entrenamiento** | Productora ⚡ | 2 ⚡ + 2 📣 | +1 Entrenamiento. Cada uno produce +1 ⚡/turno |
+| **Conferencia de Prensa** | Productora 📣 | 3 📣 | +1 Conferencia. Cada una produce +1 📣/turno |
+
+### Acciones — Boost (ganar recursos propios)
+| Carta | Costo | Efecto |
+|-------|-------|--------|
+| **Partida Presupuestaria** | 2 📣 | Gana +5 $ inmediatamente |
+| **Refuerzo** | 2 $ | Gana +5 ⚡ inmediatamente |
+| **Cadena Nacional** | 3 $ | Gana +5 📣 inmediatamente |
+
+### Acciones — Sabotaje (reducir recursos del oponente)
+| Carta | Costo | Efecto |
+|-------|-------|--------|
+| **Embargo** | 3 ⚡ | El oponente pierde 5 $ |
+| **Detención** | 3 $ | El oponente pierde 5 ⚡ |
+| **Censura** | 3 📣 | El oponente pierde 5 📣 |
+| **Infiltrado** | 2 ⚡ + 2 📣 | -1 a una unidad del oponente (el atacante elige el slot) |
+
+### Acciones — Ataque / Defensa
+| Carta | Subtipo | Costo | Efecto |
+|-------|---------|-------|--------|
+| **Operativo Especial** | Ataque | 4 $ + 3 ⚡ | Inflige 10 daño directo al oponente |
+| **Escudo Antidisturbios** | Defensa | 3 $ + 2 📣 | Recupera 10 HP propios |
 
 ---
 
