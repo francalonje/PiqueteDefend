@@ -42,7 +42,7 @@ Cada jugador tiene:
 - **Recursos:** Dinero, Fuerza, Social — valor actual + producción base por turno.
 - **Mano:** 6 cartas siempre visibles.
 - **Zona de unidades:** 3 slots, cada uno con tipo de unidad y contador (x1–x5).
-- **activeEffects:** `List<PlayerEffect>` — efectos activos sobre este jugador (buffs y debuffs temporales). Procesados al inicio de cada turno antes de la producción.
+- **activeStatuses:** `List<StatusEffect>` — buffs/debuffs temporizados que afectan a este jugador. Se procesan al inicio de su turno (ver §6 y §7.2).
 
 ---
 
@@ -73,25 +73,28 @@ Los recursos nunca bajan de **0**. El exceso de reducción se descarta. Este com
 ## 6. Estructura de un turno
 
 ```
-1. EFECTOS      — Procesar activeEffects del jugador activo:
-                    → Aplicar cada efecto con turnsRemaining > 0
-                    → Decrementar turnsRemaining de cada efecto
-                    → Eliminar efectos con turnsRemaining == 0
+1. EFECTOS      — Procesar activeStatuses del jugador activo:
+                    Por cada status:
+                      → counter--
+                      → si counter == 0: disparar su payload y eliminar el status
+                    Los payloads disparados producen modificadores para ESTE turno
+                    (ej. skipProduction = true, productionMultiplier = 2).
 
-2. PRODUCCIÓN   — Si no hay efecto SkipProduction activo:
-                    a) Producción base de recursos (× 2 si hay DoubleProduction activo)
-                    b) Producción de unidades Productoras activas
-                    c) Daño neto de unidades enemigas (ver fórmula abajo)
+2. PRODUCCIÓN   — Si skipProduction NO está activo este turno:
+                    a) Producción base de recursos + producción de unidades Productoras
+                    b) Multiplicar el total por productionMultiplier (default 1; 2 si disparó DoubleProduction)
+                    c) Aplicar daño neto de unidades enemigas (ver fórmula abajo)
                   → Evaluar condiciones de victoria (ver §5)
 
 3. ACCIÓN       — El jugador ELIGE una de dos opciones:
-                    a) Jugar 1 carta: pagar costo → aplicar cada PlayerEffect de la carta
+                    a) Jugar 1 carta: pagar costo → resolver cada CardEffect en orden
                     b) Descartar 1 carta: sin costo, sin efecto
 
 4. FIN DE TURNO — Pasa el turno al oponente
 ```
 
 > No hay robo de cartas. La mano es fija y siempre visible.
+> El `productionMultiplier` de DoubleProduction afecta **base + unidades** (decisión de diseño; ajustable por balanceo).
 
 ### Resolución de daño (paso 2c)
 
@@ -102,42 +105,96 @@ daño_neto  = max(0, daño_total - absorción)
 HP_propio -= daño_neto
 ```
 
+### Ejemplo de status temporizado (resuelve el timing del contador)
+
+**Corte de Ruta** (SkipProduction sobre el oponente, `counter: 1`):
+
+| Turno | Jugador | Qué pasa |
+|-------|---------|----------|
+| 5 | Manifestantes | Juega la carta. **Inmediato:** inserta `StatusEffect{SkipProduction, counter: 1}` en `activeStatuses` de Policías |
+| 6 | Policías | Fase EFECTOS: `counter` 1→0 → dispara SkipProduction → se elimina. Fase PRODUCCIÓN: **omitida** |
+| 7 | Manifestantes | Sin status. Turno normal |
+
+**Asamblea Popular** (DoubleProduction sobre sí mismo, `counter: 1`): se inserta en el `activeStatuses` propio y dispara al inicio del **próximo turno propio** (turno 7 si se jugó en el 5), duplicando esa producción.
+
+> El `counter` se mide en **turnos del jugador afectado** y se decrementa **antes** de disparar. `counter: 1` = "el próximo turno del afectado". No hay off-by-one.
+
 ---
 
 ## 7. Arquitectura técnica (Unity)
 
-### 7.1 PlayerEffect (clase serializable)
+El modelo tiene **dos capas**:
+- **CardEffect** — efecto inmediato que se resuelve al jugar la carta.
+- **StatusEffect** — buff/debuff temporizado con contador, que un `CardEffect` inserta en un jugador. Su payload se difiere hasta que el contador llega a 0.
 
-Unidad mínima de efecto. Toda acción del juego que modifica el estado de un jugador se modela como uno o más `PlayerEffect`.
+Los efectos "diferidos" (saltear producción, doblar producción) no son un tipo especial: son un `CardEffect` inmediato de tipo `ApplyStatus` que coloca un `StatusEffect` con contador en el objetivo.
+
+### 7.1 CardEffect (efecto inmediato de carta)
+
+Toda consecuencia de jugar una carta se modela como uno o más `CardEffect`, resueltos en orden al instante.
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `effectType` | EffectType | Qué hace el efecto |
-| `resourceTarget` | ResourceType | Recurso afectado (solo para efectos de recurso) |
-| `value` | int | Magnitud del efecto |
-| `turnsRemaining` | int | Turnos que dura. `1` = se aplica este turno y expira. `0` = ya expiró |
+| `effectType` | CardEffectType | Qué hace |
+| `target` | TargetType | Sobre quién recae: `Self` / `Opponent` |
+| `resourceTarget` | ResourceType | Recurso afectado (solo para `ModifyResource`) |
+| `value` | int | Magnitud (con signo: daño/drenaje negativos, cura/boost positivos) |
+| `status` | StatusEffect | Plantilla del status a insertar (solo si `effectType == ApplyStatus`) |
 
-**EffectType (enum)**
+**CardEffectType (enum)**
 
 | Valor | Descripción |
 |-------|-------------|
-| `DamageOpponent` | Inflige daño directo al HP del oponente |
-| `HealSelf` | Recupera HP propio |
-| `GainResource` | Suma recursos al jugador que lo tiene |
-| `DrainOpponentResource` | Resta recursos al oponente |
-| `RemoveOpponentUnit` | -1 al contador de una unidad enemiga (requiere selección de slot) |
-| `SkipOpponentProduction` | El oponente no recibe producción en su próximo turno |
-| `DoubleOwnProduction` | El jugador recibe producción x2 en su próximo turno |
+| `ModifyHP` | Suma/resta HP al `target` (daño = Opponent con value negativo; cura = Self con value positivo) |
+| `ModifyResource` | Suma/resta `resourceTarget` al `target` (boost = Self+; drenaje = Opponent−) |
+| `RemoveUnit` | Resta `value` al contador de una unidad del `target` (requiere selección de slot) |
+| `ApplyStatus` | Inserta una copia de `status` en el `activeStatuses` del `target` |
 
-> Agregar un nuevo tipo de efecto al juego = agregar un valor al enum + su lógica de resolución en `GameManager`. Las cartas no necesitan cambios.
-
+**TargetType (enum):** `Self` / `Opponent`
 **ResourceType (enum):** `Dinero` / `Fuerza` / `Social`
 
 ---
 
-### 7.2 CardData (ScriptableObject)
+### 7.2 StatusEffect (buff/debuff temporizado)
 
-Cada carta es un asset independiente. Una carta puede aplicar **múltiples efectos**.
+Vive en el `activeStatuses` de un jugador. Se procesa en la fase EFECTOS al inicio de cada turno del jugador afectado (ver §6).
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `statusType` | StatusType | Qué hace al dispararse |
+| `value` | int | Magnitud (ej. multiplicador de producción) |
+| `counter` | int | Turnos del jugador afectado hasta disparar. Se decrementa al inicio del turno; dispara y se elimina al llegar a 0 |
+
+**StatusType (enum)**
+
+| Valor | Descripción |
+|-------|-------------|
+| `SkipProduction` | El jugador no recibe producción en el turno en que dispara |
+| `DoubleProduction` | La producción de ese turno se multiplica por `value` (=2) |
+
+> Extender el juego = agregar un valor a `CardEffectType` o `StatusType` + su resolución en `GameManager`. Las cartas siguen siendo solo data.
+
+---
+
+### 7.2.1 Mapeo de cartas a efectos (ejemplos)
+
+| Carta | CardEffect(s) |
+|-------|---------------|
+| **Paro General** | `{ ModifyHP, Opponent, value: -9 }` |
+| **Abrazo Colectivo** | `{ ModifyHP, Self, value: +13 }` |
+| **Colecta** | `{ ModifyResource, Self, Dinero, value: +8 }` |
+| **Saqueo** | `{ ModifyResource, Opponent, Dinero, value: -3 }` |
+| **Infiltrado** | `{ RemoveUnit, Opponent, value: -1 }` |
+| **Corte de Ruta** | `{ ApplyStatus, Opponent, status: { SkipProduction, counter: 1 } }` |
+| **Asamblea Popular** | `{ ApplyStatus, Self, status: { DoubleProduction, value: 2, counter: 1 } }` |
+
+> Una carta puede llevar varios `CardEffect` (ej. daño + drenaje) sin tocar código.
+
+---
+
+### 7.3 CardData (ScriptableObject)
+
+Cada carta es un asset independiente. Una carta de acción puede aplicar **múltiples efectos**.
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
@@ -150,15 +207,15 @@ Cada carta es un asset independiente. Una carta puede aplicar **múltiples efect
 | `costDinero` | int | Costo en $ |
 | `costFuerza` | int | Costo en ⚡ |
 | `costSocial` | int | Costo en 📣 |
-| `effects` | List\<PlayerEffect\> | Efectos que aplica la carta al jugarse |
+| `effects` | List\<CardEffect\> | Efectos que resuelve la carta al jugarse (solo cartas de Acción) |
 | `sprite` | Sprite | Imagen de la carta |
 | `descriptionText` | string | Texto visible en la carta |
 
-> Las cartas de **Unidad** no usan `effects` — su efecto es pasivo y lo maneja `GameManager` por el tipo y contador del slot. Las cartas de **Acción** usan `effects` para aplicar sus consecuencias.
+> Las cartas de **Unidad** dejan `effects` vacío — su efecto es pasivo y lo maneja `GameManager` por el `unitSubtype` y el contador del slot. Las cartas de **Acción** usan `effects`.
 
 ---
 
-### 7.3 UnitSlot (clase serializable)
+### 7.4 UnitSlot (clase serializable)
 
 Representa un slot ocupado en la zona de unidades de un jugador.
 
@@ -169,7 +226,7 @@ Representa un slot ocupado en la zona de unidades de un jugador.
 
 ---
 
-### 7.4 PlayerState (clase)
+### 7.5 PlayerState (clase)
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
@@ -179,14 +236,14 @@ Representa un slot ocupado en la zona de unidades de un jugador.
 | `social` | int | Social actual |
 | `hand` | List\<CardData\> | Cartas en mano (siempre 6) |
 | `unitSlots` | List\<UnitSlot\> | Slots de unidades activas (máx. 3) |
-| `activeEffects` | List\<PlayerEffect\> | Efectos temporales activos |
+| `activeStatuses` | List\<StatusEffect\> | Buffs/debuffs temporizados activos |
 | `faction` | Faction | Facción del jugador |
 
 ---
 
-### 7.5 GameManager — flujo de resolución
+### 7.6 GameManager — flujo de resolución
 
-Único responsable de aplicar efectos y transiciones de turno. Procesa `activeEffects` antes de la producción, garantizando que cualquier nuevo `EffectType` se integre en un solo lugar.
+Único responsable de resolver `CardEffect`, procesar `activeStatuses` y manejar las transiciones de turno. Procesa `activeStatuses` antes de la producción, garantizando que cualquier nuevo `CardEffectType` o `StatusType` se integre en un solo lugar.
 
 El pool de cartas de cada facción es una `List<CardData>` filtrada por `faction`. Al jugar o descartar, se reemplaza la carta por una aleatoria del pool.
 
@@ -203,7 +260,7 @@ El pool de cartas de cada facción es una `List<CardData>` filtrada por `faction
 
 ### 8.2 Acción (un solo uso)
 
-Se juega, se aplican todos sus `PlayerEffect` en orden, y se reemplaza por una carta nueva.
+Se juega, se resuelven todos sus `CardEffect` en orden, y se reemplaza por una carta nueva.
 
 Los subtipos (Ataque, Defensa, Sabotaje, Boost, EfectoEspecial) son solo una categoría visual/temática — la lógica real la define la lista `effects` de la carta.
 
@@ -212,7 +269,7 @@ Los subtipos (Ataque, Defensa, Sabotaje, Boost, EfectoEspecial) son solo una cat
 Se despliega en la zona de unidades. Su efecto es siempre pasivo — el `GameManager` lo resuelve automáticamente cada turno según el `unitSubtype` y el `count` del slot.
 
 - Cada despliegue suma **+1** al contador del slot correspondiente (máximo x5).
-- El efecto de sabotaje `RemoveOpponentUnit` resta **-1** al contador de un slot elegido por el atacante.
+- El efecto de sabotaje `RemoveUnit` resta **-1** al contador de un slot elegido por el atacante.
 - Si el contador llega a **0**, el slot se libera.
 
 | UnitSubtype | Efecto pasivo por turno |
@@ -356,7 +413,7 @@ Pantalla única sin divisiones. Jugadores enfrentados horizontalmente. Torres en
   ◄── jugador activo (mano visible)
 ```
 
-**Efectos activos:** cada jugador muestra un indicador visual si tiene `activeEffects` vigentes (ej: ícono de producción bloqueada, ícono de producción doble).
+**Efectos activos:** cada jugador muestra un indicador visual si tiene `activeStatuses` vigentes (ej: ícono de producción bloqueada, ícono de producción doble).
 
 **Indicador de turno:** banner central con el nombre de la facción activa.
 
