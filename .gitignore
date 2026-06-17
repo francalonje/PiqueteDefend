@@ -7,6 +7,10 @@
 [Ll]ogs/
 [Uu]ser[Ss]ettings/
 
+# Test / batch-mode artifacts
+test-results.xml
+unity-test.log
+
 # MemoryCaptures can get excessive in size
 [Mm]emory[Cc]aptures/
 

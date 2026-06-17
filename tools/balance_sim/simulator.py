@@ -217,7 +217,7 @@ POOL = {
 # ──────────────────────────────────────────────────────────────────────────────
 
 BASE_PROD = {ResourceType.DINERO: 5, ResourceType.FUERZA: 3, ResourceType.SOCIAL: 2}
-MAX_RESOURCE = 99
+MAX_RESOURCE = 100
 HP_INITIAL = 100
 HAND_SIZE = 6
 MAX_SLOTS = 3

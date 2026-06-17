@@ -26,9 +26,9 @@ Cada jugador maneja 3 recursos independientes. Al inicio de cada turno **antes d
 
 | Recurso | Descripción | Producción inicial | Máximo |
 |---------|-------------|-------------------|--------|
-| **Dinero** ($) | Plata para movilizar gente y pagar logística | 5 / turno | 99 |
-| **Fuerza** (⚡) | Capacidad física, represión o resistencia | 3 / turno | 99 |
-| **Social** (📣) | Apoyo popular, organización, narrativa | 2 / turno | 99 |
+| **Dinero** ($) | Plata para movilizar gente y pagar logística | 5 / turno | 100 |
+| **Fuerza** (⚡) | Capacidad física, represión o resistencia | 3 / turno | 100 |
+| **Social** (📣) | Apoyo popular, organización, narrativa | 2 / turno | 100 |
 
 > La producción de cada recurso puede aumentarse mediante unidades pasivas activas.
 
