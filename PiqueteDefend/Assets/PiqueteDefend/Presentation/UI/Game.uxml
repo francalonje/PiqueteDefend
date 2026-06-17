@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="root" class="screen screen--game">
+        <Style src="Common.uss" />
+        <Style src="Game.uss" />
+
+        <!-- TOP: stats de ambos jugadores + banner de turno -->
+        <ui:VisualElement class="game__top">
+            <ui:VisualElement name="panel-0" class="pstats">
+                <ui:Label name="p0-faction" class="pstats__faction" />
+                <ui:Label name="p0-hp" class="pstats__hp" />
+                <ui:Label name="p0-res" class="pstats__res" />
+                <ui:Label name="p0-status" class="pstats__status" />
+            </ui:VisualElement>
+
+            <ui:VisualElement class="game__banner">
+                <ui:Label name="turn-banner" class="game__turn" />
+            </ui:VisualElement>
+
+            <ui:VisualElement name="panel-1" class="pstats pstats--right">
+                <ui:Label name="p1-faction" class="pstats__faction" />
+                <ui:Label name="p1-hp" class="pstats__hp" />
+                <ui:Label name="p1-res" class="pstats__res" />
+                <ui:Label name="p1-status" class="pstats__status" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- MID: slots de unidades -->
+        <ui:VisualElement class="game__mid">
+            <ui:VisualElement name="p0-slots" class="slots" />
+            <ui:VisualElement class="game__center" />
+            <ui:VisualElement name="p1-slots" class="slots slots--right" />
+        </ui:VisualElement>
+
+        <!-- BOTTOM: mano del jugador activo + acciones -->
+        <ui:Label name="hint" class="game__hint" />
+        <ui:VisualElement name="hand" class="hand" />
+        <ui:VisualElement class="game__actions">
+            <ui:Button name="play-button" text="Jugar" class="btn btn--primary" />
+            <ui:Button name="discard-button" text="Descartar" class="btn" />
+        </ui:VisualElement>
+
+        <!-- OVERLAY: transición de turno / victoria -->
+        <ui:VisualElement name="overlay" class="overlay">
+            <ui:VisualElement class="overlay__panel">
+                <ui:Label name="overlay-title" class="overlay__title" />
+                <ui:Label name="overlay-msg" class="overlay__msg" />
+                <ui:Button name="overlay-primary" class="btn btn--primary" />
+                <ui:Button name="overlay-secondary" class="btn" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

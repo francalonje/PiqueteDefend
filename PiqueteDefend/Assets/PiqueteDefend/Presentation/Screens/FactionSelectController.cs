@@ -46,8 +46,7 @@ namespace PiqueteDefend.Presentation
             }
 
             MatchConfig.Player1 = faction;
-            // TODO Fase 4: cargar la escena de juego cuando exista.
-            Debug.Log($"[FactionSelect] Jugador 1 = {MatchConfig.Player0}, Jugador 2 = {MatchConfig.Player1}.");
+            SceneManager.LoadScene("Game");
         }
     }
 }

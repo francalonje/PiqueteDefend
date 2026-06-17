@@ -18,6 +18,10 @@ namespace PiqueteDefend.EditorTools
         private const string ParentFolder = "Assets/PiqueteDefend";
         private const string DataFolder = ParentFolder + "/Data";
         private const string CardsFolder = DataFolder + "/Cards";
+        private const string ResourcesFolder = ParentFolder + "/Presentation/Resources";
+
+        /// <summary>Nombre con el que el runtime carga el catálogo vía Resources.Load.</summary>
+        public const string CatalogResourceName = "CardCatalog";
 
         [MenuItem("PiqueteDefend/Generate Card Library")]
         public static void GenerateAll()
@@ -30,16 +34,20 @@ namespace PiqueteDefend.EditorTools
             AssetDatabase.CreateFolder(CardsFolder, "Manifestantes");
             AssetDatabase.CreateFolder(CardsFolder, "Policias");
 
+            if (!AssetDatabase.IsValidFolder(ResourcesFolder))
+                AssetDatabase.CreateFolder(ParentFolder + "/Presentation", "Resources");
+
             var catalog = ScriptableObject.CreateInstance<CardCatalog>();
             catalog.manifestantes = Persist(CardLibrary.BuildManifestantes(), "Manifestantes");
             catalog.policias = Persist(CardLibrary.BuildPolicias(), "Policias");
-            AssetDatabase.CreateAsset(catalog, DataFolder + "/CardCatalog.asset");
+            // El catálogo vive en Resources/ para cargarlo en runtime (Resources.Load).
+            AssetDatabase.CreateAsset(catalog, $"{ResourcesFolder}/{CatalogResourceName}.asset");
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
             int total = catalog.manifestantes.Count + catalog.policias.Count;
-            Debug.Log($"[CardLibraryGenerator] Generadas {total} cartas + CardCatalog en {DataFolder}.");
+            Debug.Log($"[CardLibraryGenerator] Generadas {total} cartas (Data/) + CardCatalog (Resources/).");
         }
 
         private static List<CardData> Persist(List<CardData> cards, string factionFolder)

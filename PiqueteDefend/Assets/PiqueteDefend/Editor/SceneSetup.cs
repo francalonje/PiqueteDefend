@@ -23,6 +23,16 @@ namespace PiqueteDefend.EditorTools
         /// <summary>Nombre con el que el runtime carga el PanelSettings vía Resources.Load.</summary>
         public const string PanelSettingsResourceName = "UIPanelSettings";
 
+        /// <summary>
+        /// Pasada completa en una sola instancia de Unity: genera cartas/catálogo y luego las escenas.
+        /// Evita lanzar dos procesos batch en paralelo (Unity.exe no bloquea → colisión de lock).
+        /// </summary>
+        public static void SetupEverything()
+        {
+            CardLibraryGenerator.GenerateAll();
+            SetupAll();
+        }
+
         [MenuItem("PiqueteDefend/Setup UI Scenes")]
         public static void SetupAll()
         {
@@ -33,11 +43,13 @@ namespace PiqueteDefend.EditorTools
 
             BuildScene("Main", "MainMenu", typeof(MainMenuController));
             BuildScene("FactionSelect", "FactionSelect", typeof(FactionSelectController));
+            BuildScene("Game", "Game", typeof(GameController));
 
             EditorBuildSettings.scenes = new[]
             {
                 new EditorBuildSettingsScene(ScenesDir + "/Main.unity", true),
                 new EditorBuildSettingsScene(ScenesDir + "/FactionSelect.unity", true),
+                new EditorBuildSettingsScene(ScenesDir + "/Game.unity", true),
             };
 
             AssetDatabase.SaveAssets();
