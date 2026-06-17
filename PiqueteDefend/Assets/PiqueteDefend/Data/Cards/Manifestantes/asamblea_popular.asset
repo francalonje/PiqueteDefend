@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6b85f93574a4009429a9cd6667ed6e03, type: 3}
+  m_Name: asamblea_popular
+  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.CardData
+  id: asamblea_popular
+  cardName: Asamblea Popular
+  faction: 0
+  cardType: 0
+  actionCategory: 4
+  effects:
+  - effectType: 3
+    target: 0
+    resourceTarget: 0
+    value: 0
+    status:
+      statusType: 1
+      value: 2
+      counter: 1
+  unitSubtype: 0
+  productionResource: 0
+  costDinero: 0
+  costFuerza: 0
+  costSocial: 6
+  sprite: {fileID: 0}
+  descriptionText: 
+  flavorText: "Se vota a mano alzada. Algo sale. Esta vez sali\xF3 bien."
