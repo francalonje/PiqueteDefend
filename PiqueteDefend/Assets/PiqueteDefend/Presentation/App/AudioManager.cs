@@ -13,6 +13,9 @@ namespace PiqueteDefend.Presentation
     {
         public static AudioManager Instance { get; private set; }
 
+        /// <summary>Volumen de la música de fondo (0–1). Los SFX van a volumen pleno.</summary>
+        private const float MusicVolume = 0.5f;
+
         private AudioSource _music;
         private AudioSource _sfx;
         private string _currentMusic;
@@ -40,6 +43,7 @@ namespace PiqueteDefend.Presentation
             _music = gameObject.AddComponent<AudioSource>();
             _music.loop = true;
             _music.playOnAwake = false;
+            _music.volume = MusicVolume;
 
             _sfx = gameObject.AddComponent<AudioSource>();
             _sfx.playOnAwake = false;
