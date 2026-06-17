@@ -53,15 +53,15 @@ Un jugador gana si ocurre **cualquiera** de estas condiciones:
 | Condición | Descripción |
 |-----------|-------------|
 | **KO** | Reducir los HP del oponente a 0 |
-| **Hegemonía Social** | Acumular 50 puntos de Social |
-| **Poder Económico** | Acumular 75 puntos de Dinero |
+| **Hegemonía Social** | Acumular 60 puntos de Social |
+| **Poder Económico** | Acumular 100 puntos de Dinero |
 
 No hay empate. Existe un límite de turnos como salvavidas (ver §5.1).
 
 ### Orden de prioridad de victoria (en orden):
 1. **KO** — si el HP del oponente llega a 0, gana quien causó el daño (prioridad máxima)
-2. **Hegemonía Social** — acumular ≥ 50 📣
-3. **Poder Económico** — acumular ≥ 75 $
+2. **Hegemonía Social** — acumular ≥ 60 📣
+3. **Poder Económico** — acumular ≥ 100 $
 
 Si KO y una condición de recurso se cumplen simultáneamente, gana por KO.
 
@@ -226,9 +226,9 @@ Vive en el `activeStatuses` de un jugador. Se procesa en la fase EFECTOS al inic
 
 | Carta | CardEffect(s) |
 |-------|---------------|
-| **Paro General** | `{ ModifyHP, Opponent, value: -9 }` |
-| **Abrazo Colectivo** | `{ ModifyHP, Self, value: +13 }` |
-| **Colecta** | `{ ModifyResource, Self, Dinero, value: +8 }` |
+| **Paro General** | `{ ModifyHP, Opponent, value: -14 }` |
+| **Abrazo Colectivo** | `{ ModifyHP, Self, value: +16 }` |
+| **Colecta** | `{ ModifyResource, Self, Dinero, value: +6 }` |
 | **Saqueo** | `{ ModifyResource, Opponent, Dinero, value: -3 }` |
 | **Infiltrado** | `{ RemoveUnit, Opponent, value: -1 }` |
 | **Corte de Ruta** | `{ ApplyStatus, Opponent, status: { SkipProduction, counter: 1 } }` |
@@ -347,7 +347,7 @@ Se despliega en la zona de unidades. Su efecto es siempre pasivo — el `GameMan
 ### Acciones — Boost
 | Carta | Costo | Efecto |
 |-------|-------|--------|
-| **Colecta** | 3 📣 | Gana +8 $ |
+| **Colecta** | 3 📣 | Gana +6 $ |
 | **Adrenalina** | 1 $ | Gana +3 ⚡ |
 | **Viral en Redes** | 2 $ | Gana +7 📣 |
 
@@ -362,8 +362,8 @@ Se despliega en la zona de unidades. Su efecto es siempre pasivo — el `GameMan
 ### Acciones — Ataque / Defensa
 | Carta | Subtipo | Costo | Efecto |
 |-------|---------|-------|--------|
-| **Paro General** | Ataque | 2 $ + 3 ⚡ | Inflige 9 daño directo al oponente |
-| **Abrazo Colectivo** | Defensa | 4 $ + 1 📣 | Recupera 13 HP propios |
+| **Paro General** | Ataque | 2 $ + 3 ⚡ | Inflige 14 daño directo al oponente |
+| **Abrazo Colectivo** | Defensa | 4 $ + 1 📣 | Recupera 16 HP propios |
 
 ### Acciones — Efecto especial
 | Carta | Costo | Efecto |
@@ -387,7 +387,7 @@ Se despliega en la zona de unidades. Su efecto es siempre pasivo — el `GameMan
 ### Acciones — Boost
 | Carta | Costo | Efecto |
 |-------|-------|--------|
-| **Partida Presupuestaria** | 1 📣 | Gana +3 $ |
+| **Partida Presupuestaria** | 1 📣 | Gana +7 $ |
 | **Refuerzo** | 3 $ | Gana +8 ⚡ |
 | **Cadena Nacional** | 2 ⚡ | Gana +4 📣 |
 
@@ -402,8 +402,8 @@ Se despliega en la zona de unidades. Su efecto es siempre pasivo — el `GameMan
 ### Acciones — Ataque / Defensa
 | Carta | Subtipo | Costo | Efecto |
 |-------|---------|-------|--------|
-| **Operativo Especial** | Ataque | 4 $ + 2 ⚡ | Inflige 13 daño directo al oponente |
-| **Escudo Antidisturbios** | Defensa | 2 $ + 3 📣 | Recupera 9 HP propios |
+| **Operativo Especial** | Ataque | 4 $ + 2 ⚡ | Inflige 18 daño directo al oponente |
+| **Escudo Antidisturbios** | Defensa | 2 $ + 3 📣 | Recupera 12 HP propios |
 
 ### Acciones — Efecto especial
 | Carta | Costo | Efecto |
@@ -415,21 +415,23 @@ Se despliega en la zona de unidades. Su efecto es siempre pasivo — el `GameMan
 
 ## Balance verificable entre facciones
 
+> Valores validados con simulación de 10.000 partidas (AI greedy vs greedy). Win rate resultante: Manifestantes 47.7% — Policías 52.3% (gap ±5pp, rango GOOD).
+
 | Categoría | Manifestantes | Policías |
 |-----------|--------------|----------|
-| Boost $ | +8 (caro) | +3 (barato) |
+| Boost $ | +6 (medio) | +7 (medio) |
 | Boost ⚡ | +3 (barato) | +8 (caro) |
 | Boost 📣 | +7 (medio) | +4 (medio) |
-| **Total boost** | **+18** | **+15** |
+| **Total boost** | **+16** | **+19** |
 | Sabotaje $ | -3 (barato) | -7 (caro) |
 | Sabotaje ⚡ | -7 (caro) | -3 (barato) |
 | Sabotaje 📣 | -5 (medio) | -5 (medio) |
 | **Total sabotaje** | **-15** | **-15** |
-| Daño directo | 9 | 13 |
-| Recuperación HP | 13 | 9 |
-| **Daño + recuperación** | **22** | **22** |
+| Daño directo | 14 | 18 |
+| Recuperación HP | 16 | 12 |
+| **Daño + recuperación** | **30** | **30** |
 
-> El boost total difiere en 3 puntos. Esto se compensa con que Policías tiene el daño directo más alto (+4) y Manifestantes la recuperación más alta (+4). Balance neto equivalente.
+> Asimetría temática: Policías pega más fuerte (18 vs 14), Manifestantes se cura más (16 vs 12). Total (daño + cura) igual en ambas facciones (30). Policías invierte más en Fuerza, Manifestantes más en recursos sociales.
 
 ---
 
@@ -503,6 +505,8 @@ Overlay sobre la pantalla de juego con:
 | HP inicial | 100 |
 | Recursos iniciales | Dinero 3, Fuerza 2, Social 1 |
 | Producción base por turno | Dinero 5, Fuerza 3, Social 2 |
+| Umbral Hegemonía Social | 60 📣 |
+| Umbral Poder Económico | 100 $ |
 | Primer jugador | Coinflip aleatorio |
 | `suddenDeathStart` | Turno 40 (configurable) |
 | `maxTurns` | 100 (configurable) |
