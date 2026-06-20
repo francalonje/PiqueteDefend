@@ -4,11 +4,8 @@
         <Style src="Common.uss" />
         <Style src="Game.uss" />
 
-        <!-- FONDO: dos mitades (izquierda Manifestantes / derecha Policías) -->
-        <ui:VisualElement name="bg" class="game__bg" picking-mode="Ignore">
-            <ui:VisualElement name="bg-left" class="game__bg-half" picking-mode="Ignore" />
-            <ui:VisualElement name="bg-right" class="game__bg-half" picking-mode="Ignore" />
-        </ui:VisualElement>
+        <!-- FONDO -->
+        <ui:VisualElement name="bg" class="game__bg" picking-mode="Ignore" />
 
         <!-- TOP: stats de ambos jugadores + banner de turno -->
         <ui:VisualElement class="game__top">
