@@ -105,17 +105,12 @@ namespace PiqueteDefend.Presentation
 
         private static void ApplyBackground(VisualElement root)
         {
-            SetBackground(root.Q<VisualElement>("bg-left"), "bg-left");
-            SetBackground(root.Q<VisualElement>("bg-right"), "bg-right");
-        }
-
-        private static void SetBackground(VisualElement element, string resourceName)
-        {
-            if (element == null) return;
-            var texture = Resources.Load<Texture2D>(resourceName);
-            if (texture != null) { element.style.backgroundImage = new StyleBackground(texture); return; }
-            var sprite = Resources.Load<Sprite>(resourceName);
-            if (sprite != null) element.style.backgroundImage = new StyleBackground(sprite);
+            var bg = root.Q<VisualElement>("bg");
+            if (bg == null) return;
+            var texture = Resources.Load<Texture2D>("bg");
+            if (texture != null) { bg.style.backgroundImage = new StyleBackground(texture); return; }
+            var sprite = Resources.Load<Sprite>("bg");
+            if (sprite != null) bg.style.backgroundImage = new StyleBackground(sprite);
         }
 
         // ── Flujo de turno ────────────────────────────────────────────────────

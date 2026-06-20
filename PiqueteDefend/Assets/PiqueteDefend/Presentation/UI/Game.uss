@@ -3,19 +3,13 @@
     padding: 20px;
 }
 
-/* ── Fondo partido (izquierda / derecha) ──────────────────────────────── */
+/* ── Fondo ─────────────────────────────────────────────────────────────── */
 .game__bg {
     position: absolute;
     left: 0;
     top: 0;
     right: 0;
     bottom: 0;
-    flex-direction: row;
-}
-
-.game__bg-half {
-    flex-grow: 1;
-    height: 100%;
     -unity-background-scale-mode: stretch-to-fill;
 }
 
