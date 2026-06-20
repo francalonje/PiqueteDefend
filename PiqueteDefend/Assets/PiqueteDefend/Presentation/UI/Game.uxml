@@ -14,7 +14,6 @@
         <ui:VisualElement class="game__top">
             <ui:VisualElement name="panel-0" class="pstats">
                 <ui:Label name="p0-faction" class="pstats__faction" />
-                <ui:Label name="p0-hp" class="pstats__hp" />
                 <ui:Label name="p0-res" class="pstats__res" />
                 <ui:Label name="p0-status" class="pstats__status" />
             </ui:VisualElement>
@@ -25,28 +24,32 @@
 
             <ui:VisualElement name="panel-1" class="pstats pstats--right">
                 <ui:Label name="p1-faction" class="pstats__faction" />
-                <ui:Label name="p1-hp" class="pstats__hp" />
                 <ui:Label name="p1-res" class="pstats__res" />
                 <ui:Label name="p1-status" class="pstats__status" />
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- MID: slots de unidades -->
+        <!-- MID: slots de unidades (6 por jugador) -->
         <ui:VisualElement class="game__mid">
             <ui:VisualElement name="p0-slots" class="slots" />
             <ui:VisualElement class="game__center" />
             <ui:VisualElement name="p1-slots" class="slots slots--right" />
         </ui:VisualElement>
 
-        <!-- BOTTOM: mano del jugador activo + acciones -->
+        <!-- BOTTOM: mano del jugador activo + zonas de soltar + fin de turno -->
         <ui:Label name="hint" class="game__hint" />
         <ui:VisualElement name="hand" class="hand" />
         <ui:VisualElement class="game__actions">
-            <ui:Button name="play-button" text="Jugar" class="btn btn--primary" />
-            <ui:Button name="discard-button" text="Descartar" class="btn" />
+            <ui:VisualElement name="play-zone" class="dropzone dropzone--play">
+                <ui:Label text="JUGAR" class="dropzone__label" />
+            </ui:VisualElement>
+            <ui:VisualElement name="discard-zone" class="dropzone dropzone--discard">
+                <ui:Label text="DESCARTAR" class="dropzone__label" />
+            </ui:VisualElement>
+            <ui:Button name="end-turn-button" text="Terminar turno" class="btn btn--primary end-turn" />
         </ui:VisualElement>
 
-        <!-- OVERLAY: transición de turno / victoria -->
+        <!-- OVERLAY: victoria / empate -->
         <ui:VisualElement name="overlay" class="overlay">
             <ui:VisualElement class="overlay__panel">
                 <ui:Label name="overlay-title" class="overlay__title" />

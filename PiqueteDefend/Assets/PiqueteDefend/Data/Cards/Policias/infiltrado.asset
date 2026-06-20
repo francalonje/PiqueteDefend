@@ -9,28 +9,28 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6b85f93574a4009429a9cd6667ed6e03, type: 3}
+  m_Script: {fileID: 11500000, guid: e61353bd5c717d2438b3fede9c541def, type: 3}
   m_Name: infiltrado
-  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.CardData
+  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.ActionCardData
   id: infiltrado
   cardName: Infiltrado
   faction: 1
-  cardType: 0
+  costs:
+  - resource: 0
+    amount: 4
+  sprite: {fileID: 0}
+  descriptionText: 
+  flavorText: Un tipo raro en la marcha. Nadie lo conoce pero todos lo sospechaban.
+  playSoundId: 
+  animationHook: 
   actionCategory: 2
   effects:
-  - effectType: 2
+  - effectType: 0
     target: 1
+    targetSlot: -1
     resourceTarget: 0
     value: -1
     status:
       statusType: 0
       value: 0
       counter: 0
-  unitSubtype: 0
-  productionResource: 0
-  costDinero: 3
-  costFuerza: 0
-  costSocial: 1
-  sprite: {fileID: 0}
-  descriptionText: 
-  flavorText: Un tipo raro en la marcha. Nadie lo conoce pero todos lo sospechaban.

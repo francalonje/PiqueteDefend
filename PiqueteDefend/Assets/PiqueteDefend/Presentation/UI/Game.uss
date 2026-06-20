@@ -29,7 +29,7 @@
 
 .pstats {
     width: 30%;
-    padding: 16px;
+    padding: 14px;
     border-radius: 10px;
     background-color: rgb(34, 37, 46);
 }
@@ -39,25 +39,19 @@
 }
 
 .pstats__faction {
-    font-size: 30px;
+    font-size: 28px;
     -unity-font-style: bold;
     color: rgb(235, 237, 242);
-}
-
-.pstats__hp {
-    font-size: 28px;
-    color: rgb(232, 108, 70);
-    margin-top: 6px;
 }
 
 .pstats__res {
     font-size: 23px;
     color: rgb(200, 205, 215);
-    margin-top: 4px;
+    margin-top: 6px;
 }
 
 .pstats__status {
-    font-size: 19px;
+    font-size: 18px;
     color: rgb(150, 200, 150);
     margin-top: 6px;
     white-space: normal;
@@ -66,26 +60,26 @@
 .game__banner {
     align-items: center;
     justify-content: center;
-    padding-top: 12px;
+    padding-top: 10px;
 }
 
 .game__turn {
-    font-size: 32px;
+    font-size: 30px;
     -unity-font-style: bold;
     color: rgb(245, 246, 250);
 }
 
-/* ── Mid: slots ───────────────────────────────────────────────────────── */
+/* ── Mid: slots (6 por jugador, rectángulos) ──────────────────────────── */
 .game__mid {
     flex-direction: row;
     justify-content: space-between;
     width: 100%;
     flex-grow: 1;
-    margin-top: 16px;
+    margin-top: 12px;
 }
 
 .slots {
-    width: 30%;
+    width: 34%;
 }
 
 .slots--right {
@@ -93,20 +87,29 @@
 }
 
 .slot {
-    height: 72px;
-    margin: 6px 0;
-    padding: 10px 16px;
+    height: 54px;
+    margin: 5px 0;
+    padding: 6px 14px;
     border-radius: 8px;
     border-width: 2px;
     border-color: rgba(255, 255, 255, 0.06);
     background-color: rgb(44, 48, 60);
     justify-content: center;
-    min-width: 250px;
+    min-width: 230px;
 }
 
 .slot--empty {
-    background-color: rgba(44, 48, 60, 0.4);
+    background-color: rgba(44, 48, 60, 0.35);
     border-color: rgba(255, 255, 255, 0.03);
+    min-height: 54px;
+}
+
+.slot--attacker {
+    border-color: rgb(120, 180, 235);
+}
+
+.slot--attacker:hover {
+    background-color: rgb(56, 62, 78);
 }
 
 .slot--target {
@@ -118,18 +121,18 @@
 }
 
 .slot__name {
-    font-size: 20px;
+    font-size: 19px;
     color: rgb(235, 237, 242);
     -unity-font-style: bold;
 }
 
 .slot__meta {
-    font-size: 17px;
+    font-size: 16px;
     color: rgb(170, 176, 188);
 }
 
 .game__center {
-    width: 20%;
+    width: 16%;
 }
 
 /* ── Hand ─────────────────────────────────────────────────────────────── */
@@ -138,18 +141,18 @@
     color: rgb(220, 200, 120);
     -unity-text-align: middle-center;
     height: 26px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .hand {
     flex-direction: row;
     justify-content: center;
-    margin-top: 10px;
+    margin-top: 6px;
 }
 
 .card {
-    width: 165px;
-    height: 215px;
+    width: 150px;
+    height: 190px;
     margin: 0 6px;
     padding: 12px;
     border-radius: 8px;
@@ -158,53 +161,113 @@
     background-color: rgb(48, 52, 66);
     align-items: flex-start;
     justify-content: flex-start;
-    transition-duration: 0.08s;
 }
 
 .card:hover {
     border-color: rgba(255, 255, 255, 0.4);
 }
 
-.card--selected {
-    border-color: rgb(232, 108, 70);
-    scale: 1.05 1.05;
-}
-
 .card--unaffordable {
     opacity: 0.45;
 }
 
+.card--used {
+    opacity: 0.3;
+}
+
 .card__name {
-    font-size: 19px;
+    font-size: 18px;
     -unity-font-style: bold;
     color: rgb(240, 242, 247);
     white-space: normal;
 }
 
 .card__cost {
-    font-size: 18px;
+    font-size: 17px;
     color: rgb(220, 200, 120);
     margin-top: 6px;
 }
 
 .card__body {
-    font-size: 15px;
+    font-size: 14px;
     color: rgb(190, 196, 208);
     white-space: normal;
     margin-top: 8px;
 }
 
+/* ── Zonas de soltar + fin de turno ───────────────────────────────────── */
 .game__actions {
     flex-direction: row;
     justify-content: center;
-    margin-top: 14px;
+    align-items: center;
+    margin-top: 12px;
 }
 
-.game__actions .btn {
-    min-width: 180px;
-    height: 60px;
-    font-size: 24px;
+.dropzone {
+    width: 180px;
+    height: 64px;
     margin: 0 10px;
+    border-radius: 10px;
+    border-width: 2px;
+    border-color: rgba(255, 255, 255, 0.25);
+    background-color: rgba(255, 255, 255, 0.05);
+    align-items: center;
+    justify-content: center;
+}
+
+.dropzone--play {
+    border-color: rgb(120, 200, 130);
+}
+
+.dropzone--discard {
+    border-color: rgb(210, 120, 110);
+}
+
+.dropzone--disabled {
+    opacity: 0.3;
+}
+
+.dropzone__label {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: rgb(235, 237, 242);
+}
+
+.end-turn {
+    min-width: 200px;
+    height: 64px;
+    font-size: 22px;
+    margin-left: 24px;
+}
+
+/* ── Popover de ataque ────────────────────────────────────────────────── */
+.attack-popover {
+    position: absolute;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border-width: 2px;
+    border-color: rgb(120, 180, 235);
+    background-color: rgb(30, 40, 56);
+    color: rgb(235, 240, 248);
+    font-size: 18px;
+    -unity-font-style: bold;
+}
+
+.attack-popover:hover {
+    background-color: rgb(44, 58, 80);
+}
+
+/* ── Fantasma de drag ─────────────────────────────────────────────────── */
+.drag-ghost {
+    position: absolute;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background-color: rgba(48, 52, 66, 0.95);
+    border-width: 2px;
+    border-color: rgb(232, 108, 70);
+    color: rgb(240, 242, 247);
+    font-size: 16px;
+    -unity-font-style: bold;
 }
 
 /* ── Overlay ──────────────────────────────────────────────────────────── */

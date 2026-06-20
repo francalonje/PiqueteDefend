@@ -3,22 +3,30 @@ using System.Collections.Generic;
 namespace PiqueteDefend.Core
 {
     /// <summary>
-    /// Estado completo de un jugador (spec §7.5). Mantiene HP, recursos, mano,
-    /// unidades activas y statuses temporizados. No contiene reglas: las transiciones
-    /// las maneja <see cref="GameEngine"/>. Los helpers de acá son consultas/mutaciones
-    /// atómicas, espejo del simulador.
+    /// Estado completo de un jugador (spec §7.5). Recursos, mano, unidades en el tablero y
+    /// statuses temporizados. No contiene reglas: las transiciones las maneja
+    /// <see cref="GameEngine"/>; los helpers de acá son consultas/mutaciones atómicas.
+    ///
+    /// El jugador NO tiene HP propio: pierde cuando se queda sin unidades (spec §5).
     /// </summary>
-    public class PlayerState
+    public sealed class PlayerState
     {
         public Faction faction;
-        public int hp;
         public int dinero;
         public int fuerza;
         public int social;
 
         public readonly List<CardData> hand = new List<CardData>();
-        public readonly List<UnitSlot> unitSlots = new List<UnitSlot>();
+
+        /// <summary>Slots de unidades, indexados por posición. <c>null</c> = slot vacío.</summary>
+        public readonly UnitSlot[] unitSlots;
+
         public readonly List<StatusEffect> activeStatuses = new List<StatusEffect>();
+
+        public PlayerState(int slotCount)
+        {
+            unitSlots = new UnitSlot[slotCount];
+        }
 
         // ── Recursos ────────────────────────────────────────────────────────────
 
@@ -30,7 +38,7 @@ namespace PiqueteDefend.Core
             _ => 0
         };
 
-        /// <summary>Asigna un recurso, recortado a [0, max]. Los recursos nunca bajan de 0 (spec §5).</summary>
+        /// <summary>Asigna un recurso, recortado a [0, max]. Los recursos nunca bajan de 0 (spec §3).</summary>
         public void SetResource(ResourceType r, int value, int max)
         {
             int clamped = value < 0 ? 0 : (value > max ? max : value);
@@ -46,49 +54,69 @@ namespace PiqueteDefend.Core
             => SetResource(r, GetResource(r) + delta, max);
 
         public bool CanAfford(CardData card)
-            => dinero >= card.costDinero && fuerza >= card.costFuerza && social >= card.costSocial;
+        {
+            foreach (ResourceCost c in card.costs)
+                if (GetResource(c.resource) < c.amount) return false;
+            return true;
+        }
 
         public void Pay(CardData card)
         {
-            dinero -= card.costDinero;
-            fuerza -= card.costFuerza;
-            social -= card.costSocial;
+            foreach (ResourceCost c in card.costs)
+                SetResource(c.resource, GetResource(c.resource) - c.amount, int.MaxValue);
         }
 
         // ── Unidades ────────────────────────────────────────────────────────────
 
-        public UnitSlot SlotFor(string unitId)
+        public int AliveUnitCount()
         {
-            foreach (var s in unitSlots)
-                if (s.unitData.id == unitId)
-                    return s;
-            return null;
+            int n = 0;
+            foreach (UnitSlot s in unitSlots)
+                if (s != null) n++;
+            return n;
         }
 
-        public int UnitAttack()
+        public bool HasAnyUnit()
+        {
+            foreach (UnitSlot s in unitSlots)
+                if (s != null) return true;
+            return false;
+        }
+
+        public int TotalUnitHp()
         {
             int total = 0;
-            foreach (var s in unitSlots)
-                if (s.unitData.unitSubtype == UnitSubtype.Atacante)
-                    total += s.count;
+            foreach (UnitSlot s in unitSlots)
+                if (s != null) total += s.currentHp;
             return total;
         }
 
-        public int UnitDefense()
+        /// <summary>Primer slot libre permitido por la unidad; -1 si no hay ninguno.</summary>
+        public int FirstFreeAllowedSlot(UnitCardData unit)
         {
-            int total = 0;
-            foreach (var s in unitSlots)
-                if (s.unitData.unitSubtype == UnitSubtype.Defensiva)
-                    total += s.count;
-            return total;
+            for (int i = 0; i < unitSlots.Length; i++)
+                if (unitSlots[i] == null && unit.AllowsSlot(i)) return i;
+            return -1;
         }
 
-        /// <summary>Producción aportada por las unidades Productoras, por recurso.</summary>
+        /// <summary>True si hay al menos un slot permitido (libre u ocupado) para reemplazar.</summary>
+        public bool HasAnyAllowedSlot(UnitCardData unit)
+        {
+            for (int i = 0; i < unitSlots.Length; i++)
+                if (unit.AllowsSlot(i)) return true;
+            return false;
+        }
+
+        /// <summary>Producción aportada por las unidades, por recurso (spec §7.3).</summary>
         public void AddUnitProduction(Dictionary<ResourceType, int> into)
         {
-            foreach (var s in unitSlots)
-                if (s.unitData.unitSubtype == UnitSubtype.Productora)
-                    into[s.unitData.productionResource] += s.count;
+            foreach (UnitSlot s in unitSlots)
+            {
+                if (s == null) continue;
+                foreach (PassiveEffect p in s.unit.passiveEffects)
+                    if (p.passiveType == PassiveType.ProduceResource)
+                        into[p.resource] += p.value * s.count;
+            }
         }
     }
 }

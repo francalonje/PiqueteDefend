@@ -40,6 +40,8 @@ namespace PiqueteDefend.EditorTools
             var catalog = ScriptableObject.CreateInstance<CardCatalog>();
             catalog.manifestantes = Persist(CardLibrary.BuildManifestantes(), "Manifestantes");
             catalog.policias = Persist(CardLibrary.BuildPolicias(), "Policias");
+            catalog.startingManifestantes = ResolveStarting(catalog.manifestantes, Faction.Manifestantes);
+            catalog.startingPolicias = ResolveStarting(catalog.policias, Faction.Policias);
             // El catálogo vive en Resources/ para cargarlo en runtime (Resources.Load).
             AssetDatabase.CreateAsset(catalog, $"{ResourcesFolder}/{CatalogResourceName}.asset");
 
@@ -55,6 +57,17 @@ namespace PiqueteDefend.EditorTools
             foreach (CardData card in cards)
                 AssetDatabase.CreateAsset(card, $"{CardsFolder}/{factionFolder}/{card.id}.asset");
             return cards;
+        }
+
+        /// <summary>Resuelve las unidades iniciales de la facción contra el pool ya persistido.</summary>
+        private static List<UnitCardData> ResolveStarting(List<CardData> pool, Faction faction)
+        {
+            var ids = new HashSet<string>(CardLibrary.StartingUnitIds(faction));
+            var result = new List<UnitCardData>();
+            foreach (CardData card in pool)
+                if (card is UnitCardData unit && ids.Contains(unit.id))
+                    result.Add(unit);
+            return result;
         }
     }
 }

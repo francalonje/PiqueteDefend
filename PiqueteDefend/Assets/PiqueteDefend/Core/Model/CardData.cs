@@ -4,40 +4,35 @@ using UnityEngine;
 namespace PiqueteDefend.Core
 {
     /// <summary>
-    /// Definición de una carta como dato puro (ScriptableObject). Cada carta es un asset.
-    /// Agregar una carta = crear un asset, sin tocar código.
+    /// Base de toda carta como dato puro (ScriptableObject), spec §7.1. Abstracta: cada carta
+    /// concreta es una <see cref="UnitCardData"/> o <see cref="ActionCardData"/>. Agregar una
+    /// carta = crear un asset, sin tocar código.
     ///
-    /// Las cartas de <see cref="CardType.Unidad"/> dejan <see cref="effects"/> vacío: su
-    /// efecto es pasivo y lo resuelve el motor según <see cref="unitSubtype"/> y el contador
-    /// del slot. Las cartas de <see cref="CardType.Accion"/> usan <see cref="effects"/>.
+    /// Sólo contiene dominio + referencias de presentación livianas permitidas en Core
+    /// (<see cref="Sprite"/>, ids de sonido/animación por string). El audio/efectos visuales
+    /// concretos los resuelve la capa de presentación (spec §7.10).
     /// </summary>
-    [CreateAssetMenu(fileName = "Card", menuName = "PiqueteDefend/Card", order = 0)]
-    public class CardData : ScriptableObject
+    public abstract class CardData : ScriptableObject
     {
         [Header("Identidad")]
         public string id;
         public string cardName;
         public Faction faction;
-        public CardType cardType;
 
-        [Header("Acción (sólo si cardType == Accion)")]
-        [Tooltip("Categoría visual/temática. No afecta la lógica.")]
-        public ActionCategory actionCategory;
-        public List<CardEffect> effects = new List<CardEffect>();
-
-        [Header("Unidad (sólo si cardType == Unidad)")]
-        public UnitSubtype unitSubtype;
-        [Tooltip("Recurso que produce (sólo si unitSubtype == Productora).")]
-        public ResourceType productionResource;
+        /// <summary>Derivado de la subclase concreta — no es un campo serializado (spec §7.1).</summary>
+        public abstract CardType CardType { get; }
 
         [Header("Costo")]
-        public int costDinero;
-        public int costFuerza;
-        public int costSocial;
+        [Tooltip("Hoy una entrada; lista para soportar costos multi-recurso.")]
+        public List<ResourceCost> costs = new List<ResourceCost>();
 
         [Header("Presentación")]
         public Sprite sprite;
         [TextArea] public string descriptionText;
         [TextArea] public string flavorText;
+        [Tooltip("Id del sonido al jugar (lo resuelve AudioManager desde Resources). Opcional.")]
+        public string playSoundId;
+        [Tooltip("[FUTURO] nombre de animación a disparar al jugar.")]
+        public string animationHook;
     }
 }

@@ -11,18 +11,13 @@
 ## Concepto
 
 Dos facciones enfrentadas se baten en una pantalla compartida (hotseat). Cada jugador
-administra tres recursos, despliega unidades y juega cartas de acción para bajar el HP
-del rival, dominar la narrativa o imponerse económicamente.
+administra tres recursos, despliega unidades en un tablero de 6 slots y juega cartas de
+acción. Las unidades atacan según patrones de posición; el combate y los efectos de las
+cartas van bajando el HP de las unidades rivales.
 
-**Tres formas de ganar:**
+**Cómo se gana:** por **KO** — cuando el rival pierde su última unidad.
 
-| Condición | Cómo |
-|-----------|------|
-| **KO** | Llevar el HP del rival a 0 |
-| **Hegemonía Social** | Acumular 70 de Social 📣 |
-| **Poder Económico** | Acumular 100 de Dinero 💲 |
-
-Un sistema de *muerte súbita* a partir del turno 40 garantiza que ninguna partida sea eterna.
+Un sistema de *muerte súbita* a partir del turno 30 garantiza que ninguna partida sea eterna.
 
 ## Facciones
 
@@ -32,14 +27,14 @@ Un sistema de *muerte súbita* a partir del turno 40 garantiza que ninguna parti
 32 cartas (16 por facción) entre **unidades** (atacantes, defensivas, productoras) y
 **acciones** (ataque, defensa, sabotaje, boost, efecto especial).
 
-> **Balance validado:** 10.000 partidas simuladas (IA greedy vs greedy) → 51,4% / 48,6%
-> (brecha 2,8pp, rango *excellent*). KO 77% · Hegemonía Social 17,8% · Poder Económico 5,2%.
+> **Balance:** todavía sin validar. Las unidades usan una baseline uniforme de prueba
+> (20 HP / 5 daño) para iterar jugabilidad antes de diferenciar y balancear.
 
 ## Cómo jugar
 
 1. **Jugar** en el menú → cada jugador elige su facción.
-2. En tu turno recibís producción automática y elegís: **jugar una carta** o **descartar**.
-3. El turno pasa al rival. Repetir hasta que se cumpla una condición de victoria.
+2. En tu turno recibís producción automática y podés **jugar/descartar una carta** y **atacar con una unidad**.
+3. El turno pasa al rival. Repetir hasta que un jugador se quede sin unidades (KO).
 
 Controles: mouse (clic en cartas y botones).
 
@@ -59,9 +54,9 @@ Assets/PiqueteDefend/
 └── Tests/EditMode # Tests unitarios del núcleo (NUnit).
 ```
 
-El núcleo C# es un **espejo del simulador de balance** (`tools/balance_sim/simulator.py`),
-que actúa como fuente de verdad de las reglas. 20 tests cubren producción, timing de
-status, condiciones de victoria, muerte súbita y unidades.
+La **fuente de verdad de las reglas** es `docs/game-spec.md`. El núcleo C# lo implementa y
+los tests EditMode cubren producción, timing de status, condiciones de victoria, muerte
+súbita y unidades.
 
 ## Estructura del repositorio
 
@@ -69,7 +64,6 @@ status, condiciones de victoria, muerte súbita y unidades.
 .
 ├── docs/game-spec.md          # Especificación completa del juego
 ├── tools/
-│   ├── balance_sim/           # Simulador de balance (Python, knobs por CLI)
 │   └── gen_click.py           # Generador de SFX sintéticos
 ├── CLAUDE.md                  # Guía de arquitectura y convenciones
 └── PiqueteDefend/             # Proyecto Unity (6000.5.0f1, URP)
@@ -100,12 +94,6 @@ Unity.exe -batchmode -projectPath PiqueteDefend -runTests -testPlatform EditMode
 **Regenerar cartas y escenas** — desde el menú `PiqueteDefend` del editor
 (*Generate Card Library*, *Setup UI Scenes*). Los assets se generan desde código,
 así que un cambio de balance se reaplica con un clic.
-
-**Simulador de balance:**
-```bash
-python tools/balance_sim/simulator.py --games 10000          # reporte estándar
-python tools/balance_sim/simulator.py --base-dinero 3        # tunear knobs
-```
 
 ## Estado
 

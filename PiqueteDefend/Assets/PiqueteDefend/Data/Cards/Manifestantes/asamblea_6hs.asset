@@ -9,28 +9,28 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6b85f93574a4009429a9cd6667ed6e03, type: 3}
+  m_Script: {fileID: 11500000, guid: e61353bd5c717d2438b3fede9c541def, type: 3}
   m_Name: asamblea_6hs
-  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.CardData
+  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.ActionCardData
   id: asamblea_6hs
   cardName: Asamblea de 6 Horas
   faction: 0
-  cardType: 0
+  costs:
+  - resource: 0
+    amount: 2
+  sprite: {fileID: 0}
+  descriptionText: 
+  flavorText: "Todos hablan. Nadie escucha. El orden del d\xEDa tiene 47 puntos."
+  playSoundId: 
+  animationHook: 
   actionCategory: 2
   effects:
   - effectType: 1
     target: 1
+    targetSlot: -1
     resourceTarget: 1
     value: -7
     status:
       statusType: 0
       value: 0
       counter: 0
-  unitSubtype: 0
-  productionResource: 0
-  costDinero: 2
-  costFuerza: 0
-  costSocial: 0
-  sprite: {fileID: 0}
-  descriptionText: 
-  flavorText: "Todos hablan. Nadie escucha. El orden del d\xEDa tiene 47 puntos."

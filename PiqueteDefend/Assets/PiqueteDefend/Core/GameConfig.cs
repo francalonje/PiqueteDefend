@@ -3,33 +3,32 @@ using System;
 namespace PiqueteDefend.Core
 {
     /// <summary>
-    /// Todos los parámetros de balance/reglas en un solo lugar (spec §12).
-    /// Defaults validados con la simulación. Ajustables por balanceo.
+    /// Todos los parámetros de balance/reglas en un solo lugar (spec §12). Ajustables por balanceo.
     /// </summary>
     [Serializable]
     public class GameConfig
     {
         public int handSize = 6;
-        public int maxSlots = 3;
+        public int maxSlots = 6;
+
+        /// <summary>[FUTURO] tope de apilamiento; sin mecánica activa.</summary>
         public int maxStack = 5;
 
-        public int hpInitial = 100;
+        public int initialDinero = 5;
+        public int initialFuerza = 5;
+        public int initialSocial = 5;
 
-        public int initialDinero = 3;
-        public int initialFuerza = 2;
-        public int initialSocial = 1;
-
-        public int baseProdDinero = 3;
-        public int baseProdFuerza = 3;
-        public int baseProdSocial = 2;
+        // Producción base por turno: 0 (sólo se produce vía unidades/cartas). Spec §3.
+        public int baseProdDinero = 0;
+        public int baseProdFuerza = 0;
+        public int baseProdSocial = 0;
 
         public int maxResource = 100;
 
-        public int socialThreshold = 70;   // Hegemonía Social
-        public int dineroThreshold = 100;  // Poder Económico
-
-        public int suddenDeathStart = 40;
-        public int maxTurns = 100;          // contado en medios-turnos (uno por jugador)
+        // Anti-stalemate (spec §5.1)
+        public int suddenDeathStart = 30;   // medio-turno desde el que pega muerte súbita
+        public int suddenDeathDamage = 1;   // daño a todas las unidades al fin de turno
+        public int maxTurns = 100;          // backstop duro (medios-turnos, uno por jugador)
 
         public int BaseProduction(ResourceType r) => r switch
         {

@@ -3,16 +3,15 @@
 Juego de cartas por turnos, 2 jugadores en local (hotseat). Manifestantes vs Policías,
 humor político argentino. Inspirado en Castle Wars / Arcomage. Unity 6 (6000.5.0f1) + URP.
 
-## Fuentes de verdad
+## Fuente de verdad
 
-1. **`docs/game-spec.md`** — la especificación completa del juego. Reglas, cartas, UI, parámetros.
-2. **`tools/balance_sim/simulator.py`** — la lógica del juego en Python, validada con 10.000
-   partidas (win rate 49.4% / 50.6%). **El núcleo C# debe reproducir esta lógica exactamente.**
-   Ante cualquier duda de comportamiento (timing de status, orden de fases, fórmula de daño,
-   desempates), el simulador es el árbitro. Los tests del núcleo se derivan de él.
+**`docs/game-spec.md`** — la especificación completa del juego y **única fuente de verdad**.
+Reglas, cartas, UI, parámetros y modelo de datos. Ante cualquier duda de comportamiento
+(timing de status, orden de fases, fórmula de daño, desempates, empates), manda el spec.
 
-> Nota: el docstring de `check_victory` en el simulador menciona umbrales 50/75, pero el código
-> real usa 70/100 — esos son los correctos (coinciden con el spec).
+> El balance de cartas todavía **no está validado**: las unidades usan una baseline uniforme
+> de prueba (20 HP / 5 daño). La validación por simulación se hará con una herramienta a
+> construir para el modelo actual (combate posicional por slots, victoria por KO).
 
 ## Arquitectura
 
@@ -32,7 +31,7 @@ Assets/PiqueteDefend/
 
 **Regla de oro:** la lógica del juego nunca vive en un MonoBehaviour. El núcleo es C# puro y
 determinista, testeable sin abrir el editor. La presentación sólo lee estado del núcleo y le
-manda comandos (jugar carta, descartar). Esto permite testear en CI y validar contra el simulador.
+manda comandos (jugar carta, descartar). Esto permite testear en CI.
 
 **Aleatoriedad inyectable:** el núcleo no usa `UnityEngine.Random` ni `System.Random` directo.
 Recibe una abstracción de RNG, para que los tests sean deterministas y reproducibles.
