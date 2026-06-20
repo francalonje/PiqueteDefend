@@ -1,21 +1,36 @@
-using System;
+using System.Collections.Generic;
 
 namespace PiqueteDefend.Core
 {
     /// <summary>
-    /// Un slot ocupado en la zona de unidades de un jugador. Apila la misma unidad
-    /// hasta <see cref="GameConfig.maxStack"/> mediante el contador <see cref="count"/>.
+    /// Una unidad desplegada en un slot del tablero (spec §7.4). La posición es implícita:
+    /// es el índice de este slot en <see cref="PlayerState.unitSlots"/>.
+    ///
+    /// Los stats efectivos se derivan de <see cref="unit"/> (base, inmutable); sólo
+    /// <see cref="currentHp"/> es estado mutable. <see cref="count"/> y
+    /// <see cref="attachedEquipment"/> son puntos de extensión [FUTURO] (apilamiento, equipo),
+    /// inactivos hoy.
     /// </summary>
-    [Serializable]
-    public class UnitSlot
+    public sealed class UnitSlot
     {
-        public CardData unitData;
-        public int count;
+        public readonly UnitCardData unit;
+        public int currentHp;
 
-        public UnitSlot(CardData unitData, int count = 1)
+        /// <summary>[FUTURO] apilamiento. Default 1, sin mecánica activa.</summary>
+        public int count = 1;
+
+        /// <summary>[FUTURO] equipo adjunto mientras la unidad viva.</summary>
+        public readonly List<CardData> attachedEquipment = new List<CardData>();
+
+        public UnitSlot(UnitCardData unit)
         {
-            this.unitData = unitData;
-            this.count = count;
+            this.unit = unit;
+            currentHp = MaxHp;
         }
+
+        /// <summary>HP máximo efectivo (base × count; +equipo [FUTURO]).</summary>
+        public int MaxHp => unit.maxHp * count;
+
+        public bool IsDead => currentHp <= 0;
     }
 }

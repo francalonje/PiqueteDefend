@@ -9,21 +9,27 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6b85f93574a4009429a9cd6667ed6e03, type: 3}
+  m_Script: {fileID: 11500000, guid: e8891f164702b9b46bef66a97e430139, type: 3}
   m_Name: piquetero
-  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.CardData
+  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.UnitCardData
   id: piquetero
   cardName: Piquetero
   faction: 0
-  cardType: 1
-  actionCategory: 0
-  effects: []
-  unitSubtype: 0
-  productionResource: 0
-  costDinero: 2
-  costFuerza: 2
-  costSocial: 0
+  costs:
+  - resource: 1
+    amount: 4
   sprite: {fileID: 0}
   descriptionText: 
   flavorText: Lleva el bombo, la bandera y las ganas de parar todo. El GPS del camionero
     lo odia.
+  playSoundId: 
+  animationHook: 
+  maxHp: 20
+  allowedSlots: 
+  attack:
+    reference: 0
+    pattern: 000000000100000002000000030000000400000005000000
+    pickCount: 1
+    damagePerSlot: 5
+  passiveEffects: []
+  unitSubtype: 0

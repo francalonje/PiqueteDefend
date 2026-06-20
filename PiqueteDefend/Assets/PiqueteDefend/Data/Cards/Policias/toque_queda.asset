@@ -9,28 +9,28 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6b85f93574a4009429a9cd6667ed6e03, type: 3}
+  m_Script: {fileID: 11500000, guid: e61353bd5c717d2438b3fede9c541def, type: 3}
   m_Name: toque_queda
-  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.CardData
+  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.ActionCardData
   id: toque_queda
   cardName: Toque de Queda
   faction: 1
-  cardType: 0
+  costs:
+  - resource: 0
+    amount: 5
+  sprite: {fileID: 0}
+  descriptionText: 
+  flavorText: A las 22hs, todos adentro. El que salga averigua.
+  playSoundId: 
+  animationHook: 
   actionCategory: 4
   effects:
   - effectType: 3
     target: 1
+    targetSlot: -1
     resourceTarget: 0
     value: 0
     status:
       statusType: 0
       value: 0
       counter: 1
-  unitSubtype: 0
-  productionResource: 0
-  costDinero: 4
-  costFuerza: 1
-  costSocial: 0
-  sprite: {fileID: 0}
-  descriptionText: 
-  flavorText: A las 22hs, todos adentro. El que salga averigua.

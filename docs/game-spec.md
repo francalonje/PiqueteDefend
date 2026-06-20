@@ -20,7 +20,12 @@ Juego de cartas por turnos para 2 jugadores en local (hotseat). Dos facciones en
 
 Cada facción tiene su propio pool de cartas temático, pero comparten la misma mecánica de recursos y reglas.
 
-**[FUTURO]** El sistema debe soportar agregar nuevas facciones sin modificar código — cada facción es data (pool de cartas + assets).
+Una facción es **data**, no código. Se define por:
+- Su **pool de cartas** (unidades, acciones, equipo).
+- Sus **unidades iniciales** — la(s) unidad(es) que despliega gratis al empezar la partida (§6).
+- Sus **assets** (sprites, sonidos).
+
+**[FUTURO]** El sistema debe soportar agregar nuevas facciones sin modificar código.
 
 ---
 
@@ -48,27 +53,33 @@ Cada jugador maneja 3 recursos independientes.
 
 Cada jugador tiene:
 
-- **HP (punto de extensión):** campo reservado en `PlayerState` para posible reintroducción de HP de jugador. No se usa en la mecánica actual.
 - **Recursos:** Dinero, Fuerza, Social — valor actual.
-- **Mano:** 6 cartas al inicio. **[DEFINIR]** tamaño de mano y reglas de robo cuando se termine de definir el turno completo.
-- **Zona de unidades:** 6 slots numerados (1–6). La posición importa para el combate. Cada slot puede contener una unidad apilada (x1–x5).
+- **Mano:** 6 cartas. Al jugar o descartar una carta se repone con una aleatoria del pool de la facción.
+- **Zona de unidades:** 6 slots numerados (1–6). La posición importa para el combate (§6). Cada slot contiene **a lo sumo una unidad** (no hay apilamiento).
 - **activeStatuses:** `List<StatusEffect>` — buffs/debuffs temporizados. Se procesan al inicio del turno del jugador afectado.
 
-> El jugador **no tiene HP propio**. Pierde cuando su última unidad muere.
+> El jugador **no tiene HP propio**. Pierde cuando su última unidad muere (§5).
 
 ---
 
 ## 5. Condiciones de victoria
 
-Un jugador gana cuando **el último HP de la última unidad del oponente llega a 0** (KO).
+Un jugador gana cuando **la última unidad del oponente llega a 0 HP** (KO).
 
-No hay empate. Existe un límite de turnos como salvavidas (ver §5.1).
+Como cada jugador arranca con al menos una unidad inicial (§6), nunca empieza la partida sin unidades: la derrota siempre es consecuencia de perder en combate la última unidad propia.
+
+Puede haber **empate** (ver Empate, abajo). Existe un límite de turnos como salvavidas (ver §5.1).
 
 ### Momentos de evaluación
 La condición de KO se evalúa:
-1. Al final de cada fase de combate (ataque de unidad).
-2. Inmediatamente después de resolver los efectos de una carta jugada.
+1. Al final de cada resolución de ataque de unidad.
+2. Inmediatamente después de resolver los efectos de una carta jugada (incluido cuando un efecto propio mata a una unidad propia).
 3. Al aplicar el daño de muerte súbita.
+
+### Empate (muerte simultánea)
+Si ambos jugadores pierden su última unidad en el mismo instante (típicamente por el daño de muerte súbita, que golpea a todos a la vez), la partida termina en **empate**.
+
+**[FUTURO]** Al implementar efectos de cartas habrá más formas de provocar muerte simultánea / empate.
 
 ### Recursos negativos
 Los recursos nunca bajan de 0. El exceso de reducción se descarta.
@@ -94,7 +105,7 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
 1. Cada jugador elige su facción (§11.2).
 2. Estado inicial de cada `PlayerState`:
    - **Recursos iniciales:** 5 de cada recurso (configurable).
-   - **Unidades:** 0 slots ocupados.
+   - **Unidades:** se despliegan las **unidades iniciales predefinidas** de la facción en sus slots (§2). El resto de los slots quedan libres.
    - **activeStatuses:** vacío.
    - **Mano:** 6 cartas aleatorias del pool de su facción.
 3. **Coinflip** determina qué jugador juega primero.
@@ -106,11 +117,11 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
 1. EFECTOS      — Procesar activeStatuses del jugador activo:
                     Por cada status:
                       → counter--
-                      → si counter == 0: disparar su payload y eliminar el status
+                      → si counter == 0: activar su efecto (sobre este turno) y eliminar el status
 
 2. PRODUCCIÓN   — Si NO es el turno 1 de la partida Y skipProduction no está activo:
-                    a) Producción de unidades con efecto pasivo Productora
-                    b) Multiplicar por productionMultiplier (default 1)
+                    a) Producción de unidades con efecto pasivo de producción
+                    b) Multiplicar por productionMultiplier (default 1; doble si hay DoubleProduction)
                   → Evaluar condición de victoria
 
 3. ACCIÓN       — El jugador puede hacer ambas, una, o ninguna (en cualquier orden):
@@ -132,34 +143,48 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
 
 ### Resolución de ataque de unidad
 
-El jugador selecciona una unidad propia. El ataque de esa unidad define:
-- Qué slots del oponente afecta (ej: slots 1 y 2)
-- Cuánto daño hace a cada slot afectado
+El jugador selecciona una unidad propia que tenga un ataque disponible. El ataque (`UnitAttack`, §7.2) define **a qué slots del oponente pega** y **cuánto daño** a cada uno.
 
-El daño se aplica al HP de la unidad en cada slot afectado. Si el HP llega a 0, la unidad muere y el slot queda libre.
+El conjunto de slots objetivo se resuelve según el ataque:
 
-**[FUTURO]** Cada unidad podría tener múltiples poderes con distintos patrones de slots y daño, o habilidades que recuperen HP.
+- **Marco de referencia (`reference`):**
+  - `Absolute` — el `pattern` son números de slot del tablero del oponente (1–6). La posición de la unidad atacante no influye; solo importa dónde está parado el defensor.
+  - `Relative` — el `pattern` son **offsets** respecto del slot de la unidad atacante. `0` = el slot enfrentado (mismo número en el tablero rival), `-1`/`+1` = los adyacentes, etc. Los offsets que caen fuera de 1–6 se descartan.
+
+- **Selección (`pickCount`):**
+  - `0` → el ataque golpea **todos** los slots de `pattern` (patrón obligatorio).
+  - `N > 0` → el atacante **elige N** slots de entre los de `pattern` al momento de atacar. Para un ataque "a libre elección", el `pattern` incluye los 6 slots y el jugador elige cuáles.
+
+El daño (`damagePerSlot`) se aplica al HP de la unidad que ocupe cada slot objetivo. **Si un slot objetivo está vacío, ese golpe se desperdicia (whiff)** — no se redirige. Si el HP de una unidad llega a 0, muere y el slot queda libre.
+
+> **La posición es decisión defensiva:** colocar (o estar obligado a colocar, §8.3) unidades fuera de los patrones de ataque enemigos las protege; los ataques `Relative` y los obligatorios crean el juego de posicionamiento.
+
+**[FUTURO]** Cada unidad podría tener múltiples poderes (`List<UnitAttack>`) con distintos patrones, o habilidades que recuperen HP.
 
 ---
 
 ## 7. Arquitectura técnica (Unity)
 
+### Separación de capas
+
+El **dominio** (`PiqueteDefend.Core`) contiene solo reglas: es C# determinista, testeable sin abrir el editor, y solo usa `UnityEngine` para `ScriptableObject` y `Sprite`. **Todo lo visual y de audio vive en `PiqueteDefend.Presentation`**, no en el dominio. En particular, ni `AudioClip` ni `AnimationClip` aparecen en Core (ver §7.3 y §7.10).
+
 ### 7.1 Jerarquía de CardData
 
 Toda carta es un ScriptableObject. La jerarquía de herencia permite que cada tipo tenga sus propios campos sin contaminar la base.
 
-**CardData (base)**
+**CardData (base)** — dominio puro.
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
 | `id` | string | Identificador único |
 | `cardName` | string | Nombre visible |
 | `faction` | Faction | Manifestantes / Policías |
-| `cardType` | CardType | Unidad / Accion / Equipo |
+| `cardType` | CardType | **Propiedad derivada** (abstracta) del subtipo concreto — NO un campo serializado, para que no pueda desincronizarse de la clase real |
 | `costs` | List\<ResourceCost\> | Costos (hoy 1 entrada; preparado para multi-recurso) |
-| `sprite` | Sprite | Imagen de la carta |
+| `sprite` | Sprite | Imagen de la carta (`Sprite` permitido en Core) |
 | `descriptionText` | string | Texto visible en la carta |
-| `playSound` | AudioClip | Sonido al jugar la carta (opcional) |
+| `playSoundId` | string | **Id** del sonido a reproducir al jugar (resuelto por `AudioManager` desde `Resources`, no un `AudioClip` en Core). Opcional. |
 | `animationHook` | string | **[FUTURO]** nombre de animación a disparar al jugar |
 
 **ResourceCost**
@@ -174,12 +199,12 @@ Toda carta es un ScriptableObject. La jerarquía de herencia permite que cada ti
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
 | `maxHp` | int | HP máximo de la unidad |
-| `attack` | UnitAttack | Patrón de ataque (slots afectados + daño) |
-| `passiveEffects` | List\<PassiveEffect\> | Efectos pasivos (producción, boost, etc.) |
+| `allowedSlots` | int[] | Slots donde puede desplegarse (1–6). **Vacío = cualquiera.** Permite unidades obligadas a ir a slots concretos (ej: `[6]` o `[1,2]`) |
+| `attack` | UnitAttack | Patrón de ataque (§7.2) |
+| `passiveEffects` | List\<PassiveEffect\> | Efectos pasivos (producción, etc.) (§7.4) |
 | `unitSubtype` | UnitSubtype | Atacante / Defensiva / Productora — punto de extensión, no usado activamente |
-| `hitEffect` | UnitHitEffect | Efecto visual al recibir daño |
-| `deathEffect` | UnitHitEffect | Efecto visual al morir |
-| `attackEffect` | UnitHitEffect | Efecto visual al atacar |
+
+> Los efectos visuales de impacto/muerte/ataque **no** viven en `UnitCardData`: son presentación (§7.10).
 
 **ActionCardData : CardData**
 
@@ -191,7 +216,7 @@ Toda carta es un ScriptableObject. La jerarquía de herencia permite que cada ti
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| **[DEFINIR]** | — | Atributos que modifica en la unidad objetivo |
+| **[FUTURO]** | — | No hay cartas de Equipo en el catálogo actual (§8.4). La estructura se define cuando se agregue la primera. |
 
 ---
 
@@ -199,97 +224,119 @@ Toda carta es un ScriptableObject. La jerarquía de herencia permite que cada ti
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `targetSlots` | int[] | Slots del oponente que afecta (ej: [1, 2]) |
-| `damagePerSlot` | int | Daño aplicado a cada slot afectado |
+| `reference` | AttackReference | `Absolute` (slots del oponente 1–6) / `Relative` (offsets desde el slot del atacante; `0` = enfrentado) |
+| `pattern` | int[] | Slots/offsets candidatos del ataque |
+| `pickCount` | int | `0` = golpea todos los de `pattern`; `N>0` = el atacante elige N de `pattern` |
+| `damagePerSlot` | int | Daño aplicado a cada slot golpeado |
+
+**AttackReference** enum: `Absolute`, `Relative`
 
 **[FUTURO]** → `List<UnitAttack>` para múltiples poderes por unidad con distintos patrones.
 
 ---
 
-### 7.3 UnitHitEffect
+### 7.3 PassiveEffect
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `effectType` | UnitEffectType | Shake / Flash / Animation |
-| `animationClip` | AnimationClip | Solo si effectType == Animation |
+| `passiveType` | PassiveType | Qué hace el pasivo |
+| `resource` | ResourceType | Recurso afectado (para `ProduceResource`) |
+| `value` | int | Magnitud (ej: `+1`/turno) |
 
-`UnitEffectType` enum: `Shake`, `Flash`, `Animation` (**[FUTURO]**)
+**PassiveType** enum: `ProduceResource` (**[FUTURO]** otros tipos: boost a unidades vecinas, etc.)
 
----
-
-### 7.4 PassiveEffect
-
-**[DEFINIR]** estructura completa. A priori: tipo de efecto pasivo + valor (ej: `Productora` de Dinero con +1/turno).
+Los `PassiveEffect` de las unidades en juego se resuelven en la fase **PRODUCCIÓN** (§6).
 
 ---
 
-### 7.5 UnitSlot (unidad desplegada en el tablero)
+### 7.4 UnitSlot (unidad desplegada en el tablero)
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `unitData` | UnitCardData | Referencia al template de la carta |
+| `unitData` | UnitCardData | Referencia (inmutable) al template de la carta |
 | `currentHp` | int | HP actual |
-| `count` | int | Apilamiento (x1–x5) |
-| `attachedEquipment` | List\<EquipmentCardData\> | Equipo adjunto mientras la unidad esté viva |
-| `slotIndex` | int | Posición en el tablero (1–6) |
+| `count` | int | **[FUTURO]** Punto de extensión para apilamiento. Default 1; hoy sin mecánica activa (una unidad por slot). La capa de stats efectivos puede multiplicar por `count` cuando se active. |
+| `attachedEquipment` | List\<EquipmentCardData\> | Equipo adjunto mientras la unidad esté viva (**[FUTURO]**, §8.4) |
 
-**[DEFINIR]** interacción entre apilamiento (`count`) y HP: ¿apilar suma maxHp, multiplica daño, o ambos?
+> La **posición** del slot es implícita: es el índice en `PlayerState.unitSlots` (no se almacena por separado).
+>
+> Los **stats efectivos** (maxHp, daño) se calculan a partir de `unitData` (base, inmutable) + `attachedEquipment`. Solo `currentHp` es estado mutable almacenado; el resto se deriva para que no haya valores duplicados que puedan desincronizarse.
 
 ---
 
-### 7.6 PlayerState
+### 7.5 PlayerState
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `hp` | int | **Punto de extensión** — no se usa activamente |
 | `dinero` | int | Dinero actual |
 | `fuerza` | int | Fuerza actual |
 | `social` | int | Social actual |
 | `hand` | List\<CardData\> | Cartas en mano |
-| `unitSlots` | List\<UnitSlot\> | Slots de unidades activas (máx. 6) |
+| `unitSlots` | UnitSlot[6] | Slots de unidades, indexados por posición. `null` = slot vacío |
 | `activeStatuses` | List\<StatusEffect\> | Buffs/debuffs temporizados activos |
 | `faction` | Faction | Facción del jugador |
 
 ---
 
-### 7.7 CardEffect (efecto inmediato de carta de Acción)
+### 7.6 CardEffect (efecto inmediato de carta de Acción)
 
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `effectType` | CardEffectType | Qué hace |
-| `target` | TargetType | Self / Opponent — sobre qué jugador recae |
-| `targetSlot` | int | Slot de unidad afectado. `-1` = el jugador elige al momento de jugar |
-| `resourceTarget` | ResourceType | Recurso afectado (solo para `ModifyResource`) |
-| `value` | int | Magnitud |
-| `status` | StatusEffect | Plantilla del status a insertar (solo si `effectType == ApplyStatus`) |
+| Campo | Tipo | Aplica cuando `effectType` es… | Descripción |
+|-------|------|--------------------------------|-------------|
+| `effectType` | CardEffectType | (siempre) | Qué hace |
+| `target` | TargetType | (siempre) | Self / Opponent — sobre qué jugador recae |
+| `targetSlot` | int | `ModifyHP`, `RemoveUnit` | Slot de unidad afectado. `-1` = el jugador elige al momento de jugar |
+| `resourceTarget` | ResourceType | `ModifyResource` | Recurso afectado |
+| `value` | int | `ModifyHP`, `ModifyResource` | Magnitud (signo: + cura/gana, − daña/quita) |
+| `status` | StatusEffect | `ApplyStatus` | Plantilla del status a insertar |
 
-> `ModifyHP` ahora opera sobre la unidad en `targetSlot` del jugador `target`, no sobre el HP del jugador. El jugador no tiene HP propio.
+> `ModifyHP` opera sobre la unidad en `targetSlot` del jugador `target` (el jugador no tiene HP propio). Es daño/cura directo: no lo mitigan defensas.
 
 **CardEffectType:** `ModifyHP`, `ModifyResource`, `RemoveUnit`, `ApplyStatus`
 **TargetType:** `Self` / `Opponent`
 **ResourceType:** `Dinero` / `Fuerza` / `Social`
 
+> Convención de extensión (ver `CLAUDE.md`): agregar un tipo de efecto = un valor nuevo en `CardEffectType` + su resolución en el `GameEngine` (un solo lugar). `RemoveUnit` está disponible como punto de extensión; hoy ninguna carta lo usa.
+
 ---
 
-### 7.8 StatusEffect (buff/debuff temporizado)
+### 7.7 StatusEffect (buff/debuff temporizado)
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
 | `statusType` | StatusType | SkipProduction / DoubleProduction |
-| `value` | int | Magnitud |
-| `counter` | int | Turnos hasta disparar (se decrementa al inicio del turno del afectado) |
+| `value` | int | Magnitud (reservado; los status actuales no lo usan) |
+| `counter` | int | **Turnos hasta activarse.** Se decrementa en la fase EFECTOS al inicio del turno del afectado; cuando llega a 0, el status se activa (modifica la PRODUCCIÓN de ESE turno) y se elimina. Para efectos de "próximo turno", `counter` arranca en 1. |
 
 **StatusType:** `SkipProduction`, `DoubleProduction`
 
+> Los dos status actuales son modificadores de una sola producción ("la próxima"). El campo `counter` está pensado para soportar también efectos retardados de varios turnos sin cambiar el modelo.
+
 ---
 
-### 7.9 GameEngine — responsabilidades
+### 7.8 GameEngine — responsabilidades
 
-Único responsable de resolver `CardEffect`, procesar `activeStatuses`, resolver ataques de unidades y manejar transiciones de turno.
+Único responsable de resolver `CardEffect`, procesar `activeStatuses`, resolver ataques de unidades, aplicar muerte súbita y manejar transiciones de turno. No usa RNG global: recibe una abstracción de RNG inyectable (coinflip, robo) para que los tests sean deterministas.
 
-**[FUTURO]** Preparar punto de extensión `IPlayerController` para soportar IA y multijugador online sin modificar `GameEngine`.
+**[FUTURO]** Punto de extensión `IPlayerController` para soportar IA y multijugador online sin modificar `GameEngine`.
 
-**[FUTURO]** Preparar punto de extensión para deckbuilding (pool de cartas configurable por jugador).
+**[FUTURO]** Punto de extensión para deckbuilding (pool de cartas configurable por jugador).
+
+---
+
+### 7.9 Aleatoriedad
+
+El dominio no usa `UnityEngine.Random` ni `System.Random` directo. Recibe una abstracción de RNG (`IRng` o equivalente) para que coinflip y robo sean deterministas y reproducibles en tests.
+
+---
+
+### 7.10 Presentación (fuera de Core)
+
+Todo lo visual/audio vive en `PiqueteDefend.Presentation`:
+
+- **Feedback de combate:** el shake/flash de una unidad al recibir daño, morir o atacar es responsabilidad de la capa visual (reacciona a eventos del `GameEngine`). El dominio no conoce `Shake`/`Flash`/`AnimationClip`.
+- **Audio:** `AudioManager` resuelve `playSoundId` (y la música) cargando clips desde `Resources/Audio/` por nombre.
+
+**[DEFINIR]** si el feedback visual por unidad necesita configuración por carta (p. ej. un `CardPresentation` SO en Presentation, indexado por `id`) o alcanza con convenciones globales (shake al recibir daño, etc.).
 
 ---
 
@@ -310,32 +357,28 @@ Se juega, se resuelven todos sus `CardEffect` en orden, y se reemplaza por una c
 
 ### 8.3 Unidad (persistente)
 
-Se despliega en un slot libre (1–6). Si todos los slots están ocupados, el jugador elige reemplazar un slot existente (queda en x1 con la nueva unidad) o cancelar sin gastar recursos.
+Se despliega en un slot **permitido** (`allowedSlots`; vacío = cualquiera) que esté libre. Si no hay ningún slot permitido libre, el jugador elige reemplazar una unidad existente en un slot permitido (la nueva entra con su HP máximo) o cancelar sin gastar recursos.
 
-Cada despliegue adicional de la misma unidad en el mismo slot suma +1 al contador (máximo x5).
-
-**[DEFINIR]** interacción entre `count` y HP al apilar.
+No hay apilamiento activo: un slot contiene una unidad. **[FUTURO]** El modelo reserva un punto de extensión para apilamiento (`UnitSlot.count`, §7.4), hoy inactivo.
 
 ### 8.4 Equipo
 
-Se arrastra sobre un slot con unidad activa. Queda adjunto a esa unidad mientras esté viva.
-
-**[DEFINIR]** qué atributos puede modificar y si tiene duración o es permanente.
+**[FUTURO]** — No hay cartas de Equipo en el catálogo actual. Cuando se agregue la primera, definir: qué atributos modifica, si es permanente o temporal, y qué pasa con el equipo adjunto cuando la unidad muere o es reemplazada.
 
 ---
 
 ## 9. Cartas — Manifestantes
 
-> Nota: costos actualizados a recurso único. Valores de HP y ataque de unidades **[DEFINIR]** al balancear.
+> **Baseline de validación (placeholder uniforme):** todas las unidades arrancan con **20 HP**, ataque de **1 slot a elección · 5 de daño** (`reference=Absolute`, `pattern=[1..6]`, `pickCount=1`) y despliegue en **cualquier** slot. Es uniforme a propósito, para validar jugabilidad/diversión antes de diferenciar y balancear. Nombres, costos y pasivas son los definitivos; HP/daño/posición se ajustan al balancear.
 
 ### Unidades
-| Carta | Costo | maxHp | Ataque (slots / daño) | Pasiva | Descripción |
-|-------|-------|-------|-----------------------|--------|-------------|
-| **Piquetero** | 4 ⚡ | [DEFINIR] | [DEFINIR] | — | *Lleva el bombo, la bandera y las ganas de parar todo.* |
-| **Jubilado** | 5 $ | [DEFINIR] | [DEFINIR] | — | *83 años, bastón y primera fila.* |
-| **Olla Popular** | 3 $ | [DEFINIR] | [DEFINIR] | +1 $/turno | *Arroz, fideos, solidaridad.* |
-| **Quilombero** | 5 ⚡ | [DEFINIR] | [DEFINIR] | +1 ⚡/turno | *No sabe bien por qué pelea pero lo hace con todo.* |
-| **Tuitero Militante** | 2 📣 | [DEFINIR] | [DEFINIR] | +1 📣/turno | *2.300 seguidores. Siente que cambió la historia.* |
+| Carta | Costo | maxHp | Slots permitidos | Ataque | Pasiva | Descripción |
+|-------|-------|-------|------------------|--------|--------|-------------|
+| **Piquetero** | 4 ⚡ | 20 | Cualquiera | 1 a elección · 5 | — | *Lleva el bombo, la bandera y las ganas de parar todo.* |
+| **Jubilado** | 5 $ | 20 | Cualquiera | 1 a elección · 5 | — | *83 años, bastón y primera fila.* |
+| **Olla Popular** | 3 $ | 20 | Cualquiera | 1 a elección · 5 | +1 $/turno | *Arroz, fideos, solidaridad.* |
+| **Quilombero** | 5 ⚡ | 20 | Cualquiera | 1 a elección · 5 | +1 ⚡/turno | *No sabe bien por qué pelea pero lo hace con todo.* |
+| **Tuitero Militante** | 2 📣 | 20 | Cualquiera | 1 a elección · 5 | +1 📣/turno | *2.300 seguidores. Siente que cambió la historia.* |
 
 ### Acciones — Boost
 | Carta | Costo | Efecto | Descripción |
@@ -368,16 +411,16 @@ Se arrastra sobre un slot con unidad activa. Queda adjunto a esa unidad mientras
 
 ## 10. Cartas — Policías
 
-> Nota: costos actualizados a recurso único. Valores de HP y ataque de unidades **[DEFINIR]** al balancear.
+> **Baseline de validación (placeholder uniforme):** todas las unidades arrancan con **20 HP**, ataque de **1 slot a elección · 5 de daño** (`reference=Absolute`, `pattern=[1..6]`, `pickCount=1`) y despliegue en **cualquier** slot. Es uniforme a propósito, para validar jugabilidad/diversión antes de diferenciar y balancear. Nombres, costos y pasivas son los definitivos; HP/daño/posición se ajustan al balancear.
 
 ### Unidades
-| Carta | Costo | maxHp | Ataque (slots / daño) | Pasiva | Descripción |
-|-------|-------|-------|-----------------------|--------|-------------|
-| **Patrullero** | 6 ⚡ | [DEFINIR] | [DEFINIR] | — | *Sirena, luces y un oficial de 14 horas de turno.* |
-| **Comisaría** | 3 $ | [DEFINIR] | [DEFINIR] | — | *El edificio más antiguo del barrio.* |
-| **Subsidio** | 5 $ | [DEFINIR] | [DEFINIR] | +1 $/turno | *El Estado se financia a sí mismo.* |
-| **Gorra de Barrio** | 3 ⚡ | [DEFINIR] | [DEFINIR] | +1 ⚡/turno | *Lo conoce todo el mundo. Nadie sabe qué hace.* |
-| **Conferencia de Prensa** | 5 📣 | [DEFINIR] | [DEFINIR] | +1 📣/turno | *El ministro sonríe. Los periodistas anotan.* |
+| Carta | Costo | maxHp | Slots permitidos | Ataque | Pasiva | Descripción |
+|-------|-------|-------|------------------|--------|--------|-------------|
+| **Patrullero** | 6 ⚡ | 20 | Cualquiera | 1 a elección · 5 | — | *Sirena, luces y un oficial de 14 horas de turno.* |
+| **Comisaría** | 3 $ | 20 | Cualquiera | 1 a elección · 5 | — | *El edificio más antiguo del barrio.* |
+| **Subsidio** | 5 $ | 20 | Cualquiera | 1 a elección · 5 | +1 $/turno | *El Estado se financia a sí mismo.* |
+| **Gorra de Barrio** | 3 ⚡ | 20 | Cualquiera | 1 a elección · 5 | +1 ⚡/turno | *Lo conoce todo el mundo. Nadie sabe qué hace.* |
+| **Conferencia de Prensa** | 5 📣 | 20 | Cualquiera | 1 a elección · 5 | +1 📣/turno | *El ministro sonríe. Los periodistas anotan.* |
 
 ### Acciones — Boost
 | Carta | Costo | Efecto | Descripción |
@@ -420,19 +463,30 @@ Tras iniciar, cada jugador elige su facción: **Manifestantes** o **Policías**.
 
 ### 11.3 Pantalla de juego
 
-Pantalla única. Jugadores enfrentados horizontalmente. 6 slots de unidades por jugador siempre visibles. La mano y botones pertenecen solo al jugador activo.
+Pantalla única. Jugadores enfrentados horizontalmente. 6 slots de unidades por jugador siempre visibles. La mano y las zonas de acción pertenecen solo al jugador activo.
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│  MANIFESTANTES                [TURNO: MANIFESTANTES]         POLICÍAS  │
-│  $: 9  ⚡: 6  📣: 14          [efectos activos]    $:12  ⚡:8  📣:5    │
-│                                                                        │
-│  [S1][S2][S3][S4][S5][S6]                    [S1][S2][S3][S4][S5][S6] │
-│                                                                        │
-│  [c1]  [c2]  [c3]  [c4]  [c5]  [c6]                                  │
-│              [JUGAR]  [DESCARTAR]  [ATACAR CON UNIDAD]                │
-└────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│  MANIFESTANTES                [TURNO: MANIFESTANTES]           POLICÍAS   │
+│  $: 9  ⚡: 6  📣: 14          [efectos activos]      $:12  ⚡:8  📣:5     │
+│                                                                          │
+│        ┌─────────────┐                                                   │
+│        │ ⚔ Atacar    │  ← popover (aparece al clickear la unidad;        │
+│        │ 1 a elec.·5 │     al clickearlo, la unidad ataca)               │
+│        └──────┬──────┘                                                   │
+│  [S1][ S2 ][S3][S4][S5][S6]                   [S1][S2][S3][S4][S5][S6]   │
+│                                                                          │
+│  [c1] [c2] [c3] [c4] [c5] [c6]    ← arrastrá una carta a una zona:       │
+│                                                                          │
+│                       ╔═════════╗   ╔════════════╗                       │
+│                       ║  JUGAR  ║   ║ DESCARTAR  ║   (drop targets)      │
+│                       ╚═════════╝   ╚════════════╝                       │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Jugar / descartar carta (drag & drop):** se arrastra la carta de la mano y se suelta sobre la zona **JUGAR** o **DESCARTAR**. No hay botones de clic para esto; las dos zonas son *drop targets*.
+
+**Atacar con una unidad:** **click** sobre una unidad propia → aparece un **popover** sobre ella con su ataque disponible; al clickear el popover, la unidad ataca. Si el ataque es a elección (`pickCount > 0`), a continuación se clickea el/los slot(s) objetivo. **[FUTURO]** si una unidad llega a tener varios ataques (`List<UnitAttack>`), el popover los lista.
 
 **Efectos activos:** indicador visual por jugador si tiene `activeStatuses` vigentes.
 
@@ -442,11 +496,10 @@ Pantalla única. Jugadores enfrentados horizontalmente. 6 slots de unidades por 
 
 | Acción | Mouse | Teclado |
 |--------|-------|---------|
-| Seleccionar carta | Click | Teclas 1–6 |
-| Jugar carta | Click "Jugar" | Enter |
-| Descartar carta | Click "Descartar" | Backspace |
-| Seleccionar unidad propia para atacar | Click unidad | — |
-| Seleccionar slot enemigo (sabotaje/equipo) | Click slot | — |
+| Jugar carta | Arrastrar la carta sobre **JUGAR** (drag & drop) | Seleccionar (1–6) + Enter |
+| Descartar carta | Arrastrar la carta sobre **DESCARTAR** (drag & drop) | Seleccionar (1–6) + Backspace |
+| Atacar con una unidad | Click en la unidad → click en el popover de ataque | — |
+| Elegir slot objetivo (ataque a elección / sabotaje / equipo) | Click en el slot | — |
 
 ### 11.5 Anatomía de una carta
 
@@ -471,8 +524,8 @@ Overlay con:
 |-----------|-------|
 | Cartas visibles en mano | 6 |
 | Slots de unidades por jugador | 6 |
-| Unidades apilables | Sí — hasta x5 por slot |
-| HP inicial de jugador | — (no usado activamente; punto de extensión) |
+| Apilamiento de unidades | No activo (punto de extensión [FUTURO], `UnitSlot.count`) |
+| Unidades iniciales por facción | Predefinidas (data por facción) |
 | Recursos iniciales | 5 de cada uno (configurable) |
 | Producción base por turno | 0 (configurable en código en un lugar) |
 | Primer turno sin producción | Sí |
@@ -484,11 +537,11 @@ Overlay con:
 
 ## 13. Pendientes [DEFINIR]
 
-- **Atributos de unidades:** HP y patrón de ataque de cada carta de unidad (se define al balancear).
-- **Apilamiento + HP:** ¿apilar una unidad suma maxHp al HP actual, multiplica daño, o ambos?
-- **PassiveEffect:** estructura del objeto (tipo + valor + recurso afectado).
-- **EquipmentCardData:** qué atributos modifica, si tiene duración o es permanente.
-- **Mano:** tamaño definitivo y reglas de robo (pendiente de definir turno completo).
+- **Diferenciación de unidades:** hoy todas comparten baseline (20 HP / 1 a elección · 5 / cualquier slot). Diferenciar HP, patrón de ataque (`reference`/`pattern`/`pickCount`/`damagePerSlot`) y `allowedSlots` por carta al balancear.
+- **Apilamiento:** punto de extensión reservado (`UnitSlot.count`), inactivo en v1.
+- **Unidades iniciales por facción:** cuáles y cuántas despliega cada facción al empezar.
+- **Feedback visual por unidad:** si requiere config por carta en Presentation o alcanzan convenciones globales (§7.10).
+- **EquipmentCardData:** estructura, cuando se agregue la primera carta de Equipo (§8.4).
 - **IPlayerController:** diseño del punto de extensión para IA / online [FUTURO].
 - **Deckbuilding:** diseño del punto de extensión [FUTURO].
 
