@@ -35,7 +35,7 @@ gratis al empezar la partida.
 
 ## Cómo jugar
 
-1. **Jugar** en el menú → cada jugador elige su facción.
+1. **Jugar** en el menú → elegís qué facción juega primero (los lados son fijos por ahora: **Manifestantes** a la izquierda, **Policías** a la derecha).
 2. En tu turno, las unidades con pasiva generan recursos (la producción base es 0; el turno 1 no produce). Luego podés **jugar o descartar una carta** y **atacar con una unidad** (en cualquier orden).
 3. El turno pasa al rival. Repetir hasta que un jugador se quede sin unidades (KO).
 
@@ -109,11 +109,14 @@ así que un cambio de balance se reaplica con un clic.
 ## Estado
 
 **v0.1.0 — primera versión jugable.** Partida completa de punta a punta: menú →
-selección de facción → juego hotseat → victoria/revancha, con fondos y audio
-(SFX de clic + música in-game).
+selección de facción → juego hotseat → victoria/revancha, con fondos en las tres
+pantallas y audio (SFX de clic + música en menú, selección y partida; hoy las tres
+comparten la misma pista placeholder, en slots separados para divergir luego).
 
-Pendientes / ideas a futuro: música de lobby, arte de cartas, animaciones, indicadores
-de efectos más visuales. Fuera de scope de v1: deckbuilding, online, +2 jugadores.
+Pendientes / ideas a futuro: pistas de música propias por pantalla, arte de cartas,
+animaciones de combate más ricas, indicadores de efectos más visuales y permitir
+elegir facción por jugador (hoy los lados son fijos). Fuera de scope de v1:
+deckbuilding, online, +2 jugadores.
 
 ---
 

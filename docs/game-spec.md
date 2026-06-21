@@ -102,14 +102,14 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
 
 ### Inicio de partida (setup)
 
-1. Cada jugador elige su facción (§11.2).
+1. Los lados son **fijos** (por ahora): **Manifestantes** a la izquierda, **Policías** a la derecha. La pantalla de selección (§11.2) solo decide qué facción juega primero.
 2. Estado inicial de cada `PlayerState`:
    - **Recursos iniciales:** 5 de cada recurso (configurable).
    - **Unidades:** se despliegan las **unidades iniciales predefinidas** de la facción en sus slots (§2). El resto de los slots quedan libres.
    - **activeStatuses:** vacío.
    - **Mano:** 6 cartas aleatorias del pool de su facción.
-3. **Coinflip** determina qué jugador juega primero.
-4. Comienza el turno 1 con el jugador elegido.
+3. Juega primero la facción elegida en §11.2 (`GameEngine.StartGame(..., firstIndex)`; si no se especifica, el motor cae a un **coinflip**).
+4. Comienza el turno 1 con ese jugador.
 
 ### Loop de turno
 
@@ -459,38 +459,40 @@ Pantalla de inicio con un botón central **Jugar**. Espacio reservado para futur
 
 ### 11.2 Selección de facción
 
-Tras iniciar, cada jugador elige su facción: **Manifestantes** o **Policías**.
+Por ahora los **lados son fijos**: **Manifestantes** siempre a la izquierda, **Policías** siempre a la derecha. La pantalla es una **sola elección** que define **qué facción juega primero**: la facción elegida arranca y la otra es el rival.
+
+> [FUTURO] Permitir que cada jugador elija su facción (incluido mirror, ambos lados con la misma facción). Hoy el modelo asume un Manifestantes vs un Policías con lados fijos.
 
 ### 11.3 Pantalla de juego
 
-Pantalla única. Jugadores enfrentados horizontalmente. 6 slots de unidades por jugador siempre visibles. La mano y las zonas de acción pertenecen solo al jugador activo.
+Pantalla única, **lados fijos**: Manifestantes a la izquierda, Policías a la derecha. 6 slots de unidades por jugador siempre visibles, pegados al borde externo de cada lado. La mano y las zonas de acción pertenecen solo al jugador activo.
+
+Los slots van del **1 al 6**; las **unidades iniciales ("las del fondo") ocupan el 1 y el 2**, en los lugares **más externos** de cada jugador: el de la izquierda, los dos de más a la izquierda; el de la derecha, los dos de más a la derecha (la fila derecha se dibuja invertida).
 
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│  MANIFESTANTES                [TURNO: MANIFESTANTES]           POLICÍAS   │
-│  $: 9  ⚡: 6  📣: 14          [efectos activos]      $:12  ⚡:8  📣:5     │
-│                                                                          │
-│        ┌─────────────┐                                                   │
-│        │ ⚔ Atacar    │  ← popover (aparece al clickear la unidad;        │
-│        │ 1 a elec.·5 │     al clickearlo, la unidad ataca)               │
-│        └──────┬──────┘                                                   │
-│  [S1][ S2 ][S3][S4][S5][S6]                   [S1][S2][S3][S4][S5][S6]   │
-│                                                                          │
-│  [c1] [c2] [c3] [c4] [c5] [c6]    ← arrastrá una carta a una zona:       │
-│                                                                          │
-│                       ╔═════════╗   ╔════════════╗                       │
-│                       ║  JUGAR  ║   ║ DESCARTAR  ║   (drop targets)      │
-│                       ╚═════════╝   ╚════════════╝                       │
-└──────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│ MANIFESTANTES            [ Terminar turno ]  (▶ chip)            POLICÍAS      │
+│ $:9 ⚡:6 📣:14                                            $:12 ⚡:8 📣:5         │
+│                                                                                │
+│                       (fondo / escena de la marcha)                            │
+│                    ┌─────────────┐                                             │
+│                    │ ⚔ Atacar·5  │ ← popover sobre la unidad clickeada         │
+│                    └──────┬──────┘                                             │
+│                     ╔═════════╗  ╔════════════╗                                │
+│ [1][2][3][4][5][6]  ║  JUGAR  ║  ║ DESCARTAR  ║           [6][5][4][3][2][1]   │
+│  slots Manif.       ╚═════════╝  ╚════════════╝            slots Policías      │
+│  (1·2 al borde izq) [c1][c2][c3][c4][c5][c6]             (1·2 al borde der)    │
+│                      ▲ mano del jugador activo                                 │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Jugar / descartar carta (drag & drop):** se arrastra la carta de la mano y se suelta sobre la zona **JUGAR** o **DESCARTAR**. No hay botones de clic para esto; las dos zonas son *drop targets*.
+**Jugar / descartar carta (drag & drop):** se arrastra la carta de la mano y se suelta sobre la zona **JUGAR** o **DESCARTAR**. No hay botones de clic para esto; las dos zonas son *drop targets*. Mientras se arrastra, una **copia de la carta ("ghost")** acompaña el puntero.
 
 **Atacar con una unidad:** **click** sobre una unidad propia → aparece un **popover** sobre ella con su ataque disponible; al clickear el popover, la unidad ataca. Si el ataque es a elección (`pickCount > 0`), a continuación se clickea el/los slot(s) objetivo. **[FUTURO]** si una unidad llega a tener varios ataques (`List<UnitAttack>`), el popover los lista.
 
 **Efectos activos:** indicador visual por jugador si tiene `activeStatuses` vigentes.
 
-**Indicador de turno:** banner central con la facción activa.
+**Indicador de turno:** un **chip** (pill) que salta al lado del jugador activo, más la marca **▶** en su panel de stats. El botón **Terminar turno** está centrado en el tope.
 
 ### 11.4 Input
 
@@ -529,7 +531,8 @@ Overlay con:
 | Recursos iniciales | 5 de cada uno (configurable) |
 | Producción base por turno | 0 (configurable en código en un lugar) |
 | Primer turno sin producción | Sí |
-| Primer jugador | Coinflip aleatorio |
+| Lados de facción | Fijos (por ahora): Manifestantes izquierda, Policías derecha |
+| Primer jugador | Lo elige la selección de facción (la que arranca); coinflip si no se especifica |
 | `suddenDeathStart` | Turno 30 (configurable) |
 | `maxTurns` | 100 (configurable) |
 
