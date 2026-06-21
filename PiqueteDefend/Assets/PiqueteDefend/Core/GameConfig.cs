@@ -38,7 +38,7 @@ namespace PiqueteDefend.Core
         // Inflación (mecánica de juego, spec §3): a partir de inflationStartTurn (medio-turno)
         // las cartas cuestan inflationPercentPerTurn % más, acumulativo por medio-turno. Come el
         // excedente de recursos en partidas largas. 0 en start = desactivada.
-        public int inflationStartTurn = 12;
+        public int inflationStartTurn = 8;
         public int inflationPercentPerTurn = 5;
 
         public int BaseProduction(ResourceType r) => r switch

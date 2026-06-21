@@ -60,7 +60,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 5e24ec0dd52ad654fb0d75fc7a326ad5, type: 2}
   startingManifestantes:
   - {fileID: 11400000, guid: c0b678c2247f36244ae054451a8fe40a, type: 2}
+  - {fileID: 11400000, guid: 0588a8c54efd98b419eb780d749fac1f, type: 2}
   - {fileID: 11400000, guid: a19fc443d2c77eb45bbdc3a9e35693fc, type: 2}
   startingPolicias:
   - {fileID: 11400000, guid: 4e2df88bb6a9db34ab9b0dfe7e353772, type: 2}
+  - {fileID: 11400000, guid: 2156107fa2388b94d9b6ef7c4e0ce8a3, type: 2}
   - {fileID: 11400000, guid: 98f305097a008464f86dd3e08dbc648e, type: 2}

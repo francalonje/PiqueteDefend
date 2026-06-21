@@ -44,11 +44,13 @@ def _cost(res: ResourceType, amount: int, k: GlobalKnobs) -> List[ResourceCost]:
 
 def unit(id, name, faction, archetype, cost_res, cost, max_hp, allowed, attack,
          passives, k: GlobalKnobs) -> UnitCardData:
+    # Robo: unidades pesan 1; productoras 2 (protagonismo de producción sin tapar la mano). Espejo de CardLibrary.
+    dw = 2 if any(p.passive_type == PassiveType.PRODUCE_RESOURCE for p in passives) else 1
     return UnitCardData(
         id=id, name=name, faction=faction, costs=_cost(cost_res, cost, k),
         card_type=CardType.UNIDAD, max_hp=scale(max_hp, k.hp_mult, minimum=1),
         allowed_slots=list(allowed), attack=attack, passive_effects=passives,
-        archetype=archetype,
+        archetype=archetype, draw_weight=dw,
     )
 
 
@@ -92,8 +94,11 @@ def turn_status(status, pattern, pick, k: GlobalKnobs) -> PassiveEffect:
 
 
 def action(id, name, faction, category, cost_res, cost, effects, k: GlobalKnobs) -> ActionCardData:
+    # Las cartas de producción (boost de recurso propio) pesan 2 en el robo. Espejo de CardLibrary.
+    dw = 2 if any(e.effect_type == CardEffectType.MODIFY_RESOURCE and e.target == TargetType.SELF
+                  and e.value > 0 for e in effects) else 1
     return ActionCardData(id=id, name=name, faction=faction, costs=_cost(cost_res, cost, k),
-                          card_type=CardType.ACCION, effects=effects, category=category)
+                          card_type=CardType.ACCION, effects=effects, category=category, draw_weight=dw)
 
 
 def equip(id, name, faction, cost_res, cost, mods, passives, k: GlobalKnobs) -> EquipmentCardData:
@@ -148,7 +153,7 @@ def build_manifestantes(k: GlobalKnobs) -> List[CardData]:
         unit("piquetero", "Piquetero", M, "Escaramuza", FZA, 4, 24, [],
              atk(REL, [-1, 0, 1], 1, 9, k), [aura(1, k)], k),
         unit("jubilado", "Jubilado", M, "Muro", DIN, 5, 38, FRENTE,
-             atk(ABS, [3, 4, 5], 0, 3, k), [retaliate(2, k)], k),
+             atk(ABS, [3, 4, 5], 0, 2, k), [retaliate(2, k)], k),
         unit("gordo_sindical", "Gordo Sindical", M, "Productora", DIN, 3, 14, RETAGUARDIA,
              atk(REL, [0], 0, 2, k), [produce(DIN, 1, k)], k),
         unit("fisura", "Fisura", M, "Cleave", FZA, 5, 24, [1, 2, 3, 4],
@@ -194,7 +199,7 @@ def build_policias(k: GlobalKnobs) -> List[CardData]:
         unit("infante", "Infante", P, "Escaramuza", FZA, 6, 26, [],
              atk(REL, [-1, 0, 1], 1, 10, k), [aura(1, k)], k),
         unit("gendarme", "Gendarme", P, "Muro", DIN, 4, 32, FRENTE,
-             atk(ABS, [3, 4, 5], 0, 2, k), [retaliate(2, k)], k),
+             atk(ABS, [3, 4, 5], 0, 3, k), [retaliate(2, k)], k),
         unit("puntero", "Puntero", P, "Productora", DIN, 5, 14, RETAGUARDIA,
              atk(REL, [0], 0, 2, k), [produce(DIN, 1, k)], k),
         unit("itakero", "Itakero", P, "Cleave", FZA, 4, 22, [1, 2, 3, 4],
@@ -235,8 +240,8 @@ def build_policias(k: GlobalKnobs) -> List[CardData]:
 # ── Pools y unidades iniciales ───────────────────────────────────────────────
 
 STARTING_IDS: Dict[Faction, List[str]] = {
-    M: ["piquetero", "gordo_sindical"],
-    P: ["infante", "puntero"],
+    M: ["piquetero", "gordo_sindical", "jubilado"],   # Escaramuza + Productora + Muro(frente)
+    P: ["infante", "puntero", "gendarme"],
 }
 
 

@@ -18,7 +18,7 @@ MonoBehaviour:
   costs:
   - resource: 2
     amount: 4
-  drawWeight: 1
+  drawWeight: 2
   sprite: {fileID: 0}
   descriptionText: 
   flavorText: "Pasamos la gorra. La de los compa\xF1eros, no la de la cana."

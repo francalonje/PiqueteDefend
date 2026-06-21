@@ -71,7 +71,7 @@ SHIPPED = GlobalKnobs(
     cost_mult=1.2,                 # bump económico global uniforme (no descalibra: facción ~51/49)
     first_no_attack_t1=True,
     first_produces_t1=True,
-    inflation_start_turn=12,       # medios-turnos; arranca antes de la mediana, se ve en casi toda partida
+    inflation_start_turn=8,        # medios-turnos; arranca temprano, se ve en casi toda partida
     inflation_pct_per_turn=5,      # +5% acumulativo por medio-turno desde ahí
 )
 
