@@ -26,6 +26,9 @@ namespace PiqueteDefend.Core
         [Tooltip("Hoy una entrada; lista para soportar costos multi-recurso.")]
         public List<ResourceCost> costs = new List<ResourceCost>();
 
+        [Tooltip("Peso de robo (spec §8.1): el robo es proporcional. Default 1 (uniforme).")]
+        public int drawWeight = 1;
+
         [Header("Presentación")]
         public Sprite sprite;
         [TextArea] public string descriptionText;

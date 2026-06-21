@@ -18,10 +18,11 @@ MonoBehaviour:
   costs:
   - resource: 2
     amount: 1
+  drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "Existe en el papel. Se aprob\xF3 a las 3 AM. Nadie sabe bien para
-    qu\xE9."
+  flavorText: "Existe en el papel. Se aprob\xF3 a las 3 de la ma\xF1ana y nadie sabe
+    para qu\xE9."
   playSoundId: 
   animationHook: 
   actionCategory: 3
@@ -29,6 +30,7 @@ MonoBehaviour:
   - effectType: 1
     target: 0
     targetSlot: -1
+    targetSlotB: -1
     resourceTarget: 0
     value: 7
     status:

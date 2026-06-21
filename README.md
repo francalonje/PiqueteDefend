@@ -17,7 +17,7 @@ pasivas y los efectos de las cartas van bajando el HP de las unidades rivales.
 
 **Cómo se gana:** por **KO** — cuando el rival pierde su última unidad.
 
-Un sistema de *muerte súbita* a partir del turno 30 garantiza que ninguna partida sea eterna.
+Un sistema de *muerte súbita* (backstop a partir del turno 50) garantiza que ninguna partida sea eterna.
 
 ## Facciones
 
@@ -41,13 +41,14 @@ zonas de despliegue (vanguardia/retaguardia) y patrones de ataque (banda, zona f
 Cada facción tiene pool propio temático y **unidades iniciales** que se despliegan gratis
 al empezar la partida.
 
-> **Balance:** provisional y sin validar — los valores (HP/daño/costos) se afinarán con un
-> simulador en Python (combate posicional, victoria por KO).
+> **Balance:** validado por simulación (ver `sim/`). Un simulador en Python re-implementa las
+> reglas y barrió los valores hasta dejar win-rate parejo entre facciones (~48/52) y una duración
+> media de ~32 medios-turnos resuelta por KO. Los números finales están en `docs/game-spec.md` §9/§10.
 
 ## Cómo jugar
 
 1. **Jugar** en el menú → elegís qué facción juega primero (los lados son fijos por ahora: **Manifestantes** a la izquierda, **Policías** a la derecha).
-2. En tu turno, las unidades con pasiva generan recursos (la producción base es 0; el turno 1 no produce). Luego podés **jugar o descartar una carta** y **atacar con una unidad** (en cualquier orden).
+2. En tu turno producís recursos (+1 de cada uno de base, más las unidades con pasiva de producción). Luego podés **jugar o descartar una carta** y **atacar con una unidad** (en cualquier orden). El primer jugador **produce pero no ataca** en su turno 1 (compensa la ventaja de iniciativa).
 3. El turno pasa al rival. Repetir hasta que un jugador se quede sin unidades (KO).
 
 Las cartas aplican **efectos** al rival o a uno mismo: sobre recursos, sobre la producción
@@ -80,14 +81,20 @@ Assets/PiqueteDefend/
 ```
 
 La **fuente de verdad de las reglas** es `docs/game-spec.md`. El núcleo C# lo implementa; los
-tests EditMode (a retomar al estabilizar el diseño de cartas) cubren producción, timing de
-status, condiciones de victoria, muerte súbita y combate.
+tests EditMode (`Tests/EditMode/GameEngineTests.cs`, 21 tests) cubren ataques posicionales, daño
+efectivo (furia/aura/desmoralizar/equipo), espinas, curación, estados por unidad (veneno/aturdir),
+equipo, mover/intercambiar, producción, reglas de inicio, victoria/empate y muerte súbita.
+
+El **balance** se valida en `sim/` (Python): re-implementa las reglas, corre miles de partidas con
+una política heurística (spec §16) y reporta win-rate y duración. Los valores finales se vuelcan a
+`docs/game-spec.md` y `Core/CardLibrary.cs`.
 
 ## Estructura del repositorio
 
 ```
 .
-├── docs/game-spec.md          # Especificación completa del juego
+├── docs/game-spec.md          # Especificación completa del juego (fuente de verdad)
+├── sim/                       # Simulador de balance en Python (reglas + barrido de knobs)
 ├── tools/
 │   └── gen_click.py           # Generador de SFX sintéticos
 ├── CLAUDE.md                  # Guía de arquitectura y convenciones
@@ -127,15 +134,15 @@ selección de facción → juego hotseat → victoria/revancha, con fondos en la
 pantallas y audio (SFX de clic + música en menú, selección y partida; hoy las tres
 comparten la misma pista placeholder, en slots separados para divergir luego).
 
-**En diseño (próxima iteración):** el catálogo de cartas completo —unidades diferenciadas por
-arquetipo, pasivas variadas, estados por unidad, cartas de acción ampliadas y equipo— está
-especificado en `docs/game-spec.md` y entrando a implementación. La build jugable v0.1.0
-todavía corre la baseline uniforme previa; el balance fino se hará con un simulador en Python.
+**Implementado:** el catálogo de cartas completo (44 cartas) con unidades diferenciadas por
+arquetipo, pasivas variadas, estados por unidad, acciones ampliadas y equipo está **en el núcleo
+C#** (Core), con balance validado por simulación y 21 tests EditMode en verde.
 
-Pendientes / ideas a futuro: pistas de música propias por pantalla, arte de cartas,
-animaciones de combate más ricas, indicadores de efectos/estados por unidad y permitir
-elegir facción por jugador (hoy los lados son fijos). Fuera de scope de v1:
-deckbuilding, online, +2 jugadores.
+**Próxima iteración (UI):** indicadores visuales de estados/buffs/debuffs por unidad y un
+*highlight* de las unidades que pueden atacar en el turno; targeting de equipar/mover/intercambiar
+en la pantalla de juego (el Core ya lo soporta). Otras ideas: pistas de música propias por pantalla,
+arte de cartas, animaciones de combate más ricas y elegir facción por jugador (hoy los lados son
+fijos). Fuera de scope de v1: deckbuilding, online, +2 jugadores.
 
 ---
 

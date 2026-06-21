@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8891f164702b9b46bef66a97e430139, type: 3}
+  m_Name: infante
+  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.UnitCardData
+  id: infante
+  cardName: Infante
+  faction: 1
+  costs:
+  - resource: 1
+    amount: 6
+  drawWeight: 1
+  sprite: {fileID: 0}
+  descriptionText: 
+  flavorText: Escudo, casco y 14 horas de turno. Va al frente porque le pagan para
+    eso.
+  playSoundId: 
+  animationHook: 
+  maxHp: 22
+  allowedSlots: 
+  attack:
+    reference: 1
+    pattern: ffffffff0000000001000000
+    pickCount: 1
+    damagePerSlot: 15
+    effect: 0
+    hitSoundId: 
+  passiveEffects:
+  - passiveType: 2
+    value: 2
+    resource: 0
+    status:
+      statusType: 0
+      value: 0
+      counter: 0
+    target: 1
+    reference: 1
+    pattern: ffffffff01000000
+    pickCount: 0
+  unitSubtype: 0

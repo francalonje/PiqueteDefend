@@ -18,10 +18,10 @@ MonoBehaviour:
   costs:
   - resource: 0
     amount: 1
+  drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "Hidrataci\xF3n t\xE1ctica. T\xE9cnicamente no es doping si lo toma
-    todo el mundo."
+  flavorText: "Hidrataci\xF3n t\xE1ctica. No es doping si lo toma toda la marcha."
   playSoundId: 
   animationHook: 
   actionCategory: 3
@@ -29,6 +29,7 @@ MonoBehaviour:
   - effectType: 1
     target: 0
     targetSlot: -1
+    targetSlotB: -1
     resourceTarget: 1
     value: 3
     status:

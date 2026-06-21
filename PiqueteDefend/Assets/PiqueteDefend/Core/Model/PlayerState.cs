@@ -113,7 +113,7 @@ namespace PiqueteDefend.Core
             foreach (UnitSlot s in unitSlots)
             {
                 if (s == null) continue;
-                foreach (PassiveEffect p in s.unit.passiveEffects)
+                foreach (PassiveEffect p in s.AllPassives())
                     if (p.passiveType == PassiveType.ProduceResource)
                         into[p.resource] += p.value * s.count;
             }

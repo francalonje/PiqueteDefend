@@ -74,3 +74,12 @@ crashlytics-build.properties
 # OS generated
 .DS_Store
 Thumbs.db
+
+# Python (simulador de balance en sim/)
+__pycache__/
+*.pyc
+
+# Artefactos de build/test headless de Unity
+/compile.log
+/tests.log
+/results.xml

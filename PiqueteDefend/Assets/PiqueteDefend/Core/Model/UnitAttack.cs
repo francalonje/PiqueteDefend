@@ -18,7 +18,15 @@ namespace PiqueteDefend.Core
         public AttackReference reference;
         public int[] pattern = Array.Empty<int>();
         public int pickCount;
+
+        /// <summary>
+        /// Magnitud por slot: <b>daño</b> si <see cref="effect"/> es DamageEnemies,
+        /// <b>curación</b> (tope maxHp) si es HealAllies (spec §7.2).
+        /// </summary>
         public int damagePerSlot;
+
+        /// <summary>Tablero objetivo: rival (daño) o propio (cura). Default DamageEnemies (spec §7.2).</summary>
+        public AttackEffect effect = AttackEffect.DamageEnemies;
 
         /// <summary>
         /// Id del sonido al golpear (lo resuelve AudioManager desde Resources). Opcional:
@@ -28,15 +36,20 @@ namespace PiqueteDefend.Core
 
         public UnitAttack() { }
 
-        public UnitAttack(AttackReference reference, int[] pattern, int pickCount, int damagePerSlot)
+        public UnitAttack(AttackReference reference, int[] pattern, int pickCount, int damagePerSlot,
+                          AttackEffect effect = AttackEffect.DamageEnemies)
         {
             this.reference = reference;
             this.pattern = pattern ?? Array.Empty<int>();
             this.pickCount = pickCount;
             this.damagePerSlot = damagePerSlot;
+            this.effect = effect;
         }
 
         /// <summary>True si el atacante debe elegir slot(s) (ataque a elección).</summary>
         public bool RequiresChoice => pickCount > 0;
+
+        /// <summary>True si cura aliadas en vez de dañar al rival.</summary>
+        public bool IsHeal => effect == AttackEffect.HealAllies;
     }
 }

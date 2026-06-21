@@ -18,9 +18,10 @@ MonoBehaviour:
   costs:
   - resource: 1
     amount: 1
+  drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "No es saqueo. Es redistribuci\xF3n urgente de recursos."
+  flavorText: "No es afano. Es redistribuci\xF3n urgente de mercader\xEDa."
   playSoundId: 
   animationHook: 
   actionCategory: 2
@@ -28,6 +29,7 @@ MonoBehaviour:
   - effectType: 1
     target: 1
     targetSlot: -1
+    targetSlotB: -1
     resourceTarget: 0
     value: -3
     status:

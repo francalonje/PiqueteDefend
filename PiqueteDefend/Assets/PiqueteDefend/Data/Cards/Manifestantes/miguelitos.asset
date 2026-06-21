@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5f2ef8b1648ba744989b0b7354c0820, type: 3}
+  m_Name: miguelitos
+  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.EquipmentCardData
+  id: miguelitos
+  cardName: Miguelitos
+  faction: 0
+  costs:
+  - resource: 1
+    amount: 2
+  drawWeight: 1
+  sprite: {fileID: 0}
+  descriptionText: 
+  flavorText: "Tres clavos soldados con sa\xF1a. El patrullero los encuentra tarde,
+    siempre."
+  playSoundId: 
+  animationHook: 
+  statModifiers: []
+  grantedPassives:
+  - passiveType: 3
+    value: 4
+    resource: 0
+    status:
+      statusType: 0
+      value: 0
+      counter: 0
+    target: 0
+    reference: 1
+    pattern: 
+    pickCount: 0

@@ -18,9 +18,10 @@ MonoBehaviour:
   costs:
   - resource: 0
     amount: 5
+  drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: A las 22hs, todos adentro. El que salga averigua.
+  flavorText: A las 22 todos adentro. El que se manda afuera, va en cana.
   playSoundId: 
   animationHook: 
   actionCategory: 4
@@ -28,6 +29,7 @@ MonoBehaviour:
   - effectType: 3
     target: 1
     targetSlot: -1
+    targetSlotB: -1
     resourceTarget: 0
     value: 0
     status:

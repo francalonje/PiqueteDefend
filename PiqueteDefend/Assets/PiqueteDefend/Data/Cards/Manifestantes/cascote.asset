@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5f2ef8b1648ba744989b0b7354c0820, type: 3}
+  m_Name: cascote
+  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.EquipmentCardData
+  id: cascote
+  cardName: Cascote
+  faction: 0
+  costs:
+  - resource: 1
+    amount: 2
+  drawWeight: 1
+  sprite: {fileID: 0}
+  descriptionText: 
+  flavorText: "El fierro m\xE1s democr\xE1tico: gratis, abundante y siempre a mano."
+  playSoundId: 
+  animationHook: 
+  statModifiers:
+  - stat: 1
+    value: 4
+  grantedPassives: []

@@ -44,7 +44,10 @@ namespace PiqueteDefend.Core
         NeedsDeploySlot,     // unidad: falta elegir en qué slot desplegar/reemplazar
         NeedsEffectTarget,   // acción con efecto sobre unidad: falta elegir slot objetivo
         NeedsAttackTarget,   // ataque a elección: falta elegir slot(s) objetivo
+        NeedsSecondSlot,     // efecto con dos slots (MoveUnit/SwapUnits): falta el segundo
         NoUnitInSlot,        // no hay unidad propia en el slot atacante
+        UnitStunned,         // la unidad está aturdida: no puede actuar este turno
+        CannotAttackFirstTurn, // el primer jugador no puede atacar en su turno 1 (spec §3/§16)
         InvalidTarget
     }
 }

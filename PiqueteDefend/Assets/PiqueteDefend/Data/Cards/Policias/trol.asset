@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8891f164702b9b46bef66a97e430139, type: 3}
+  m_Name: trol
+  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.UnitCardData
+  id: trol
+  cardName: Trol Oficial
+  faction: 1
+  costs:
+  - resource: 2
+    amount: 5
+  drawWeight: 1
+  sprite: {fileID: 0}
+  descriptionText: 
+  flavorText: "Diez cuentas, un solo sueldo del Estado. Inventa la tendencia antes
+    del mediod\xEDa."
+  playSoundId: 
+  animationHook: 
+  maxHp: 14
+  allowedSlots: 000000000100000002000000
+  attack:
+    reference: 1
+    pattern: 00000000
+    pickCount: 0
+    damagePerSlot: 2
+    effect: 0
+    hitSoundId: 
+  passiveEffects:
+  - passiveType: 0
+    value: 1
+    resource: 2
+    status:
+      statusType: 0
+      value: 0
+      counter: 0
+    target: 0
+    reference: 1
+    pattern: 
+    pickCount: 0
+  unitSubtype: 2

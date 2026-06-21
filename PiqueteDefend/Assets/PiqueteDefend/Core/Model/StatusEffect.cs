@@ -30,5 +30,12 @@ namespace PiqueteDefend.Core
 
         /// <summary>Copia independiente — al aplicar un status se inserta una copia, no la plantilla.</summary>
         public StatusEffect Clone() => new StatusEffect(statusType, value, counter);
+
+        /// <summary>
+        /// True si el status vive en el jugador (producción, modelo fire-on-expiry). Los demás
+        /// (Poison/Stun/Furia/Desmoralizar) viven por unidad (modelo active-while-present, spec §7.7).
+        /// </summary>
+        public static bool IsPlayerStatus(StatusType t) =>
+            t == StatusType.SkipProduction || t == StatusType.DoubleProduction;
     }
 }

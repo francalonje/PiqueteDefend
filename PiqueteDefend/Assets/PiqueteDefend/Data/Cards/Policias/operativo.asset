@@ -18,10 +18,11 @@ MonoBehaviour:
   costs:
   - resource: 0
     amount: 6
+  drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: Cuatro camiones, veinte efectivos, un drone. Para un jubilado con un
-    cartel.
+  flavorText: Cuatro camiones, veinte efectivos y un drone. Todo para un jubilado
+    con un cartel.
   playSoundId: 
   animationHook: 
   actionCategory: 0
@@ -29,8 +30,9 @@ MonoBehaviour:
   - effectType: 0
     target: 1
     targetSlot: -1
+    targetSlotB: -1
     resourceTarget: 0
-    value: -18
+    value: -27
     status:
       statusType: 0
       value: 0

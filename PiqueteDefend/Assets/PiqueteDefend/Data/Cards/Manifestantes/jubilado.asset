@@ -18,18 +18,32 @@ MonoBehaviour:
   costs:
   - resource: 0
     amount: 5
+  drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "83 a\xF1os, bast\xF3n y primera fila. La polic\xEDa tiene miedo de
-    lo que van a decir en la tele."
+  flavorText: "83 pirulos, bast\xF3n y primera fila. La cana le tiene cagazo a lo
+    que largue en la tele."
   playSoundId: 
   animationHook: 
-  maxHp: 20
-  allowedSlots: 
+  maxHp: 32
+  allowedSlots: 030000000400000005000000
   attack:
     reference: 0
-    pattern: 000000000100000002000000030000000400000005000000
-    pickCount: 1
-    damagePerSlot: 5
-  passiveEffects: []
+    pattern: 030000000400000005000000
+    pickCount: 0
+    damagePerSlot: 4
+    effect: 0
+    hitSoundId: 
+  passiveEffects:
+  - passiveType: 3
+    value: 3
+    resource: 0
+    status:
+      statusType: 0
+      value: 0
+      counter: 0
+    target: 0
+    reference: 1
+    pattern: 
+    pickCount: 0
   unitSubtype: 1

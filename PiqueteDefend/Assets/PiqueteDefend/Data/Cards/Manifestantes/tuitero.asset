@@ -18,20 +18,32 @@ MonoBehaviour:
   costs:
   - resource: 2
     amount: 2
+  drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "2.300 seguidores. Siente que cambi\xF3 la historia con cada hilo."
+  flavorText: "2.300 seguidores y la certeza de que cambi\xF3 la historia con un
+    hilo."
   playSoundId: 
   animationHook: 
-  maxHp: 20
-  allowedSlots: 
+  maxHp: 10
+  allowedSlots: 000000000100000002000000
   attack:
-    reference: 0
-    pattern: 000000000100000002000000030000000400000005000000
-    pickCount: 1
-    damagePerSlot: 5
+    reference: 1
+    pattern: 00000000
+    pickCount: 0
+    damagePerSlot: 2
+    effect: 0
+    hitSoundId: 
   passiveEffects:
   - passiveType: 0
-    resource: 2
     value: 1
+    resource: 2
+    status:
+      statusType: 0
+      value: 0
+      counter: 0
+    target: 0
+    reference: 1
+    pattern: 
+    pickCount: 0
   unitSubtype: 2

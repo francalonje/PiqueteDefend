@@ -18,17 +18,22 @@ namespace PiqueteDefend.Core
         public int initialFuerza = 5;
         public int initialSocial = 5;
 
-        // Producción base por turno: 0 (sólo se produce vía unidades/cartas). Spec §3.
-        public int baseProdDinero = 0;
-        public int baseProdFuerza = 0;
-        public int baseProdSocial = 0;
+        // Producción base por turno: +1 de cada recurso (spec §3, validado §12).
+        public int baseProdDinero = 1;
+        public int baseProdFuerza = 1;
+        public int baseProdSocial = 1;
 
         public int maxResource = 100;
 
-        // Anti-stalemate (spec §5.1)
-        public int suddenDeathStart = 30;   // medio-turno desde el que pega muerte súbita
+        // Reglas de iniciativa (spec §3/§16, validadas por simulación): sin ellas el primer
+        // jugador gana ~59%; con ambas, ~48% (parejo).
+        public bool firstProducesTurn1 = true;    // el primer jugador SÍ produce en su turno 1
+        public bool firstNoAttackTurn1 = true;     // el primer jugador NO ataca en su turno 1
+
+        // Anti-stalemate (spec §5.1) — backstops, bien por encima de la duración ideal (~32).
+        public int suddenDeathStart = 50;   // medio-turno desde el que pega muerte súbita
         public int suddenDeathDamage = 1;   // daño a todas las unidades al fin de turno
-        public int maxTurns = 100;          // backstop duro (medios-turnos, uno por jugador)
+        public int maxTurns = 120;          // backstop duro (medios-turnos, uno por jugador)
 
         public int BaseProduction(ResourceType r) => r switch
         {

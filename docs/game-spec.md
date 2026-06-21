@@ -43,7 +43,7 @@ Cada jugador maneja 3 recursos independientes.
 
 **Recursos iniciales al inicio de la partida:** 5 de cada recurso (configurable para balanceo).
 
-**Primer turno:** el primer jugador NO recibe producción en su turno 1 (ni base ni de unidades). La producción comienza a partir del turno 2.
+**Primer turno (regla de iniciativa, validada por simulación, §16):** el primer jugador **sí produce** en su turno 1, pero **no puede atacar con unidades** en ese turno (sí puede desplegar/jugar carta). Esto compensa la ventaja de la iniciativa: sin ninguna regla el primer jugador ganaba ~59%; con esta combinación queda ~48% (parejo). El segundo jugador juega normal desde su turno 1.
 
 **Recursos negativos:** los recursos nunca bajan de 0. El exceso de reducción se descarta.
 
@@ -117,14 +117,16 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
 ```
 1. EFECTOS      — Al inicio del turno del jugador activo, en orden:
                     a) Estados del JUGADOR (producción): counter--; al llegar a 0 se activa
-                       (SkipProduction/DoubleProduction) y se elimina.
-                    b) Estados por UNIDAD (§7.7): Poison hace su daño; Furia/Desmoralizar/Stun
-                       siguen activos mientras counter>0; counter-- y se eliminan al llegar a 0.
+                       (SkipProduction/DoubleProduction) y se elimina (fire-on-expiry).
+                    b) Estados por UNIDAD (§7.7): Poison hace su daño AHORA. (El counter de los
+                       estados por unidad NO se decrementa acá: se decrementa en FIN DE TURNO,
+                       ver nota de timing abajo, para que un Stun de 1 turno no expire antes de
+                       la fase de ACCIÓN.) Furia/Desmoralizar/Stun siguen activos mientras counter>0.
                     c) Pasivas de inicio de turno (§7.3): Regeneration (cura), TurnDamage y
                        TurnStatus (daño/estado a los slots objetivo según su targeting).
                   → Evaluar condición de victoria (Poison / TurnDamage pueden matar)
 
-2. PRODUCCIÓN   — Si NO es el turno 1 de la partida Y skipProduction no está activo:
+2. PRODUCCIÓN   — Si skipProduction no está activo (incluye el turno 1 del primer jugador):
                     a) Producción base: +1 de cada recurso (GameConfig)
                     b) Producción de unidades con efecto pasivo de producción
                     c) Multiplicar por productionMultiplier (default 1; doble si hay DoubleProduction)
@@ -135,17 +137,29 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
                     b) Atacar con 1 unidad propia que NO esté aturdida (Stun) → afecta slots
                        según su ataque. Daño efectivo = base + Furia + AuraDamage − Desmoralizar;
                        los defensores con Retaliate devuelven daño al atacante.
+                       EXCEPCIÓN: en el turno 1 de la partida el primer jugador NO puede atacar
+                       con unidades (regla de iniciativa, §3/§16); sí puede jugar/desplegar carta.
                        [FUTURO] atacar con más de una unidad por turno o ataques con costo
                   → Evaluar condición de victoria tras cada acción
 
-4. REPONER MANO — La carta jugada o descartada se reemplaza por una aleatoria del pool
+4. REPONER MANO — La carta jugada o descartada se reemplaza por una aleatoria del pool,
+                  con probabilidad proporcional a drawWeight (§8.1)
                   [FUTURO] todas las cartas podrían cambiar entre turnos
 
-5. FIN DE TURNO — Si turno ≥ suddenDeathStart: todas las unidades de ambos jugadores
-                  reciben 1 de daño (ignora defensas)
+5. FIN DE TURNO — a) Decrementar el counter de los estados por UNIDAD del jugador activo
+                     (Poison/Stun/Furia/Desmoralizar); los que llegan a 0 se eliminan.
+                  b) Si turno ≥ suddenDeathStart: todas las unidades de ambos jugadores
+                     reciben 1 de daño (ignora defensas)
                   → Evaluar condición de victoria
                   → Pasa el turno al oponente (o termina si turno == maxTurns)
 ```
+
+> **Nota de timing de estados por unidad (decisión de diseño validada en el sim).** Los estados
+> por unidad usan modelo *active-while-present*: el **counter se decrementa al FIN del turno de su
+> dueño**, no en EFECTOS. Poison hace su daño en EFECTOS (inicio) y también decrementa al final.
+> Así `counter` = nº de turnos del dueño que el estado está activo, y un Stun de 1 turno aplicado
+> por el rival sigue activo durante la fase de ACCIÓN del dueño antes de expirar. Los estados de
+> JUGADOR (producción) siguen el modelo *fire-on-expiry* (decrementan en EFECTOS, disparan al llegar a 0).
 
 ### Resolución de ataque de unidad
 
@@ -462,19 +476,19 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 
 ## 9. Cartas — Manifestantes
 
-> **Unidades diferenciadas por arquetipo** (geometría de combate y zonas de deploy en §6). Los **costos y pasivas son definitivos**; **HP, daño y posición son provisionales y sin validar** — se balancean por simulación (herramienta de Python, Fase 5). Notación: `Rel` = ataque `Relative` (offsets desde el slot del atacante; `+` = hacia el frente enemigo); `Abs` = `Absolute` (slots fijos del oponente, 1–6); `pick 0` = afecta todos los del patrón, `pick N` = el atacante elige N; `cura X` = la acción cura X HP a aliadas (`effect=HealAllies`, mismo catálogo de patrones del §6) en vez de dañar. Pasivas: §7.3.
+> **Unidades diferenciadas por arquetipo** (geometría de combate y zonas de deploy en §6). Los **costos son definitivos**; **HP, daño, posición y la magnitud de las pasivas** quedaron **validados por simulación** (Fase 5, `sim/`): los valores de abajo ya incorporan el tune global de durabilidad (daño ×1.5 / HP ×0.85 horneados) y los ajustes per-card de balance. El **rol** de cada pasiva no cambió; sí su número. Notación: `Rel` = ataque `Relative` (offsets desde el slot del atacante; `+` = hacia el frente enemigo); `Abs` = `Absolute` (slots fijos del oponente, 1–6); `pick 0` = afecta todos los del patrón, `pick N` = el atacante elige N; `cura X` = la acción cura X HP a aliadas (`effect=HealAllies`, mismo catálogo de patrones del §6) en vez de dañar. Pasivas: §7.3.
 
 ### Unidades
 | Carta | Costo | Arquetipo | maxHp | Deploy | Ataque · daño | Pasiva | Descripción |
 |-------|-------|-----------|-------|--------|---------------|--------|-------------|
-| **Piquetero** | 4 ⚡ | Escaramuza | 24 | Cualquiera | `Rel [-1,0,+1]` pick 1 · 9 | Aura +1 daño (adyac.) | *Bombo, bandera y aguante para parar todo. El GPS del camionero lo putea de memoria.* |
-| **Jubilado** | 5 $ | Muro | 38 | Frente {4,5,6} | `Abs {4,5,6}` pick 0 · 3 | Espinas 2 | *83 pirulos, bastón y primera fila. La cana le tiene cagazo a lo que largue en la tele.* |
-| **Gordo Sindical** | 3 $ | Productora | 14 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 2 | +1 $/turno | *El que arregla la paritaria y maneja la caja. Aparece en el palco, jamás en la primera fila.* |
-| **Fisura** | 5 ⚡ | Cleave | 22 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · 3 | +1 ⚡/turno | *Arranca la baldosa de la plaza con las manos y la parte en cuatro. Cada cascote tiene destinatario.* |
-| **Tuitero Militante** | 2 📣 | Productora | 12 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 1 | +1 📣/turno | *2.300 seguidores y la certeza de que cambió la historia con un hilo.* |
-| **Choripanero** | 4 📣 | Healer | 18 | {2,3,4,5} | `Abs {4,5,6}` pick 1 · cura 6 | — | *Pan, chori y chimi para aguantar la jornada. El que morfa, vuelve a la marcha.* |
-| **Mortero Casero** | 5 ⚡ | Sniper | 14 | {2,3,4} | `Abs {1,2,3}` pick 1 · 9 | — | *Un caño, pólvora trucha y puntería de chiripa. Igual le encaja justo en la oficina del fondo.* |
-| **Quema de Cubiertas** | 5 📣 | Emisor | 16 | {2,3,4,5} | `Rel [0]` pick 0 · 1 | Humo: 1 daño/turno a vanguardia enemiga | *Diez gomas viejas y el viento a favor. El humo negro no le hace asco a nadie.* |
+| **Piquetero** | 4 ⚡ | Escaramuza | 20 | Cualquiera | `Rel [-1,0,+1]` pick 1 · 14 | Aura +2 daño (adyac.) | *Bombo, bandera y aguante para parar todo. El GPS del camionero lo putea de memoria.* |
+| **Jubilado** | 5 $ | Muro | 32 | Frente {4,5,6} | `Abs {4,5,6}` pick 0 · 4 | Espinas 3 | *83 pirulos, bastón y primera fila. La cana le tiene cagazo a lo que largue en la tele.* |
+| **Gordo Sindical** | 3 $ | Productora | 12 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 3 | +1 $/turno | *El que arregla la paritaria y maneja la caja. Aparece en el palco, jamás en la primera fila.* |
+| **Fisura** | 5 ⚡ | Cleave | 20 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · 6 | +1 ⚡/turno | *Arranca la baldosa de la plaza con las manos y la parte en cuatro. Cada cascote tiene destinatario.* |
+| **Tuitero Militante** | 2 📣 | Productora | 10 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 2 | +1 📣/turno | *2.300 seguidores y la certeza de que cambió la historia con un hilo.* |
+| **Choripanero** | 4 📣 | Healer | 15 | {2,3,4,5} | `Abs {4,5,6}` pick 1 · cura 3 | — | *Pan, chori y chimi para aguantar la jornada. El que morfa, vuelve a la marcha.* |
+| **Mortero Casero** | 5 ⚡ | Sniper | 8 | {2,3,4} | `Abs {1,2,3}` pick 1 · 14 | — | *Un caño, pólvora trucha y puntería de chiripa. Igual le encaja justo en la oficina del fondo.* |
+| **Quema de Cubiertas** | 5 📣 | Emisor | 15 | {2,3,4,5} | `Rel [0]` pick 0 · 2 | Humo: 2 daño/turno a vanguardia enemiga | *Diez gomas viejas y el viento a favor. El humo negro no le hace asco a nadie.* |
 
 ### Acciones
 | Carta | Categoría | Costo | Efecto | Descripción |
@@ -483,11 +497,11 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 | **Fernet con Cola** | Boost | 1 $ | +3 ⚡ propio | *Hidratación táctica. No es doping si lo toma toda la marcha.* |
 | **Viral en Redes** | Boost | 2 $ | +7 📣 propio | *Un video de 14 segundos, tres palos de reproducciones. El ministerio ya está llamando.* |
 | **Saqueo** | Sabotaje | 1 ⚡ | Oponente −3 $ | *No es afano. Es redistribución urgente de mercadería.* |
-| **Paro General** | Ataque | 5 ⚡ | 14 daño directo a una unidad enemiga | *24 horas de nada. No hay bondi, no hay banco, no hay delivery. El país clavado.* |
-| **Abrazo Colectivo** | Defensa | 5 $ | +16 HP a una unidad propia | *El abrazo que cura todo. Menos la deuda en pesos.* |
+| **Paro General** | Ataque | 5 ⚡ | 21 daño directo a una unidad enemiga | *24 horas de nada. No hay bondi, no hay banco, no hay delivery. El país clavado.* |
+| **Abrazo Colectivo** | Defensa | 5 $ | +10 HP a una unidad propia | *El abrazo que cura todo. Menos la deuda en pesos.* |
 | **Asamblea Popular** | Especial | 6 📣 | Doble producción propia el próximo turno | *Se vota a mano alzada. Cuatro horas de bardo, pero esta vez salió.* |
 | **Escrache** | Sabotaje | 4 📣 | Aturde 1 turno a una unidad enemiga | *Le golpean la puerta a las 7 de la mañana con bombos. No se asoma en todo el día.* |
-| **El Aguante** | Boost | 2 ⚡ | Furia (+3 daño, 2 turnos) a una unidad propia | *Cantito, bombo y se renueva el aguante. Treinta cuadras más, fácil.* |
+| **El Aguante** | Boost | 2 ⚡ | Furia (+4 daño, 2 turnos) a una unidad propia | *Cantito, bombo y se renueva el aguante. Treinta cuadras más, fácil.* |
 | **Cambio de Consigna** | Especial | 1 📣 | Mueve una unidad propia a un slot libre permitido | *La columna pega la vuelta en U. Nadie cazó la orden, pero todos giraron.* |
 
 ### Equipamiento
@@ -495,28 +509,28 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 
 | Carta | Costo | Efecto | Descripción |
 |-------|-------|--------|-------------|
-| **Pechera de Cartón** | 2 $ | +12 maxHp | *Cartón, cinta de embalar y fe. Aguanta más de lo que el sentido común permite.* |
-| **Cascote** | 2 ⚡ | +3 daño | *El fierro más democrático: gratis, abundante y siempre a mano.* |
-| **Parrilla Portátil** | 3 $ | Otorga Regeneración (+3 HP/turno) | *Media parrilla, una bolsa de carbón y olor a asado. Cura lo que ninguna obra social.* |
-| **Miguelitos** | 2 ⚡ | Otorga Espinas 3 (Retaliate) | *Tres clavos soldados con saña. El patrullero los encuentra tarde, siempre.* |
+| **Pechera de Cartón** | 2 $ | +10 maxHp | *Cartón, cinta de embalar y fe. Aguanta más de lo que el sentido común permite.* |
+| **Cascote** | 2 ⚡ | +4 daño | *El fierro más democrático: gratis, abundante y siempre a mano.* |
+| **Parrilla Portátil** | 3 $ | Otorga Regeneración (+2 HP/turno) | *Media parrilla, una bolsa de carbón y olor a asado. Cura lo que ninguna obra social.* |
+| **Miguelitos** | 2 ⚡ | Otorga Espinas 4 (Retaliate) | *Tres clavos soldados con saña. El patrullero los encuentra tarde, siempre.* |
 
 ---
 
 ## 10. Cartas — Policías
 
-> **Unidades diferenciadas por arquetipo** (geometría de combate y zonas de deploy en §6). Los **costos y pasivas son definitivos**; **HP, daño y posición son provisionales y sin validar** — se balancean por simulación (herramienta de Python, Fase 5). Notación: `Rel` = ataque `Relative` (offsets desde el slot del atacante; `+` = hacia el frente enemigo); `Abs` = `Absolute` (slots fijos del oponente, 1–6); `pick 0` = afecta todos los del patrón, `pick N` = el atacante elige N; `cura X` = la acción cura X HP a aliadas (`effect=HealAllies`, mismo catálogo de patrones del §6) en vez de dañar. Pasivas: §7.3.
+> **Unidades diferenciadas por arquetipo** (geometría de combate y zonas de deploy en §6). Los **costos son definitivos**; **HP, daño, posición y la magnitud de las pasivas** quedaron **validados por simulación** (Fase 5, `sim/`): los valores ya incorporan el tune global de durabilidad (daño ×1.5 / HP ×0.85 horneados) y los ajustes per-card de balance. El **rol** de cada pasiva no cambió; sí su número. Notación: `Rel` = ataque `Relative` (offsets desde el slot del atacante; `+` = hacia el frente enemigo); `Abs` = `Absolute` (slots fijos del oponente, 1–6); `pick 0` = afecta todos los del patrón, `pick N` = el atacante elige N; `cura X` = la acción cura X HP a aliadas (`effect=HealAllies`, mismo catálogo de patrones del §6) en vez de dañar. Pasivas: §7.3.
 
 ### Unidades
 | Carta | Costo | Arquetipo | maxHp | Deploy | Ataque · daño | Pasiva | Descripción |
 |-------|-------|-----------|-------|--------|---------------|--------|-------------|
-| **Infante** | 6 ⚡ | Escaramuza | 26 | Cualquiera | `Rel [-1,0,+1]` pick 1 · 10 | Aura +1 daño (adyac.) | *Escudo, casco y 14 horas de turno. Va al frente porque le pagan para eso.* |
-| **Gendarme** | 3 $ | Muro | 46 | Frente {4,5,6} | `Abs {4,5,6}` pick 0 · 2 | Espinas 2 | *Lo trajeron de la frontera a cuidar una esquina. No se mueve, no se cansa, no entiende el reclamo.* |
-| **Puntero** | 5 $ | Productora | 14 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 2 | +1 $/turno | *Reparte bolsones y promesas. La guita sale de algún lado, siempre.* |
-| **Itakero** | 3 ⚡ | Cleave | 22 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · 3 | +1 ⚡/turno | *Escopeta Itaka y postas de goma. Apunta al montón, total alguno cae.* |
-| **Trol Oficial** | 5 📣 | Productora | 16 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 1 | +1 📣/turno | *Diez cuentas, un solo sueldo del Estado. Inventa la tendencia antes del mediodía.* |
-| **Médico del SAME** | 4 $ | Healer | 18 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · cura 3 | — | *Llega en ambulancia y atiende a todos. Después hace tres guardias para llegar a fin de mes.* |
-| **Halcón** | 6 ⚡ | Sniper | 14 | {2,3,4} | `Abs {1,2,3}` pick 1 · 10 | — | *Grupo especial, mira telescópica y paciencia de cazador. Desde la terraza ve toda la plaza.* |
-| **Gasero** | 5 📣 | Emisor | 18 | {2,3,4,5} | `Rel [0]` pick 0 · 1 | Gas: Veneno (2) a 1 de vanguardia enemiga/turno | *Granada en mano, pañuelo en la cara. "Es para dispersar", dice, mientras llora hasta él.* |
+| **Infante** | 6 ⚡ | Escaramuza | 22 | Cualquiera | `Rel [-1,0,+1]` pick 1 · 15 | Aura +2 daño (adyac.) | *Escudo, casco y 14 horas de turno. Va al frente porque le pagan para eso.* |
+| **Gendarme** | 3 $ | Muro | 27 | Frente {4,5,6} | `Abs {4,5,6}` pick 0 · 3 | Espinas 3 | *Lo trajeron de la frontera a cuidar una esquina. No se mueve, no se cansa, no entiende el reclamo.* |
+| **Puntero** | 5 $ | Productora | 12 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 3 | +1 $/turno | *Reparte bolsones y promesas. La guita sale de algún lado, siempre.* |
+| **Itakero** | 3 ⚡ | Cleave | 19 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · 4 | +1 ⚡/turno | *Escopeta Itaka y postas de goma. Apunta al montón, total alguno cae.* |
+| **Trol Oficial** | 5 📣 | Productora | 14 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 2 | +1 📣/turno | *Diez cuentas, un solo sueldo del Estado. Inventa la tendencia antes del mediodía.* |
+| **Médico del SAME** | 4 $ | Healer | 15 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · cura 2 | — | *Llega en ambulancia y atiende a todos. Después hace tres guardias para llegar a fin de mes.* |
+| **Halcón** | 6 ⚡ | Sniper | 8 | {2,3,4} | `Abs {1,2,3}` pick 1 · 15 | — | *Grupo especial, mira telescópica y paciencia de cazador. Desde la terraza ve toda la plaza.* |
+| **Gasero** | 5 📣 | Emisor | 15 | {2,3,4,5} | `Rel [0]` pick 0 · 2 | Gas: Veneno (3) a 1 de vanguardia enemiga/turno | *Granada en mano, pañuelo en la cara. "Es para dispersar", dice, mientras llora hasta él.* |
 
 ### Acciones
 | Carta | Categoría | Costo | Efecto | Descripción |
@@ -525,11 +539,11 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 | **Licitación Express** | Boost | 3 $ | +8 ⚡ propio | *Una empresa, un sobre y 48 horas. El pliego lo hicieron el lunes a la tarde.* |
 | **Cadena Nacional** | Boost | 2 $ | +4 📣 propio | *Interrumpe la novela. El presidente habla 40 minutos. Nadie pidió que arranque.* |
 | **Embargo** | Sabotaje | 3 ⚡ | Oponente −7 $ | *El juez firmó, la guita voló. El otro ya lo veía venir.* |
-| **Operativo Apretón** | Ataque | 6 $ | 18 daño directo a una unidad enemiga | *Cuatro camiones, veinte efectivos y un drone. Todo para un jubilado con un cartel.* |
-| **Refuerzos** | Defensa | 5 📣 | +12 HP a una unidad propia | *Llegan dos camiones más. La línea se rearma como si nada.* |
+| **Operativo Apretón** | Ataque | 6 $ | 27 daño directo a una unidad enemiga | *Cuatro camiones, veinte efectivos y un drone. Todo para un jubilado con un cartel.* |
+| **Refuerzos** | Defensa | 5 📣 | +8 HP a una unidad propia | *Llegan dos camiones más. La línea se rearma como si nada.* |
 | **Toque de Queda** | Especial | 5 $ | El oponente no produce el próximo turno | *A las 22 todos adentro. El que se manda afuera, va en cana.* |
-| **Causa Judicial** | Sabotaje | 4 $ | Veneno (2 daño/turno, 2 turnos) a una unidad enemiga | *Te arman un expediente. Te va comiendo de a poco, durante años.* |
-| **Apriete** | Sabotaje | 2 ⚡ | Desmoraliza (−3 daño, 2 turnos) a una unidad enemiga | *Una charla en voz baja contra la pared. Se te van las ganas solas.* |
+| **Causa Judicial** | Sabotaje | 4 $ | Veneno (3 daño/turno, 2 turnos) a una unidad enemiga | *Te arman un expediente. Te va comiendo de a poco, durante años.* |
+| **Apriete** | Sabotaje | 2 ⚡ | Desmoraliza (−4 daño, 2 turnos) a una unidad enemiga | *Una charla en voz baja contra la pared. Se te van las ganas solas.* |
 | **Reubicación Forzosa** | Especial | 2 $ | Intercambia dos unidades enemigas de slot | *Los suben a un patrullero, los bajan en la otra punta. Protocolo, dicen.* |
 
 ### Equipamiento
@@ -537,10 +551,10 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 
 | Carta | Costo | Efecto | Descripción |
 |-------|-------|--------|-------------|
-| **Chaleco Antibalas** | 2 $ | +14 maxHp | *Importado. Al menos figura en el inventario, que ya es algo.* |
-| **Tonfa** | 2 ⚡ | +3 daño | *Reglamentaria. El uso, a criterio del que la empuña.* |
-| **Obra Social** | 3 $ | Otorga Regeneración (+3 HP/turno) | *Cobertura del 100%. Después de tres formularios y una mañana de cola.* |
-| **Reflectores** | 2 📣 | Otorga Aura +1 daño a aliadas adyacentes | *Iluminan todo de golpe. De repente la patota se coordina sola.* |
+| **Chaleco Antibalas** | 2 $ | +12 maxHp | *Importado. Al menos figura en el inventario, que ya es algo.* |
+| **Tonfa** | 2 ⚡ | +4 daño | *Reglamentaria. El uso, a criterio del que la empuña.* |
+| **Obra Social** | 3 $ | Otorga Regeneración (+2 HP/turno) | *Cobertura del 100%. Después de tres formularios y una mañana de cola.* |
+| **Reflectores** | 2 📣 | Otorga Aura +2 daño a aliadas adyacentes | *Iluminan todo de golpe. De repente la patota se coordina sola.* |
 
 ---
 
@@ -626,20 +640,27 @@ Overlay con:
 | Unidades iniciales por facción | Predefinidas (data por facción) |
 | Recursos iniciales | 5 de cada uno (configurable) |
 | Producción base por turno | +1 de cada recurso ($/⚡/📣); en `GameConfig` (configurable) |
-| Primer turno sin producción | Sí |
+| Primer jugador: turno 1 | **Produce** pero **no puede atacar** (regla de iniciativa, §3/§16) |
 | Lados de facción | Fijos (por ahora): Manifestantes izquierda, Policías derecha |
 | Primer jugador | Lo elige la selección de facción (la que arranca); coinflip si no se especifica |
 | `suddenDeathStart` | Turno 50 (backstop, configurable; bien por encima de la duración ideal) |
 | `maxTurns` | 120 (backstop duro, configurable) |
-| Duración ideal de partida | ~30–40 medios-turnos (≈15–20 por jugador); a afinar por simulación |
+| Duración ideal de partida | ~30–40 medios-turnos; **validado: media ≈ 32, mediana ≈ 21** (sim n=5000) |
 | Cartas por facción | 22 (8 unidades + 10 acciones + 4 equipo) |
 | Peso de robo (`drawWeight`) | 1 para todas (robo uniforme; rareza a futuro) |
+
+> **Balance validado por simulación (Fase 5, `sim/`).** Con los valores de §9/§10 y estas reglas:
+> win-rate Manif/Pol ≈ **48/52 %**, gana-el-primero ≈ **48 %** (sin ventaja de iniciativa),
+> media ≈ **32** medios-turnos, **97 %** por KO, **~23 %** llega a muerte súbita, **3 %** toca maxTurns.
+> La distribución es **bimodal** (≈1/3 blowouts cortos + cola de grind): inherente al diseño de 2
+> unidades iniciales con victoria por KO; +1 unidad inicial empeora la cola, no la mejora. El balance
+> fino de facción es **per-card** (sensible a umbrales), no se ajusta con multiplicadores globales.
 
 ---
 
 ## 13. Pendientes [DEFINIR]
 
-- **Balance de unidades:** unidades ya diferenciadas por arquetipo (§9/§10); los valores de HP/daño son **provisionales y sin validar**, a balancear por simulación (Fase 5).
+- **Balance de unidades:** ✅ **validado por simulación** (Fase 5, `sim/`). Los valores de §9/§10 son los finales del balanceo global (duración media ≈32, facción ≈48/52). Pendiente sólo el **balance fino per-card** si se quiere apretar el 48/52 (no lo mueven los knobs globales).
 - **Apilamiento:** punto de extensión reservado (`UnitSlot.count`), inactivo en v1.
 - **Unidades iniciales por facción:** definidas — Manifestantes = Piquetero + Gordo Sindical; Policías = Infante + Puntero (1 peleador + 1 productora), en slots 1–2. El peleador inicial usa deploy **Cualquiera** para poder ocupar la retaguardia inicial.
 - **Feedback visual por unidad:** si requiere config por carta en Presentation o alcanzan convenciones globales (§7.10). Incluye **iconografía de estados por unidad** (Veneno/Aturdir/Furia/Desmoralizar) y de **equipo adjunto** (§11.3/§11.4).
@@ -698,3 +719,78 @@ Checklist para la sesión de implementación. **El spec es la fuente de verdad: 
 - [ ] **Capa de stats efectivos** en `UnitSlot`: maxHp y daño efectivos = base + Σ equipo; fusionar `grantedPassives` con las propias. Se comparte con `AuraDamage`/`Furia`.
 - [ ] Equipo se juega sobre unidad propia (§11.4, targeting de slot); se destruye al morir/reemplazar la unidad.
 - [ ] 4 cartas de equipo/facción en `CardLibrary` + assets (§9/§10).
+
+---
+
+## 16. Política de decisión (bot heurístico / simulador)
+
+El simulador de balance (Fase 5, en `sim/`) y el futuro `IPlayerController` de IA (§7.8) necesitan decidir, sin un humano, en cada **punto de elección** del turno. Esta sección define esa política como **data de comportamiento documentada**: greedy (sin lookahead), determinista y reproducible. Es deliberadamente simple — el objetivo del simulador es validar el **escalado parejo** de los knobs globales, no jugar perfecto.
+
+> **Advertencia de validez:** el balance que reporta el simulador vale lo que vale esta política. Por eso (a) queda documentada acá y centralizada en un solo módulo (`policy.py`), (b) ambos jugadores usan **la misma** política (espejo) para que el win-rate por facción mida la facción y no al bot, y (c) cualquier cambio de política se versiona junto con los números que produjo.
+
+### 16.1 Función de valor de una unidad
+
+Sirve para priorizar objetivos (a quién pegar/curar) y para puntuar el deploy. Sigue la heurística del §6:
+
+```
+valor_unidad(u) = maxHp_efectivo/4 + daño_total_efectivo/2 + valor_pasiva(u)
+daño_total_efectivo = damagePerSlot_efectivo × min(slots_que_golpea, pickCount o |pattern|)
+valor_pasiva: ProduceResource → 4·value ; Aura/Retaliate/Regeneration → 3·value ;
+              TurnDamage → 3·value ; TurnStatus → 4 ; HealAllies → 3·amount
+```
+
+### 16.2 Orden del turno (fase ACCIÓN)
+
+El bot puede jugar/descartar **1 carta** y atacar con **1 unidad** (§6). Resuelve en este orden fijo:
+
+1. **Carta primero, ataque después.** Jugar la carta puede mejorar el ataque (buff, deploy, debuff al rival).
+2. **Decisión de carta:** puntúa cada carta de la mano que pueda pagar (§16.3). Si la mejor supera el **umbral de juego** (default `0`, es decir cualquier valor positivo), la juega. Si ninguna supera el umbral, **descarta** la carta de menor valor potencial para ciclar la mano (no desperdicia el reemplazo de mano del turno).
+3. **Decisión de ataque:** entre las unidades propias **no aturdidas** con acción, elige la jugada de mayor valor (§16.4). Si ninguna aporta valor (p. ej. todos los objetivos son whiff), no ataca.
+
+### 16.3 Puntaje de cartas (qué jugar)
+
+Cada carta recibe un puntaje; se juega la de mayor puntaje > umbral.
+
+| Tipo de carta | Puntaje |
+|---------------|---------|
+| **Unidad** | `valor_unidad` (§16.1). Penaliza −∞ si no hay slot permitido libre **ni** vale la pena reemplazar (el mejor reemplazo posible vale menos que la unidad ya parada). Bonus si el tablero propio tiene < 2 unidades (necesidad de presencia). |
+| **Boost (recurso propio)** | `value` del recurso ganado, ×1.5 si ese recurso es el que más limita jugar el resto de la mano (está "corto"); ≈0 si ya está cerca del tope o no lo necesita. |
+| **Sabotaje (drenaje rival)** | `min(value, recurso_actual_rival) × 0.5` (drenar lo que el rival no tiene no vale). |
+| **Daño directo (ModifyHP−)** | Daño aplicable al **mejor objetivo enemigo** (§16.5). Bonus grande (`+valor_unidad` del objetivo) si **mata**. 0 si no hay enemigos. |
+| **Cura/Defensa (ModifyHP+)** | HP que realmente restaura (cap maxHp) sobre el **aliado dañado más valioso**; 0 si nadie está dañado. |
+| **Status a enemigo** (Stun/Poison/Desmoralizar) | Stun → `0.5·valor_unidad` del mejor atacante enemigo; Poison → `value·counter` proyectado; Desmoralizar → `value·counter·0.4`. 0 si no hay objetivo. |
+| **Status a aliado** (Furia/Double prod) | Furia → `value·counter·0.5` sobre el mejor atacante propio; DoubleProduction → producción proyectada del próximo turno. |
+| **MoveUnit / SwapUnits** | Utilidad situacional baja por default (`0.1`): se juega sólo si nada mejor supera el umbral. Reubicación rival (Swap enemigo) puntúa si rompe una línea (heurística simple: hay enemigo en frente que conviene mandar atrás). |
+| **Equipo** | `valor_aportado` (Σ statModifiers vía §16.1 + valor_pasiva otorgada) si existe un **portador** propio vivo razonable (prefiere la unidad propia de mayor valor que no muera pronto); −∞ si no hay portador. |
+
+### 16.4 Elección de ataque (con qué unidad y a quién)
+
+Para cada unidad propia no aturdida, evalúa su `UnitAttack`:
+
+- **Daño (`DamageEnemies`):** resuelve los slots candidatos (§6). El **valor de la jugada** = Σ sobre los slots elegidos de `min(daño_efectivo, hp_objetivo)` + `valor_unidad(objetivo)` por cada objetivo que **muere**. Daño efectivo = base + Furia + Aura − Desmoralizar; resta el `Retaliate` esperado del defensor al valor.
+  - **`pickCount > 0`:** elige los N slots del patrón que maximizan ese valor (greedy: prioriza kills, luego mayor daño-no-desperdiciado, luego mayor `valor_unidad` del objetivo).
+- **Cura (`HealAllies`):** valor = Σ `min(amount, maxHp − hp_actual)` sobre los aliados elegidos; prioriza al aliado dañado de mayor `valor_unidad`. `pickCount>0` análogo.
+
+Elige la unidad+objetivos de mayor valor de jugada. Empates: menor índice de slot (determinista).
+
+### 16.5 "Mejor objetivo" (targets de efectos de carta a slot)
+
+Cuando un efecto pide un slot (daño directo, cura, status, swap/move) y `targetSlot = -1`:
+
+- **Daño/Status ofensivo a enemigo:** el slot enemigo que **muere** con el efecto y tenga mayor `valor_unidad`; si ninguno muere, el de mayor `valor_unidad` (rematar a la pieza más cara). Para Stun, el mejor **atacante** enemigo.
+- **Cura/Buff/Equipo a aliado:** para cura, el aliado dañado de mayor `valor_unidad` que más HP recupere; para Furia/equipo, el mejor **atacante** propio vivo.
+- **MoveUnit (propio):** mueve la unidad de retaguardia más valiosa-y-frágil fuera del alcance estimado del rival, o un muro al frente; default: primer movimiento legal que mejore la posición (si ninguno, no juega la carta).
+- **SwapUnits (enemigo):** intercambia para sacar del frente al enemigo de mayor `valor_unidad` (mandarlo a retaguardia), si hay tal configuración.
+
+### 16.6 Deploy (slot de despliegue)
+
+Al desplegar una unidad sin slot forzado por `allowedSlots`, el bot elige entre los slots permitidos **libres** con este orden de preferencia (determinista):
+
+1. Productoras / Snipers / Emisores / Healers → **retaguardia** (menor índice permitido): se quieren proteger.
+2. Muros → **frente** (mayor índice permitido): tapan la línea.
+3. Escaramuza / Cleave → slot permitido que **maximice la cobertura** de su patrón `Relative` sobre el tablero rival actual; a igualdad, el más adelantado.
+4. Si no hay slot permitido libre: reemplaza sólo si la unidad nueva vale más que la peor unidad propia parada en un slot permitido; si no, cancela (no gasta).
+
+### 16.7 Determinismo
+
+Toda la política es función pura del estado observable + un RNG inyectado (sólo para coinflip inicial y robo de cartas, §7.9). Sin desempates aleatorios: los empates de puntaje se rompen por menor índice. Misma seed + mismos knobs → misma partida, byte a byte.

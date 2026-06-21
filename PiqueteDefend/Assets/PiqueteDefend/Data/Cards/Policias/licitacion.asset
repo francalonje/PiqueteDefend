@@ -18,9 +18,11 @@ MonoBehaviour:
   costs:
   - resource: 0
     amount: 3
+  drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: Una empresa, un sobre, 48 horas. El pliego lo hicieron el lunes.
+  flavorText: Una empresa, un sobre y 48 horas. El pliego lo hicieron el lunes a
+    la tarde.
   playSoundId: 
   animationHook: 
   actionCategory: 3
@@ -28,6 +30,7 @@ MonoBehaviour:
   - effectType: 1
     target: 0
     targetSlot: -1
+    targetSlotB: -1
     resourceTarget: 1
     value: 8
     status:

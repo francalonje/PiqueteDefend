@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8891f164702b9b46bef66a97e430139, type: 3}
+  m_Name: medico_same
+  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.UnitCardData
+  id: medico_same
+  cardName: "M\xE9dico del SAME"
+  faction: 1
+  costs:
+  - resource: 0
+    amount: 4
+  drawWeight: 1
+  sprite: {fileID: 0}
+  descriptionText: 
+  flavorText: "Llega en ambulancia y atiende a todos. Despu\xE9s hace tres guardias
+    para llegar a fin de mes."
+  playSoundId: 
+  animationHook: 
+  maxHp: 15
+  allowedSlots: 01000000020000000300000004000000
+  attack:
+    reference: 1
+    pattern: ffffffff0000000001000000
+    pickCount: 0
+    damagePerSlot: 2
+    effect: 1
+    hitSoundId: 
+  passiveEffects: []
+  unitSubtype: 1

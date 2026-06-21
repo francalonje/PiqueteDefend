@@ -18,9 +18,11 @@ MonoBehaviour:
   costs:
   - resource: 1
     amount: 5
+  drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "24 horas de nada. El pa\xEDs en pausa. El bondi no viene. Ni el delivery."
+  flavorText: "24 horas de nada. No hay bondi, no hay banco, no hay delivery. El
+    pa\xEDs clavado."
   playSoundId: 
   animationHook: 
   actionCategory: 0
@@ -28,8 +30,9 @@ MonoBehaviour:
   - effectType: 0
     target: 1
     targetSlot: -1
+    targetSlotB: -1
     resourceTarget: 0
-    value: -14
+    value: -21
     status:
       statusType: 0
       value: 0
