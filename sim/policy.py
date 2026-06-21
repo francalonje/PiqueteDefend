@@ -336,13 +336,14 @@ def _pad_targets(chosen: List[int], candidates: List[int], pick: int) -> List[in
 def take_turn(engine: GameEngine):
     p, opp = engine.active_player, engine.opponent
     engine.action_turns += 1
-    if not any(p.can_afford(c) for c in p.hand):
+    infl = engine.inflation_percent
+    if not any(p.can_afford(c, infl) for c in p.hand):
         engine.starved_turns += 1
 
     # 1) Carta: mejor jugada asequible
     best_plan: Optional[CardPlan] = None
     for idx in range(len(p.hand)):
-        if not p.can_afford(p.hand[idx]):
+        if not p.can_afford(p.hand[idx], infl):
             continue
         plan = evaluate_card(engine, p, opp, idx)
         if best_plan is None or plan.score > best_plan.score:

@@ -38,14 +38,22 @@ class GlobalKnobs:
     sudden_death_start: int = 50
     max_turns: int = 120
 
+    # Inflación (mecánica de juego, no knob de balance): a partir de inflation_start_turn
+    # (medios-turnos) las cartas cuestan inflation_pct_per_turn % más, acumulativo por medio-turno.
+    # 0 = desactivada.
+    inflation_start_turn: int = 0
+    inflation_pct_per_turn: int = 0
+
     # Reglas anti-ventaja-de-iniciativa
     first_no_attack_t1: bool = False   # el primer jugador no puede atacar en el turno 1
     first_produces_t1: bool = False    # el primer jugador SÍ produce en el turno 1 (quita el castigo de producción)
 
     def label(self) -> str:
+        infl = (f" infl@{self.inflation_start_turn}+{self.inflation_pct_per_turn}%"
+                if self.inflation_start_turn else "")
         return (f"hp={self.hp_mult:g} dmg={self.dmg_mult:g} cost={self.cost_mult:g} "
                 f"base={self.base_prod_mult:g} init={self.initial_mult:g} prod={self.producer_mult:g} "
-                f"no_atk_t1={self.first_no_attack_t1} prod_t1={self.first_produces_t1}")
+                f"no_atk_t1={self.first_no_attack_t1} prod_t1={self.first_produces_t1}{infl}")
 
 
 # ── Config ADOPTADA (la que shippea el juego) ────────────────────────────────
@@ -60,8 +68,11 @@ class GlobalKnobs:
 SHIPPED = GlobalKnobs(
     hp_mult=0.85,
     dmg_mult=1.5,
+    cost_mult=1.2,                 # bump económico global uniforme (no descalibra: facción ~51/49)
     first_no_attack_t1=True,
     first_produces_t1=True,
+    inflation_start_turn=12,       # medios-turnos; arranca antes de la mediana, se ve en casi toda partida
+    inflation_pct_per_turn=5,      # +5% acumulativo por medio-turno desde ahí
 )
 
 # Config "cruda": todo en 1.0 y sin reglas de iniciativa (valores base de cards.py tal cual).

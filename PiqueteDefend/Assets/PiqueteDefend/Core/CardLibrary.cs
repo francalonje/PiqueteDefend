@@ -90,7 +90,7 @@ namespace PiqueteDefend.Core
                        Move()),
 
                 // ── Equipo ──
-                Equipment("pechera", "Pechera de Cartón", M, ResourceType.Dinero, 2,
+                Equipment("pechera", "Pechera de Cartón", M, ResourceType.Dinero, 3,
                           "Cartón, cinta de embalar y fe. Aguanta más de lo que el sentido común permite.",
                           new[] { MaxHpMod(10) }, NoPassives),
                 Equipment("cascote", "Cascote", M, ResourceType.Fuerza, 2,
@@ -99,7 +99,7 @@ namespace PiqueteDefend.Core
                 Equipment("parrilla", "Parrilla Portátil", M, ResourceType.Dinero, 3,
                           "Media parrilla, una bolsa de carbón y olor a asado. Cura lo que ninguna obra social.",
                           NoMods, new[] { Regen(2) }),
-                Equipment("miguelitos", "Miguelitos", M, ResourceType.Fuerza, 2,
+                Equipment("miguelitos", "Miguelitos", M, ResourceType.Fuerza, 3,
                           "Tres clavos soldados con saña. El patrullero los encuentra tarde, siempre.",
                           NoMods, new[] { Espinas(4) }),
             };
@@ -115,7 +115,7 @@ namespace PiqueteDefend.Core
                      22, NoSlots, Atk(AttackReference.Relative, new[] { -1, 0, 1 }, 1, 15),
                      "Escudo, casco y 14 horas de turno. Va al frente porque le pagan para eso.",
                      Aura(2)),
-                Unit("gendarme", "Gendarme", P, UnitSubtype.Defensiva, ResourceType.Dinero, 3,
+                Unit("gendarme", "Gendarme", P, UnitSubtype.Defensiva, ResourceType.Dinero, 4,
                      27, Frente, Atk(AttackReference.Absolute, new[] { 3, 4, 5 }, 0, 3),
                      "Lo trajeron de la frontera a cuidar una esquina. No se mueve, no se cansa, no entiende el reclamo.",
                      Espinas(3)),
@@ -123,7 +123,7 @@ namespace PiqueteDefend.Core
                      12, Retaguardia, Atk(AttackReference.Relative, new[] { 0 }, 0, 3),
                      "Reparte bolsones y promesas. La guita sale de algún lado, siempre.",
                      Produce(ResourceType.Dinero, 1)),
-                Unit("itakero", "Itakero", P, UnitSubtype.Atacante, ResourceType.Fuerza, 3,
+                Unit("itakero", "Itakero", P, UnitSubtype.Atacante, ResourceType.Fuerza, 4,
                      19, Medio, Atk(AttackReference.Relative, new[] { -1, 0, 1 }, 0, 4),
                      "Escopeta Itaka y postas de goma. Apunta al montón, total alguno cae.",
                      Produce(ResourceType.Fuerza, 1)),
@@ -143,7 +143,7 @@ namespace PiqueteDefend.Core
                      Gas(3)),
 
                 // ── Acciones ──
-                Action("partida", "Partida Presupuestaria", P, ActionCategory.Boost, ResourceType.Social, 1,
+                Action("partida", "Partida Presupuestaria", P, ActionCategory.Boost, ResourceType.Social, 2,
                        "Existe en el papel. Se aprobó a las 3 de la mañana y nadie sabe para qué.",
                        ModRes(TargetType.Self, ResourceType.Dinero, 7)),
                 Action("licitacion", "Licitación Express", P, ActionCategory.Boost, ResourceType.Dinero, 3,
@@ -175,7 +175,7 @@ namespace PiqueteDefend.Core
                        Swap()),
 
                 // ── Equipo ──
-                Equipment("chaleco", "Chaleco Antibalas", P, ResourceType.Dinero, 2,
+                Equipment("chaleco", "Chaleco Antibalas", P, ResourceType.Dinero, 3,
                           "Importado. Al menos figura en el inventario, que ya es algo.",
                           new[] { MaxHpMod(12) }, NoPassives),
                 Equipment("tonfa", "Tonfa", P, ResourceType.Fuerza, 2,
@@ -314,6 +314,22 @@ namespace PiqueteDefend.Core
         private static StatModifier DamageMod(int v) => new StatModifier(StatType.Damage, v);
 
         private static List<ResourceCost> SingleCost(ResourceType r, int amount) =>
-            new List<ResourceCost> { new ResourceCost(r, amount) };
+            new List<ResourceCost> { new ResourceCost(r, ScaleCost(amount)) };
+
+        /// <summary>
+        /// Factor económico global de costos (spec §3): todas las cartas cuestan un poco más,
+        /// para que los recursos no sobren. Se aplica al <b>hornear</b> los assets (tiempo de
+        /// generación, no en runtime), así el asset queda con el costo final. Es el espejo de
+        /// <c>knobs.SHIPPED.cost_mult</c> en el simulador — mantener AMBOS en sync.
+        /// Los <c>amount</c> de los builders de arriba son el costo <b>base de diseño</b>
+        /// (per-card, balanceado por valor/costo); este factor los escala parejo.
+        /// </summary>
+        private const float CostScale = 1.2f;
+
+        private static int ScaleCost(int amount)
+        {
+            int scaled = (int)Math.Round(amount * CostScale, MidpointRounding.ToEven);
+            return scaled < 1 ? 1 : scaled;   // piso 1 (igual que sim.scale minimum=1)
+        }
     }
 }

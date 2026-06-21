@@ -43,7 +43,7 @@ def knobs_from_args(args) -> GlobalKnobs:
 
 def cmd_run(args):
     knobs = knobs_from_args(args)
-    r = run_batch(knobs, n=args.n)
+    r = run_batch(knobs, n=args.n, paired=args.paired)
     print(format_batch(r, verbose=True))
 
 
@@ -144,6 +144,8 @@ def main():
     pr = sub.add_parser("run", help="un batch con la config adoptada (o knobs override)")
     add_knob_args(pr)
     pr.add_argument("--n", type=int, default=500)
+    pr.add_argument("--paired", action="store_true",
+                    help="modo pareado: cada seed juega first=0 y first=1 (2n partidas, balance de facción más preciso)")
     pr.set_defaults(func=cmd_run)
 
     pg = sub.add_parser("game", help="una sola partida (debug)")

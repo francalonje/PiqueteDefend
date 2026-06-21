@@ -11,6 +11,7 @@ Métricas reportadas (spec §12 / objetivos de la sesión):
 
 from __future__ import annotations
 
+import math
 import statistics
 from dataclasses import dataclass, field
 from typing import Dict, List
@@ -72,6 +73,29 @@ class BatchResult:
     def wr_draw(self) -> float:
         return self.draws / self.n
 
+    # ── Balance de facción (sobre partidas DECISIVAS, sin empates) ──
+    @property
+    def decisive(self) -> int:
+        return self.wins_m + self.wins_p
+
+    @property
+    def wr_m_decisive(self) -> float:
+        return self.wins_m / self.decisive if self.decisive else 0.0
+
+    @property
+    def faction_margin95(self) -> float:
+        """Semi-ancho del IC 95% para el share de Manif en partidas decisivas (aprox. normal)."""
+        d = self.decisive
+        if d == 0:
+            return 0.0
+        p = self.wins_m / d
+        return 1.96 * math.sqrt(p * (1 - p) / d)
+
+    @property
+    def faction_is_even(self) -> bool:
+        """True si 50% cae dentro del IC 95% → no hay evidencia de sesgo de facción."""
+        return abs(self.wr_m_decisive - 0.5) <= self.faction_margin95
+
     @property
     def wr_first(self) -> float:
         decisive = self.wins_first + self.wins_second
@@ -103,14 +127,17 @@ class BatchResult:
         return self.deaths.get(arch, 0) / d if d else 0.0
 
 
-def run_batch(knobs: GlobalKnobs, n: int = 400) -> BatchResult:
-    r = BatchResult(knobs=knobs, n=n)
-    for seed in range(n):
-        first = seed % 2   # alterna quién arranca para neutralizar la ventaja de iniciativa
-        e = play_game(knobs, seed, first)
+def run_batch(knobs: GlobalKnobs, n: int = 400, paired: bool = False) -> BatchResult:
+    """Corre n seeds. Si paired=True, cada seed juega DOS partidas (first=0 y first=1) con el
+    MISMO stream de RNG (mismos draws): neutraliza la iniciativa de forma exacta y reduce la
+    varianza del estimador de balance de facción (common random numbers). Total = 2n partidas."""
+    r = BatchResult(knobs=knobs, n=0)
+
+    def accumulate(e: GameEngine, first: int):
         o = e.outcome
         if o is None:
-            continue
+            return
+        r.n += 1
         if o.winner is None:
             r.draws += 1
         elif o.winner == M:
@@ -133,6 +160,11 @@ def run_batch(knobs: GlobalKnobs, n: int = 400) -> BatchResult:
             r.deploys[a] = r.deploys.get(a, 0) + c
         for a, c in e.deaths_by_arch.items():
             r.deaths[a] = r.deaths.get(a, 0) + c
+
+    for seed in range(n):
+        firsts = (0, 1) if paired else (seed % 2,)  # pareado: ambos arranques; si no, alterna
+        for first in firsts:
+            accumulate(play_game(knobs, seed, first), first)
     return r
 
 
@@ -154,6 +186,8 @@ def format_batch(r: BatchResult, verbose: bool = False) -> str:
     lines = [
         f"knobs: {r.knobs.label()}  (n={r.n})",
         f"  win-rate  Manif {r.wr_m*100:5.1f}%   Pol {r.wr_p*100:5.1f}%   empate {r.wr_draw*100:4.1f}%",
+        f"  balance   Manif {r.wr_m_decisive*100:5.1f}% de las decisivas  ±{r.faction_margin95*100:.1f}% "
+        f"(IC95, n_dec={r.decisive})  -> {'PAREJO' if r.faction_is_even else 'SESGO'}",
         f"  iniciativa  gana-el-1ro {r.wr_first*100:5.1f}%  (50% = sin ventaja)",
         f"  turnos    media {r.mean_turns:5.1f}   mediana {r.median_turns:5.1f}   "
         f"min {min(r.half_turns)} max {max(r.half_turns)}",

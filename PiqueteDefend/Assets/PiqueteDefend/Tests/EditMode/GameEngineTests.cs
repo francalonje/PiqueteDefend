@@ -837,5 +837,54 @@ namespace PiqueteDefend.Tests
             a.effects = new List<CardEffect>(effects);
             return a;
         }
+
+        // ── Inflación (spec §3) ────────────────────────────────────────────────
+
+        [Test]
+        public void InflatedAmount_RoundsUp_AndIsIdentityWithoutInflation()
+        {
+            Assert.AreEqual(6, PlayerState.InflatedAmount(6, 0));    // sin inflación: identidad
+            Assert.AreEqual(9, PlayerState.InflatedAmount(6, 50));   // ceil(6·1.5) = 9
+            Assert.AreEqual(6, PlayerState.InflatedAmount(5, 8));    // ceil(5.4) = 6 (siempre redondea ↑)
+            Assert.AreEqual(12, PlayerState.InflatedAmount(10, 20)); // ceil(12.0) = 12
+            Assert.AreEqual(2, PlayerState.InflatedAmount(1, 8));    // ceil(1.08) = 2 (muerde aun el costo 1)
+        }
+
+        [Test]
+        public void InflationPercent_KicksInAtStartTurn_AndScalesPerHalfTurn()
+        {
+            var cfg = PlainCfg();
+            cfg.inflationStartTurn = 3;
+            cfg.inflationPercentPerTurn = 10;
+            var e = NewEngine(cfg, out _, U(10));   // unidades iniciales en ambos lados (keepalive)
+            e.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
+
+            e.BeginTurn();                       // HalfTurn 1
+            Assert.AreEqual(0, e.InflationPercent);
+            Assert.IsFalse(e.InflationActive);
+            e.EndTurn(); e.BeginTurn();          // HalfTurn 2
+            Assert.AreEqual(0, e.InflationPercent);
+            e.EndTurn(); e.BeginTurn();          // HalfTurn 3 = arranca
+            Assert.AreEqual(10, e.InflationPercent);
+            Assert.IsTrue(e.InflationActive);
+            e.EndTurn(); e.BeginTurn();          // HalfTurn 4
+            Assert.AreEqual(20, e.InflationPercent);
+        }
+
+        [Test]
+        public void CanAfford_AndPay_RespectInflation()
+        {
+            var p = new PlayerState(6) { dinero = 6, fuerza = 0, social = 0 };
+            var card = ScriptableObject.CreateInstance<ActionCardData>();
+            card.costs = new List<ResourceCost> { new ResourceCost(ResourceType.Dinero, 5) };
+            card.effects = new List<CardEffect>();
+
+            Assert.IsTrue(p.CanAfford(card, 0));    // 5 ≤ 6
+            Assert.IsTrue(p.CanAfford(card, 8));    // ceil(5·1.08)=6 ≤ 6
+            Assert.IsFalse(p.CanAfford(card, 30));  // ceil(5·1.3)=7 > 6
+
+            p.Pay(card, 20);                        // ceil(5·1.2)=6
+            Assert.AreEqual(0, p.dinero);
+        }
     }
 }

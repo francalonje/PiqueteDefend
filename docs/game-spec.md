@@ -47,6 +47,16 @@ Cada jugador maneja 3 recursos independientes.
 
 **Recursos negativos:** los recursos nunca bajan de 0. El exceso de reducción se descarta.
 
+### Costo de las cartas: factor global e inflación
+
+Para que los recursos **no sobren** (problema de abundancia: producís +1 de cada recurso pero gastás un solo tipo por turno), el costo de las cartas se sube por dos vías:
+
+1. **Factor económico global (×1.2):** todas las cartas cuestan un ~20% más que su costo *base de diseño* (per-card, balanceado por valor/costo). Es un bump **uniforme** que no descalibra la facción (validado por simulación: facción ~51/49). Se aplica al **hornear** los assets (es el espejo de `knobs.SHIPPED.cost_mult` en el sim); los costos de §9/§10 son los **base** y el juego los muestra ya escalados.
+
+2. **Inflación (mecánica de juego):** a partir del medio-turno `inflationStartTurn` (default **12**), cada medio-turno las cartas cuestan **`inflationPercentPerTurn`% más, acumulativo** (default **+5%/medio-turno**). El costo efectivo de cada recurso = `ceil(costo × (1 + inflación%/100))` (redondea hacia arriba, así siempre muerde). La inflación **pega a ambos jugadores por igual** (depende sólo del nº de medio-turno), así que no desbalancea; su rol es **comerse el excedente de recursos en las partidas largas** y presionar hacia el desenlace. Sólo afecta el **costo de jugar cartas** (atacar es gratis). Un **medidor** central en pantalla aparece cuando arranca y muestra el % vigente (§11.3).
+
+> Ambos son configurables en `GameConfig` (`inflationStartTurn`, `inflationPercentPerTurn`) y en `knobs.py` del sim. Valores en revisión por playtest.
+
 ---
 
 ## 4. Estado del jugador
@@ -91,6 +101,9 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
 - Es un **backstop**, no la forma normal de ganar: se fija **bien por encima de la duración ideal** (§12) para que casi ninguna partida llegue. La duración objetivo se ajusta con HP/daño/recursos, no con este número.
 - Garantiza que las unidades mueran eventualmente si ningún jugador es eliminado antes.
 
+**Inflación (presión económica, complementaria):**
+- A partir del medio-turno `inflationStartTurn` (default **12**) las cartas se encarecen progresivamente (§3). No mata unidades como la muerte súbita, pero **seca la economía** de las partidas largas (donde los recursos sobran), empujando a resolver por combate antes de llegar a la muerte súbita.
+
 **Límite de turnos (backstop duro):**
 - `maxTurns` (default: **120**). Si se alcanza sin ganador, la partida termina por desempate determinista:
   1. Jugador con más unidades vivas gana.
@@ -133,7 +146,8 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
                   → Evaluar condición de victoria
 
 3. ACCIÓN       — El jugador puede hacer ambas, una, o ninguna (en cualquier orden):
-                    a) Jugar 1 carta (si tiene suficiente recurso) O descartar 1 carta
+                    a) Jugar 1 carta (si paga su costo, ya ajustado por el factor global e
+                       inflación vigente, §3) O descartar 1 carta
                     b) Atacar con 1 unidad propia que NO esté aturdida (Stun) → afecta slots
                        según su ataque. Daño efectivo = base + Furia + AuraDamage − Desmoralizar;
                        los defensores con Retaliate devuelven daño al atacante.
@@ -493,7 +507,7 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 
 ## 9. Cartas — Manifestantes
 
-> **Unidades diferenciadas por arquetipo** (geometría de combate y zonas de deploy en §6). Los **costos son definitivos**; **HP, daño, posición y la magnitud de las pasivas** quedaron **validados por simulación** (Fase 5, `sim/`): los valores de abajo ya incorporan el tune global de durabilidad (daño ×1.5 / HP ×0.85 horneados) y los ajustes per-card de balance. El **rol** de cada pasiva no cambió; sí su número. Notación: `Rel` = ataque `Relative` (offsets desde el slot del atacante; `+` = hacia el frente enemigo); `Abs` = `Absolute` (slots fijos del oponente, 1–6); `pick 0` = afecta todos los del patrón, `pick N` = el atacante elige N; `cura X` = la acción cura X HP a aliadas (`effect=HealAllies`, mismo catálogo de patrones del §6) en vez de dañar. Pasivas: §7.3.
+> **Unidades diferenciadas por arquetipo** (geometría de combate y zonas de deploy en §6). Los **costos** mostrados son el **base de diseño**, balanceado **per-card por valor/costo** (`sim/valuation.py`, encareciendo las cartas más eficientes para alinearlas con su rol espejo); encima, el juego aplica el **factor económico global ×1.2** y la **inflación** por turno (§3). **HP, daño, posición y la magnitud de las pasivas** quedaron **validados por simulación** (Fase 5, `sim/`): los valores de abajo ya incorporan el tune global de durabilidad (daño ×1.5 / HP ×0.85 horneados) y los ajustes per-card de balance. El **rol** de cada pasiva no cambió; sí su número. Notación: `Rel` = ataque `Relative` (offsets desde el slot del atacante; `+` = hacia el frente enemigo); `Abs` = `Absolute` (slots fijos del oponente, 1–6); `pick 0` = afecta todos los del patrón, `pick N` = el atacante elige N; `cura X` = la acción cura X HP a aliadas (`effect=HealAllies`, mismo catálogo de patrones del §6) en vez de dañar. Pasivas: §7.3.
 
 ### Unidades
 | Carta | Costo | Arquetipo | maxHp | Deploy | Ataque · daño | Pasiva | Descripción |
@@ -526,24 +540,24 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 
 | Carta | Costo | Efecto | Descripción |
 |-------|-------|--------|-------------|
-| **Pechera de Cartón** | 2 $ | +10 maxHp | *Cartón, cinta de embalar y fe. Aguanta más de lo que el sentido común permite.* |
+| **Pechera de Cartón** | 3 $ | +10 maxHp | *Cartón, cinta de embalar y fe. Aguanta más de lo que el sentido común permite.* |
 | **Cascote** | 2 ⚡ | +4 daño | *El fierro más democrático: gratis, abundante y siempre a mano.* |
 | **Parrilla Portátil** | 3 $ | Otorga Regeneración (+2 HP/turno) | *Media parrilla, una bolsa de carbón y olor a asado. Cura lo que ninguna obra social.* |
-| **Miguelitos** | 2 ⚡ | Otorga Espinas 4 (Retaliate) | *Tres clavos soldados con saña. El patrullero los encuentra tarde, siempre.* |
+| **Miguelitos** | 3 ⚡ | Otorga Espinas 4 (Retaliate) | *Tres clavos soldados con saña. El patrullero los encuentra tarde, siempre.* |
 
 ---
 
 ## 10. Cartas — Policías
 
-> **Unidades diferenciadas por arquetipo** (geometría de combate y zonas de deploy en §6). Los **costos son definitivos**; **HP, daño, posición y la magnitud de las pasivas** quedaron **validados por simulación** (Fase 5, `sim/`): los valores ya incorporan el tune global de durabilidad (daño ×1.5 / HP ×0.85 horneados) y los ajustes per-card de balance. El **rol** de cada pasiva no cambió; sí su número. Notación: `Rel` = ataque `Relative` (offsets desde el slot del atacante; `+` = hacia el frente enemigo); `Abs` = `Absolute` (slots fijos del oponente, 1–6); `pick 0` = afecta todos los del patrón, `pick N` = el atacante elige N; `cura X` = la acción cura X HP a aliadas (`effect=HealAllies`, mismo catálogo de patrones del §6) en vez de dañar. Pasivas: §7.3.
+> **Unidades diferenciadas por arquetipo** (geometría de combate y zonas de deploy en §6). Los **costos** mostrados son el **base de diseño**, balanceado **per-card por valor/costo** (`sim/valuation.py`, encareciendo las cartas más eficientes para alinearlas con su rol espejo); encima, el juego aplica el **factor económico global ×1.2** y la **inflación** por turno (§3). **HP, daño, posición y la magnitud de las pasivas** quedaron **validados por simulación** (Fase 5, `sim/`): los valores ya incorporan el tune global de durabilidad (daño ×1.5 / HP ×0.85 horneados) y los ajustes per-card de balance. El **rol** de cada pasiva no cambió; sí su número. Notación: `Rel` = ataque `Relative` (offsets desde el slot del atacante; `+` = hacia el frente enemigo); `Abs` = `Absolute` (slots fijos del oponente, 1–6); `pick 0` = afecta todos los del patrón, `pick N` = el atacante elige N; `cura X` = la acción cura X HP a aliadas (`effect=HealAllies`, mismo catálogo de patrones del §6) en vez de dañar. Pasivas: §7.3.
 
 ### Unidades
 | Carta | Costo | Arquetipo | maxHp | Deploy | Ataque · daño | Pasiva | Descripción |
 |-------|-------|-----------|-------|--------|---------------|--------|-------------|
 | **Infante** | 6 ⚡ | Escaramuza | 22 | Cualquiera | `Rel [-1,0,+1]` pick 1 · 15 | Aura +2 daño (adyac.) | *Escudo, casco y 14 horas de turno. Va al frente porque le pagan para eso.* |
-| **Gendarme** | 3 $ | Muro | 27 | Frente {4,5,6} | `Abs {4,5,6}` pick 0 · 3 | Espinas 3 | *Lo trajeron de la frontera a cuidar una esquina. No se mueve, no se cansa, no entiende el reclamo.* |
+| **Gendarme** | 4 $ | Muro | 27 | Frente {4,5,6} | `Abs {4,5,6}` pick 0 · 3 | Espinas 3 | *Lo trajeron de la frontera a cuidar una esquina. No se mueve, no se cansa, no entiende el reclamo.* |
 | **Puntero** | 5 $ | Productora | 12 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 3 | +1 $/turno | *Reparte bolsones y promesas. La guita sale de algún lado, siempre.* |
-| **Itakero** | 3 ⚡ | Cleave | 19 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · 4 | +1 ⚡/turno | *Escopeta Itaka y postas de goma. Apunta al montón, total alguno cae.* |
+| **Itakero** | 4 ⚡ | Cleave | 19 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · 4 | +1 ⚡/turno | *Escopeta Itaka y postas de goma. Apunta al montón, total alguno cae.* |
 | **Trol Oficial** | 5 📣 | Productora | 14 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 2 | +1 📣/turno | *Diez cuentas, un solo sueldo del Estado. Inventa la tendencia antes del mediodía.* |
 | **Médico del SAME** | 4 $ | Healer | 15 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · cura 2 | — | *Llega en ambulancia y atiende a todos. Después hace tres guardias para llegar a fin de mes.* |
 | **Halcón** | 6 ⚡ | Sniper | 8 | {2,3,4} | `Abs {1,2,3}` pick 1 · 15 | — | *Grupo especial, mira telescópica y paciencia de cazador. Desde la terraza ve toda la plaza.* |
@@ -552,7 +566,7 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 ### Acciones
 | Carta | Categoría | Costo | Efecto | Descripción |
 |-------|-----------|-------|--------|-------------|
-| **Partida Presupuestaria** | Boost | 1 📣 | +7 $ propio | *Existe en el papel. Se aprobó a las 3 de la mañana y nadie sabe para qué.* |
+| **Partida Presupuestaria** | Boost | 2 📣 | +7 $ propio | *Existe en el papel. Se aprobó a las 3 de la mañana y nadie sabe para qué.* |
 | **Licitación Express** | Boost | 3 $ | +8 ⚡ propio | *Una empresa, un sobre y 48 horas. El pliego lo hicieron el lunes a la tarde.* |
 | **Cadena Nacional** | Boost | 2 $ | +4 📣 propio | *Interrumpe la novela. El presidente habla 40 minutos. Nadie pidió que arranque.* |
 | **Embargo** | Sabotaje | 3 ⚡ | Oponente −7 $ | *El juez firmó, la guita voló. El otro ya lo veía venir.* |
@@ -568,7 +582,7 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 
 | Carta | Costo | Efecto | Descripción |
 |-------|-------|--------|-------------|
-| **Chaleco Antibalas** | 2 $ | +12 maxHp | *Importado. Al menos figura en el inventario, que ya es algo.* |
+| **Chaleco Antibalas** | 3 $ | +12 maxHp | *Importado. Al menos figura en el inventario, que ya es algo.* |
 | **Tonfa** | 2 ⚡ | +4 daño | *Reglamentaria. El uso, a criterio del que la empuña.* |
 | **Obra Social** | 3 $ | Otorga Regeneración (+2 HP/turno) | *Cobertura del 100%. Después de tres formularios y una mañana de cola.* |
 | **Reflectores** | 2 📣 | Otorga Aura +2 daño a aliadas adyacentes | *Iluminan todo de golpe. De repente la patota se coordina sola.* |
@@ -624,6 +638,8 @@ Los slots van del **1 al 6**; las **unidades iniciales ("las del fondo") ocupan 
 
 **Indicador de turno:** un **chip** (pill) que salta al lado del jugador activo, más la marca **▶** en su panel de stats. El botón **Terminar turno** está centrado en el tope.
 
+**Medidor de inflación:** un cartel central (en el medio de la pantalla) que **aparece cuando arranca la inflación** (medio-turno `inflationStartTurn`, §3) y muestra el **% vigente** ("INFLACIÓN +X%"). El color se intensifica (amarillo → rojo) a mayor inflación. Mientras está activa, el **costo mostrado en las cartas** ya viene inflado (y se tiñe de naranja).
+
 ### 11.4 Input
 
 | Acción | Mouse | Teclado |
@@ -666,6 +682,9 @@ Overlay con:
 | Unidades iniciales por facción | Predefinidas (data por facción) |
 | Recursos iniciales | 5 de cada uno (configurable) |
 | Producción base por turno | +1 de cada recurso ($/⚡/📣); en `GameConfig` (configurable) |
+| Factor económico global de costo | **×1.2** sobre el costo base (uniforme, horneado; `knobs.cost_mult`) |
+| `inflationStartTurn` | Medio-turno **12**: desde ahí las cartas se encarecen (inflación, §3) |
+| `inflationPercentPerTurn` | **+5%** acumulativo por medio-turno (en revisión por playtest) |
 | Primer jugador: turno 1 | **Produce** pero **no puede atacar** (regla de iniciativa, §3/§16) |
 | Lados de facción | Fijos (por ahora): Manifestantes izquierda, Policías derecha |
 | Primer jugador | Lo elige la selección de facción (la que arranca); coinflip si no se especifica |

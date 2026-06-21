@@ -15,6 +15,7 @@ Timing de estados (decisión de diseño, ver nota en spec §6/§7.7):
 
 from __future__ import annotations
 
+import math
 import random
 from typing import Dict, List, Optional
 
@@ -27,6 +28,14 @@ from model import (
 )
 
 BOARD = 6
+
+
+def inflated_amount(amount: int, inflation_pct: int) -> int:
+    """Costo con inflación aplicada (spec §3). Redondea hacia ARRIBA (ceil) para que la
+    inflación siempre muerda; espejo exacto de GameEngine.InflatedAmount en el Core."""
+    if inflation_pct <= 0:
+        return amount
+    return math.ceil(amount * (100 + inflation_pct) / 100)
 
 
 class Rng:
@@ -110,12 +119,12 @@ class PlayerState:
     def add(self, r: ResourceType, delta: int, max_res: int):
         self.set(r, self.get(r) + delta, max_res)
 
-    def pay(self, card: CardData):
+    def pay(self, card: CardData, inflation_pct: int = 0):
         for c in card.costs:
-            self.set(c.resource, self.get(c.resource) - c.amount, 10 ** 9)
+            self.set(c.resource, self.get(c.resource) - inflated_amount(c.amount, inflation_pct), 10 ** 9)
 
-    def can_afford(self, card: CardData) -> bool:
-        return all(self.get(c.resource) >= c.amount for c in card.costs)
+    def can_afford(self, card: CardData, inflation_pct: int = 0) -> bool:
+        return all(self.get(c.resource) >= inflated_amount(c.amount, inflation_pct) for c in card.costs)
 
     def alive_count(self) -> int:
         return sum(1 for s in self.slots if s)
@@ -186,6 +195,14 @@ class GameEngine:
     @property
     def is_finished(self) -> bool:
         return self.outcome is not None
+
+    @property
+    def inflation_percent(self) -> int:
+        """% de inflación vigente este medio-turno (spec §3). 0 si no arrancó."""
+        start = self.k.inflation_start_turn
+        if not start or self.half_turn < start:
+            return 0
+        return (self.half_turn - start + 1) * self.k.inflation_pct_per_turn
 
     @property
     def active_player(self) -> PlayerState:
@@ -319,23 +336,24 @@ class GameEngine:
         if not (0 <= hand_index < len(p.hand)):
             return False
         card = p.hand[hand_index]
-        if not p.can_afford(card):
+        infl = self.inflation_percent
+        if not p.can_afford(card, infl):
             return False
 
         if isinstance(card, UnitCardData):
             slot = self._resolve_deploy(card, p, deploy_slot)
             if slot < 0:
                 return False
-            p.pay(card)
+            p.pay(card, infl)
             p.slots[slot] = UnitSlot(card)   # slot siempre libre (sin reemplazo, §8.3)
             self._record_deploy(card)
         elif isinstance(card, EquipmentCardData):
             if equip_slot < 0 or equip_slot >= BOARD or p.slots[equip_slot] is None:
                 return False
-            p.pay(card)
+            p.pay(card, infl)
             self._equip(p.slots[equip_slot], card)
         elif isinstance(card, ActionCardData):
-            p.pay(card)
+            p.pay(card, infl)
             for eff in card.effects:
                 self._resolve_effect(eff, p, opp, effect_slot, effect_slot_b)
 
