@@ -181,6 +181,13 @@ recursos iniciales, producción base por recurso, `maxResource`, reglas de inici
 condición de victoria (KO / empate / timeout) y el desempate están en `GameEngine.CheckVictory` /
 `TimeoutTiebreak`. Espejo de los knobs en `sim/knobs.py` (`SHIPPED`).
 
+> **Unidades iniciales (3/facción):** `CardLibrary.StartingUnitIds` + `cards.py STARTING_IDS` —
+> Escaramuza + Productora + Muro (el Muro despliega al frente → presencia en vanguardia desde el
+> turno 1). **`drawWeight`** se deriva por tipo en los builders (no carta por carta): productoras y
+> boosts de producción 2, resto (incl. unidades comunes) 1 (spec §8.1; subir unidades tapa la mano
+> con 3 iniciales). El sim reporta **presencia** (unidades vivas/lado, vanguardia, unidades en mano)
+> en `run` para medir "tablero lleno" vs "mano tapada".
+
 > **Costo de cartas — dos multiplicadores (spec §3):** (1) **factor global ×1.2**, horneado al
 > generar los assets (`CardLibrary.CostScale`, espejo de `knobs.cost_mult`); los `amount` de los
 > builders son el costo **base**. (2) **Inflación** por turno: `GameEngine.InflationPercent` →

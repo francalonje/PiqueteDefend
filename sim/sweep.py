@@ -33,6 +33,7 @@ def play_game(knobs: GlobalKnobs, seed: int, first_index: int) -> GameEngine:
         engine.begin_turn()
         if engine.is_finished:
             break
+        engine.sample_presence()
         take_turn(engine)
         if engine.is_finished:
             break
@@ -59,6 +60,10 @@ class BatchResult:
     action_turns: int = 0
     deploys: Dict[str, int] = field(default_factory=dict)
     deaths: Dict[str, int] = field(default_factory=dict)
+    presence_sum: int = 0
+    vanguard_sum: int = 0
+    hand_units_sum: int = 0
+    presence_samples: int = 0
 
     # ── Derivadas ──
     @property
@@ -126,6 +131,21 @@ class BatchResult:
         d = self.deploys.get(arch, 0)
         return self.deaths.get(arch, 0) / d if d else 0.0
 
+    @property
+    def avg_units_alive(self) -> float:
+        """Promedio de unidades vivas por lado en cualquier momento de la partida."""
+        return self.presence_sum / self.presence_samples if self.presence_samples else 0.0
+
+    @property
+    def avg_vanguard(self) -> float:
+        """Promedio de unidades en vanguardia (slots 4-6) por lado."""
+        return self.vanguard_sum / self.presence_samples if self.presence_samples else 0.0
+
+    @property
+    def avg_hand_units(self) -> float:
+        """Promedio de cartas de unidad en mano (alto = mano tapada de unidades sin dónde bajar)."""
+        return self.hand_units_sum / self.presence_samples if self.presence_samples else 0.0
+
 
 def run_batch(knobs: GlobalKnobs, n: int = 400, paired: bool = False) -> BatchResult:
     """Corre n seeds. Si paired=True, cada seed juega DOS partidas (first=0 y first=1) con el
@@ -160,6 +180,10 @@ def run_batch(knobs: GlobalKnobs, n: int = 400, paired: bool = False) -> BatchRe
             r.deploys[a] = r.deploys.get(a, 0) + c
         for a, c in e.deaths_by_arch.items():
             r.deaths[a] = r.deaths.get(a, 0) + c
+        r.presence_sum += e.presence_sum
+        r.vanguard_sum += e.vanguard_sum
+        r.hand_units_sum += e.hand_units_sum
+        r.presence_samples += e.presence_samples
 
     for seed in range(n):
         firsts = (0, 1) if paired else (seed % 2,)  # pareado: ambos arranques; si no, alterna
@@ -196,6 +220,8 @@ def format_batch(r: BatchResult, verbose: bool = False) -> str:
         f"  riesgos   starved {r.starved_ratio*100:4.1f}%   "
         f"muerte Productora {r.death_rate('Productora')*100:3.0f}%   "
         f"deploy Sniper {r.deploys.get('Sniper',0)} Emisor {r.deploys.get('Emisor',0)}",
+        f"  presencia unidades vivas/lado {r.avg_units_alive:.2f}   "
+        f"vanguardia/lado {r.avg_vanguard:.2f}   unidades en mano {r.avg_hand_units:.2f}",
     ]
     if verbose:
         lines.append("  distribución de turnos:")

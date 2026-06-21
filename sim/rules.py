@@ -177,6 +177,12 @@ class GameEngine:
         self.action_turns = 0      # turnos jugados (denominador de starved)
         self.deploys_by_arch: Dict[str, int] = {}
         self.deaths_by_arch: Dict[str, int] = {}
+        # presencia: muestreo por medio-turno (1 muestra por jugador), para medir cuántas
+        # unidades hay vivas y cuántas en vanguardia (slots 3-5 base-0) simultáneamente.
+        self.presence_sum = 0      # Σ unidades vivas sobre todas las muestras-jugador
+        self.vanguard_sum = 0      # Σ unidades en vanguardia sobre todas las muestras-jugador
+        self.hand_units_sum = 0    # Σ cartas de UNIDAD en mano (clog: unidades que no se pueden bajar)
+        self.presence_samples = 0  # nº de muestras-jugador
 
     # ── Setup ──
     def start(self, first_index: int = -1):
@@ -195,6 +201,15 @@ class GameEngine:
     @property
     def is_finished(self) -> bool:
         return self.outcome is not None
+
+    def sample_presence(self):
+        """Muestrea el tablero de ambos jugadores (1 muestra-jugador c/u) para las métricas
+        de presencia/vanguardia. Se llama una vez por medio-turno desde el harness."""
+        for p in self.players:
+            self.presence_sum += sum(1 for s in p.slots if s)
+            self.vanguard_sum += sum(1 for i in (3, 4, 5) if p.slots[i])
+            self.hand_units_sum += sum(1 for c in p.hand if isinstance(c, UnitCardData))
+            self.presence_samples += 1
 
     @property
     def inflation_percent(self) -> int:

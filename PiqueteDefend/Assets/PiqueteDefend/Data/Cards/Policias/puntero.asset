@@ -18,7 +18,7 @@ MonoBehaviour:
   costs:
   - resource: 0
     amount: 6
-  drawWeight: 1
+  drawWeight: 2
   sprite: {fileID: 0}
   descriptionText: 
   flavorText: "Reparte bolsones y promesas. La guita sale de alg\xFAn lado, siempre."

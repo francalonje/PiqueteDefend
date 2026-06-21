@@ -31,7 +31,7 @@ namespace PiqueteDefend.Core
                      "Bombo, bandera y aguante para parar todo. El GPS del camionero lo putea de memoria.",
                      Aura(2)),
                 Unit("jubilado", "Jubilado", M, UnitSubtype.Defensiva, ResourceType.Dinero, 5,
-                     32, Frente, Atk(AttackReference.Absolute, new[] { 3, 4, 5 }, 0, 4),
+                     32, Frente, Atk(AttackReference.Absolute, new[] { 3, 4, 5 }, 0, 3),
                      "83 pirulos, bastón y primera fila. La cana le tiene cagazo a lo que largue en la tele.",
                      Espinas(3)),
                 Unit("gordo_sindical", "Gordo Sindical", M, UnitSubtype.Productora, ResourceType.Dinero, 3,
@@ -116,7 +116,7 @@ namespace PiqueteDefend.Core
                      "Escudo, casco y 14 horas de turno. Va al frente porque le pagan para eso.",
                      Aura(2)),
                 Unit("gendarme", "Gendarme", P, UnitSubtype.Defensiva, ResourceType.Dinero, 4,
-                     27, Frente, Atk(AttackReference.Absolute, new[] { 3, 4, 5 }, 0, 3),
+                     27, Frente, Atk(AttackReference.Absolute, new[] { 3, 4, 5 }, 0, 4),
                      "Lo trajeron de la frontera a cuidar una esquina. No se mueve, no se cansa, no entiende el reclamo.",
                      Espinas(3)),
                 Unit("puntero", "Puntero", P, UnitSubtype.Productora, ResourceType.Dinero, 5,
@@ -193,8 +193,8 @@ namespace PiqueteDefend.Core
         /// <summary>Ids de las unidades iniciales de cada facción (spec §6/§11.3). 1 peleadora + 1 productora.</summary>
         public static string[] StartingUnitIds(Faction faction) =>
             faction == Faction.Manifestantes
-                ? new[] { "piquetero", "gordo_sindical" }
-                : new[] { "infante", "puntero" };
+                ? new[] { "piquetero", "gordo_sindical", "jubilado" }   // Escaramuza + Productora + Muro(frente)
+                : new[] { "infante", "puntero", "gendarme" };
 
         // ── Builders ──────────────────────────────────────────────────────────
 
@@ -218,6 +218,11 @@ namespace PiqueteDefend.Core
             card.attack = attack;
             card.passiveEffects = new List<PassiveEffect>(passives);
             card.flavorText = flavor;
+            // Robo: las unidades pesan 1; las productoras 2 (protagonismo de producción sin tapar
+            // la mano de unidades que no se pueden bajar con el tablero lleno). Espejo de cards.py.
+            card.drawWeight = 1;
+            foreach (PassiveEffect p in passives)
+                if (p.passiveType == PassiveType.ProduceResource) { card.drawWeight = 2; break; }
             return card;
         }
 
@@ -234,6 +239,11 @@ namespace PiqueteDefend.Core
             card.costs = SingleCost(costResource, cost);
             card.flavorText = flavor;
             card.effects = new List<CardEffect>(effects);
+            // Las cartas de producción (boost de recurso propio) pesan 2 en el robo. Espejo de cards.py.
+            card.drawWeight = 1;
+            foreach (CardEffect e in effects)
+                if (e.effectType == CardEffectType.ModifyResource && e.target == TargetType.Self && e.value > 0)
+                { card.drawWeight = 2; break; }
             return card;
         }
 

@@ -18,7 +18,7 @@ MonoBehaviour:
   costs:
   - resource: 1
     amount: 6
-  drawWeight: 1
+  drawWeight: 2
   sprite: {fileID: 0}
   descriptionText: 
   flavorText: Arranca la baldosa de la plaza con las manos y la parte en cuatro.

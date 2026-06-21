@@ -23,7 +23,7 @@ from model import (ActionCardData, EquipmentCardData, Faction, PassiveType, Stat
 # id -> (maxHp, atk_amount, {passiveType: value})   — campos escalados por knobs
 UNITS = {
     "piquetero":       (20, 14, {PassiveType.AURA_DAMAGE: 2}),
-    "jubilado":        (32, 4,  {PassiveType.RETALIATE: 3}),
+    "jubilado":        (32, 3,  {PassiveType.RETALIATE: 3}),
     "gordo_sindical":  (12, 3,  {PassiveType.PRODUCE_RESOURCE: 1}),
     "fisura":          (20, 6,  {PassiveType.PRODUCE_RESOURCE: 1}),
     "tuitero":         (10, 2,  {PassiveType.PRODUCE_RESOURCE: 1}),
@@ -31,7 +31,7 @@ UNITS = {
     "mortero":         (8,  14, {}),
     "quema_cubiertas": (15, 2,  {PassiveType.TURN_DAMAGE: 2}),
     "infante":         (22, 15, {PassiveType.AURA_DAMAGE: 2}),
-    "gendarme":        (27, 3,  {PassiveType.RETALIATE: 3}),
+    "gendarme":        (27, 4,  {PassiveType.RETALIATE: 3}),
     "puntero":         (12, 3,  {PassiveType.PRODUCE_RESOURCE: 1}),
     "itakero":         (19, 4,  {PassiveType.PRODUCE_RESOURCE: 1}),
     "trol":            (14, 2,  {PassiveType.PRODUCE_RESOURCE: 1}),

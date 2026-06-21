@@ -53,7 +53,7 @@ Para que los recursos **no sobren** (problema de abundancia: producís +1 de cad
 
 1. **Factor económico global (×1.2):** todas las cartas cuestan un ~20% más que su costo *base de diseño* (per-card, balanceado por valor/costo). Es un bump **uniforme** que no descalibra la facción (validado por simulación: facción ~51/49). Se aplica al **hornear** los assets (es el espejo de `knobs.SHIPPED.cost_mult` en el sim); los costos de §9/§10 son los **base** y el juego los muestra ya escalados.
 
-2. **Inflación (mecánica de juego):** a partir del medio-turno `inflationStartTurn` (default **12**), cada medio-turno las cartas cuestan **`inflationPercentPerTurn`% más, acumulativo** (default **+5%/medio-turno**). El costo efectivo de cada recurso = `ceil(costo × (1 + inflación%/100))` (redondea hacia arriba, así siempre muerde). La inflación **pega a ambos jugadores por igual** (depende sólo del nº de medio-turno), así que no desbalancea; su rol es **comerse el excedente de recursos en las partidas largas** y presionar hacia el desenlace. Sólo afecta el **costo de jugar cartas** (atacar es gratis). Un **medidor** central en pantalla aparece cuando arranca y muestra el % vigente (§11.3).
+2. **Inflación (mecánica de juego):** a partir del medio-turno `inflationStartTurn` (default **8**), cada medio-turno las cartas cuestan **`inflationPercentPerTurn`% más, acumulativo** (default **+5%/medio-turno**). El costo efectivo de cada recurso = `ceil(costo × (1 + inflación%/100))` (redondea hacia arriba, así siempre muerde). La inflación **pega a ambos jugadores por igual** (depende sólo del nº de medio-turno), así que no desbalancea; su rol es **comerse el excedente de recursos en las partidas largas** y presionar hacia el desenlace. Sólo afecta el **costo de jugar cartas** (atacar es gratis). Un **medidor** central en pantalla aparece cuando arranca y muestra el % vigente (§11.3).
 
 > Ambos son configurables en `GameConfig` (`inflationStartTurn`, `inflationPercentPerTurn`) y en `knobs.py` del sim. Valores en revisión por playtest.
 
@@ -102,7 +102,7 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
 - Garantiza que las unidades mueran eventualmente si ningún jugador es eliminado antes.
 
 **Inflación (presión económica, complementaria):**
-- A partir del medio-turno `inflationStartTurn` (default **12**) las cartas se encarecen progresivamente (§3). No mata unidades como la muerte súbita, pero **seca la economía** de las partidas largas (donde los recursos sobran), empujando a resolver por combate antes de llegar a la muerte súbita.
+- A partir del medio-turno `inflationStartTurn` (default **8**) las cartas se encarecen progresivamente (§3). No mata unidades como la muerte súbita, pero **seca la economía** de las partidas largas (donde los recursos sobran), empujando a resolver por combate antes de llegar a la muerte súbita.
 
 **Límite de turnos (backstop duro):**
 - `maxTurns` (default: **120**). Si se alcanza sin ganador, la partida termina por desempate determinista:
@@ -154,7 +154,7 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
                        EXCEPCIÓN: en el turno 1 de la partida el primer jugador NO puede atacar
                        con unidades (regla de iniciativa, §3/§16); sí puede jugar/desplegar carta.
                        Esto incluye CURAR con un healer (curar usa la acción de ataque, §7.2);
-                       irrelevante en la práctica (en el turno 1 sólo están las 2 unidades iniciales).
+                       irrelevante en la práctica (en el turno 1 sólo están las 3 unidades iniciales).
                        [FUTURO] atacar con más de una unidad por turno o ataques con costo
                   → Evaluar condición de victoria tras cada acción
 
@@ -205,7 +205,7 @@ El tablero de cada jugador es **una línea de 6 slots**.
 
 > **Numeración:** los slots se cuentan **1–6 cara al usuario** y **0–5 en código** (slot `k` del spec = índice `k-1`). Los **offsets `Relative` son idénticos** en ambas bases (un offset `+1` es `+1`); sólo los slots `Absolute` y los `allowedSlots` cambian de base.
 
-- **Retaguardia = slots 1–3** (borde externo, lejos del rival; se dibujan al fondo). Las **unidades iniciales arrancan acá** (slots 1 y 2, §11.3).
+- **Retaguardia = slots 1–3** (borde externo, lejos del rival; se dibujan al fondo). La Escaramuza y la Productora iniciales arrancan acá (slots 1 y 2); el Muro inicial arranca en el frente (§11.3).
 - **Frente = slots 4–6** (cerca del rival).
 - Los slots **se enfrentan por número**: mi slot `N` mira el slot `N` del rival (offset `Relative` `0`). `+` = hacia el frente enemigo (índice mayor); `−` = hacia su retaguardia.
 
@@ -487,7 +487,7 @@ Todo lo visual/audio vive en `PiqueteDefend.Presentation`:
 - Al jugar o descartar una carta, se reemplaza por una aleatoria del pool.
 - **[FUTURO]** todas las cartas podrían cambiar entre turnos.
 - El pool puede repetir cartas.
-- **Frecuencia de robo:** cada carta tiene un `drawWeight` (int, default 1) en `CardData`; el robo es proporcional al peso (equivale a tener N copias, pero se tunea con un solo número y es trivial de simular). **Hoy todas las cartas tienen peso 1 (robo uniforme)**; los pesos por rareza se ajustarán con el simulador (Fase 5).
+- **Frecuencia de robo:** cada carta tiene un `drawWeight` (int) en `CardData`; el robo es proporcional al peso (equivale a tener N copias, pero se tunea con un solo número y es trivial de simular). **Pesos actuales** (protagonismo de producción sin tapar la mano de unidades que no se pueden bajar): **productoras y cartas de producción (boost de recurso propio) = 2**, todo lo demás (unidades comunes, acciones, equipo) = **1**. Se derivan en el builder (`CardLibrary`/`cards.py`) por tipo, no carta por carta. *Nota: con 3 unidades iniciales el tablero se llena rápido; subir el peso de unidades comunes tapa la mano (unidades sin slot libre), así que se dejan en 1.* Más afinado por simulación/playtest.
 
 ### 8.2 Acción (un solo uso)
 
@@ -513,7 +513,7 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 | Carta | Costo | Arquetipo | maxHp | Deploy | Ataque · daño | Pasiva | Descripción |
 |-------|-------|-----------|-------|--------|---------------|--------|-------------|
 | **Piquetero** | 4 ⚡ | Escaramuza | 20 | Cualquiera | `Rel [-1,0,+1]` pick 1 · 14 | Aura +2 daño (adyac.) | *Bombo, bandera y aguante para parar todo. El GPS del camionero lo putea de memoria.* |
-| **Jubilado** | 5 $ | Muro | 32 | Frente {4,5,6} | `Abs {4,5,6}` pick 0 · 4 | Espinas 3 | *83 pirulos, bastón y primera fila. La cana le tiene cagazo a lo que largue en la tele.* |
+| **Jubilado** | 5 $ | Muro | 32 | Frente {4,5,6} | `Abs {4,5,6}` pick 0 · 3 | Espinas 3 | *83 pirulos, bastón y primera fila. La cana le tiene cagazo a lo que largue en la tele.* |
 | **Gordo Sindical** | 3 $ | Productora | 12 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 3 | +1 $/turno | *El que arregla la paritaria y maneja la caja. Aparece en el palco, jamás en la primera fila.* |
 | **Fisura** | 5 ⚡ | Cleave | 20 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · 6 | +1 ⚡/turno | *Arranca la baldosa de la plaza con las manos y la parte en cuatro. Cada cascote tiene destinatario.* |
 | **Tuitero Militante** | 2 📣 | Productora | 10 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 2 | +1 📣/turno | *2.300 seguidores y la certeza de que cambió la historia con un hilo.* |
@@ -555,7 +555,7 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 | Carta | Costo | Arquetipo | maxHp | Deploy | Ataque · daño | Pasiva | Descripción |
 |-------|-------|-----------|-------|--------|---------------|--------|-------------|
 | **Infante** | 6 ⚡ | Escaramuza | 22 | Cualquiera | `Rel [-1,0,+1]` pick 1 · 15 | Aura +2 daño (adyac.) | *Escudo, casco y 14 horas de turno. Va al frente porque le pagan para eso.* |
-| **Gendarme** | 4 $ | Muro | 27 | Frente {4,5,6} | `Abs {4,5,6}` pick 0 · 3 | Espinas 3 | *Lo trajeron de la frontera a cuidar una esquina. No se mueve, no se cansa, no entiende el reclamo.* |
+| **Gendarme** | 4 $ | Muro | 27 | Frente {4,5,6} | `Abs {4,5,6}` pick 0 · 4 | Espinas 3 | *Lo trajeron de la frontera a cuidar una esquina. No se mueve, no se cansa, no entiende el reclamo.* |
 | **Puntero** | 5 $ | Productora | 12 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 3 | +1 $/turno | *Reparte bolsones y promesas. La guita sale de algún lado, siempre.* |
 | **Itakero** | 4 ⚡ | Cleave | 19 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · 4 | +1 ⚡/turno | *Escopeta Itaka y postas de goma. Apunta al montón, total alguno cae.* |
 | **Trol Oficial** | 5 📣 | Productora | 14 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 2 | +1 📣/turno | *Diez cuentas, un solo sueldo del Estado. Inventa la tendencia antes del mediodía.* |
@@ -605,7 +605,7 @@ Por ahora los **lados son fijos**: **Manifestantes** siempre a la izquierda, **P
 
 Pantalla única, **lados fijos**: Manifestantes a la izquierda, Policías a la derecha. 6 slots de unidades por jugador siempre visibles, pegados al borde externo de cada lado. La mano y las zonas de acción pertenecen solo al jugador activo.
 
-Los slots van del **1 al 6**; las **unidades iniciales ("las del fondo") ocupan el 1 y el 2**, en los lugares **más externos** de cada jugador: el de la izquierda, los dos de más a la izquierda; el de la derecha, los dos de más a la derecha (la fila derecha se dibuja invertida).
+Los slots van del **1 al 6**. De las **3 unidades iniciales**, la Escaramuza y la Productora arrancan en la **retaguardia** (slots 1 y 2, los más externos de cada lado), y el **Muro** arranca en la **vanguardia** (slot 4, hacia el centro) — así hay presencia en el frente desde el arranque. La fila derecha (Policías) se dibuja invertida.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -683,7 +683,7 @@ Overlay con:
 | Recursos iniciales | 5 de cada uno (configurable) |
 | Producción base por turno | +1 de cada recurso ($/⚡/📣); en `GameConfig` (configurable) |
 | Factor económico global de costo | **×1.2** sobre el costo base (uniforme, horneado; `knobs.cost_mult`) |
-| `inflationStartTurn` | Medio-turno **12**: desde ahí las cartas se encarecen (inflación, §3) |
+| `inflationStartTurn` | Medio-turno **8**: desde ahí las cartas se encarecen (inflación, §3) |
 | `inflationPercentPerTurn` | **+5%** acumulativo por medio-turno (en revisión por playtest) |
 | Primer jugador: turno 1 | **Produce** pero **no puede atacar** (regla de iniciativa, §3/§16) |
 | Lados de facción | Fijos (por ahora): Manifestantes izquierda, Policías derecha |
@@ -692,14 +692,16 @@ Overlay con:
 | `maxTurns` | 120 (backstop duro, configurable) |
 | Duración ideal de partida | ~30–40 medios-turnos; **validado: media ≈ 32, mediana ≈ 21** (sim n=5000) |
 | Cartas por facción | 22 (8 unidades + 10 acciones + 4 equipo) |
-| Peso de robo (`drawWeight`) | 1 para todas (robo uniforme; rareza a futuro) |
+| Peso de robo (`drawWeight`) | Productoras y boosts de producción 2 · resto (incl. unidades) 1 (§8.1) |
+| Unidades iniciales por facción | **3**: Escaramuza (retag) + Productora (retag) + Muro (frente) |
 
-> **Balance validado por simulación (Fase 5, `sim/`).** Con los valores de §9/§10 y estas reglas:
-> win-rate Manif/Pol ≈ **48/52 %**, gana-el-primero ≈ **48 %** (sin ventaja de iniciativa),
-> media ≈ **32** medios-turnos, **97 %** por KO, **~23 %** llega a muerte súbita, **3 %** toca maxTurns.
-> La distribución es **bimodal** (≈1/3 blowouts cortos + cola de grind): inherente al diseño de 2
-> unidades iniciales con victoria por KO; +1 unidad inicial empeora la cola, no la mejora. El balance
-> fino de facción es **per-card** (sensible a umbrales), no se ajusta con multiplicadores globales.
+> **Balance por simulación (`sim/`) — régimen "tablero más lleno" (en playtest).** Con 3 unidades
+> iniciales, `drawWeight` de unidades/producción y la inflación temprana: **presencia ≈ 2.7
+> unidades/lado** (antes 1.9) y **≈ 1.2 en vanguardia** (antes 0.6), **media ≈ 39 / mediana ≈ 34**
+> medios-turnos (combates más largos), **99 % por KO**, ~32 % llega a muerte súbita, ~1 % timeout,
+> starved ≈ 28 %. **Facción: Manif ≈ 54/46 (SESGO leve, pendiente de rebalance fino per-card)** —
+> el régimen nuevo movió la facción; se aprieta carta por carta (no con knobs globales). Métricas de
+> presencia/vanguardia: `py sim/main.py run`. Valores en revisión por playtest.
 
 ---
 
@@ -707,7 +709,7 @@ Overlay con:
 
 - **Balance de unidades:** ✅ **validado por simulación** (Fase 5, `sim/`). Los valores de §9/§10 son los finales del balanceo global (duración media ≈32, facción ≈48/52). Pendiente sólo el **balance fino per-card** si se quiere apretar el 48/52 (no lo mueven los knobs globales).
 - **Apilamiento:** punto de extensión reservado (`UnitSlot.count`), inactivo en v1.
-- **Unidades iniciales por facción:** definidas — Manifestantes = Piquetero + Gordo Sindical; Policías = Infante + Puntero (1 peleador + 1 productora), en slots 1–2. El peleador inicial usa deploy **Cualquiera** para poder ocupar la retaguardia inicial.
+- **Unidades iniciales por facción:** **3** — Manifestantes = Piquetero + Gordo Sindical + Jubilado; Policías = Infante + Puntero + Gendarme (1 peleador *Escaramuza* + 1 *Productora* + 1 *Muro*). El peleador (deploy **Cualquiera**) y la productora (retaguardia) arrancan en slots 1–2; el Muro (deploy **Frente**) arranca en la vanguardia (slot 4) → presencia en el frente desde el turno 1. Da más cuerpos en juego y combates más largos.
 - **Feedback visual por unidad:** ✅ **implementado** — badges por estado (Veneno/Aturdir/Furia/Desmoralizar) y por equipo adjunto sobre cada slot, con *tooltip*, más el popover informativo de hover (§11.3). Pendiente sólo, si se quisiera, arte/iconos por carta en lugar de los badges de texto.
 - **Tope de equipos por unidad:** hoy sin límite (§8.4); definir si conviene un máximo.
 - **EquipmentCardData:** diseñado e incluido en el catálogo (§7.1 / §8.4 / §9/§10, 4 cartas/facción); falta implementar (capa de stats efectivos, §15 Fase 4).

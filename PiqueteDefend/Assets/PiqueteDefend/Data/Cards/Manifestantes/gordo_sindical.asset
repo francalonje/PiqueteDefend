@@ -18,7 +18,7 @@ MonoBehaviour:
   costs:
   - resource: 0
     amount: 4
-  drawWeight: 1
+  drawWeight: 2
   sprite: {fileID: 0}
   descriptionText: 
   flavorText: "El que arregla la paritaria y maneja la caja. Aparece en el palco,

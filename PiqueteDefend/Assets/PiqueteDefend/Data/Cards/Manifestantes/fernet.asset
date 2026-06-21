@@ -18,7 +18,7 @@ MonoBehaviour:
   costs:
   - resource: 0
     amount: 1
-  drawWeight: 1
+  drawWeight: 2
   sprite: {fileID: 0}
   descriptionText: 
   flavorText: "Hidrataci\xF3n t\xE1ctica. No es doping si lo toma toda la marcha."
