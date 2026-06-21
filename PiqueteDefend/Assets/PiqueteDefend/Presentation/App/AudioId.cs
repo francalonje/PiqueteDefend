@@ -12,8 +12,11 @@ namespace PiqueteDefend.Presentation
         public const string ButtonClick = "button-click";
         public const string CardClick = "card-click";
 
-        // Música
-        public const string MusicLobby = "music-lobby";
-        public const string MusicGame = "music-game";
+        // Música — un slot por pantalla. Hoy los tres apuntan al mismo audio (audiobg),
+        // pero son archivos separados en Resources/Audio para poder divergir en el futuro
+        // sin tocar código: basta reemplazar el .mp3 correspondiente.
+        public const string MusicMain = "music-main";                   // menú de inicio
+        public const string MusicFactionSelect = "music-faction-select"; // selección de jugador
+        public const string MusicGame = "music-game";                   // partida
     }
 }

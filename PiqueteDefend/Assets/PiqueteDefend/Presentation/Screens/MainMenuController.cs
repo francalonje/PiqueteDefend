@@ -25,6 +25,8 @@ namespace PiqueteDefend.Presentation
             VisualElement root = doc.rootVisualElement;
             if (root == null) return;
 
+            SceneBackground.Apply(root, "bg-menu");
+
             Button play = root.Q<Button>("play-button");
             if (play != null) play.clicked += OnPlay;
 
@@ -32,7 +34,7 @@ namespace PiqueteDefend.Presentation
             SetDisabled(root.Q<Button>("settings-button"));
             SetDisabled(root.Q<Button>("credits-button"));
 
-            AudioManager.Instance?.PlayMusic(AudioId.MusicLobby);
+            AudioManager.Instance?.PlayMusic(AudioId.MusicMain);
         }
 
         private static void SetDisabled(Button button)

@@ -1,6 +1,6 @@
 .screen--game {
     justify-content: flex-start;
-    padding: 20px;
+    padding: 16px;
 }
 
 /* ── Fondo ─────────────────────────────────────────────────────────────── */
@@ -10,22 +10,28 @@
     top: 0;
     right: 0;
     bottom: 0;
-    -unity-background-scale-mode: stretch-to-fill;
+    /* 100% de ancho (estirado horizontal) y 100% de alto: llena toda la pantalla.
+       La imagen es más alta que 16:9, así que el alto entra entero y solo se
+       estira en horizontal. */
+    background-size: 100% 100%;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
-/* ── Top: stats ───────────────────────────────────────────────────────── */
+/* ── Top: stats de ambos jugadores + fin de turno (centro) ────────────── */
 .game__top {
     flex-direction: row;
     justify-content: space-between;
     align-items: flex-start;
     width: 100%;
+    flex-shrink: 0;
 }
 
 .pstats {
-    width: 30%;
-    padding: 14px;
+    width: 26%;
+    padding: 12px;
     border-radius: 10px;
-    background-color: rgb(34, 37, 46);
+    background-color: rgba(34, 37, 46, 0.92);
 }
 
 .pstats--right {
@@ -39,7 +45,7 @@
 }
 
 .pstats__res {
-    font-size: 23px;
+    font-size: 24px;
     color: rgb(200, 205, 215);
     margin-top: 6px;
 }
@@ -51,59 +57,111 @@
     white-space: normal;
 }
 
-.game__banner {
+.game__top-center {
     align-items: center;
-    justify-content: center;
-    padding-top: 10px;
+    justify-content: flex-start;
+    padding-top: 6px;
 }
 
-.game__turn {
-    font-size: 30px;
+.end-turn {
+    min-width: 210px;
+    height: 60px;
+    font-size: 23px;
+}
+
+/* ── Chip de turno (naranja, salta al lado del jugador activo) ─────────── */
+.turn-chip {
+    position: absolute;
+    top: 8px;
+    padding: 7px 18px;
+    border-radius: 999px;
+    border-width: 2px;
+    border-color: rgb(255, 190, 110);
+    background-color: rgb(232, 140, 40);
+    color: rgb(30, 22, 10);
+    font-size: 19px;
     -unity-font-style: bold;
-    color: rgb(245, 246, 250);
+    -unity-text-align: middle-center;
+    transition-property: left, right;
+    transition-duration: 0.18s;
 }
 
-/* ── Mid: slots (6 por jugador, rectángulos) ──────────────────────────── */
-.game__mid {
+.turn-chip--left {
+    left: 29%;
+    right: auto;
+}
+
+.turn-chip--right {
+    right: 29%;
+    left: auto;
+}
+
+/* ── Espaciador (deja ver el fondo entre top y la banda inferior) ─────── */
+.game__spacer {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-height: 0;
+}
+
+/* ── Banda inferior: slots(6) | centro(dropzones+mano) | slots(6) ─────── */
+.game__bottom {
     flex-direction: row;
     justify-content: space-between;
+    align-items: stretch;
     width: 100%;
-    flex-grow: 1;
-    margin-top: 12px;
+    flex-shrink: 0;
+    min-height: 250px;
 }
 
+/* Cada grupo absorbe la mitad del ancho que NO ocupa la columna central
+   (flex-grow), y los 6 slots se reparten ese ancho en partes iguales. Al
+   achicar la columna central, este ancho crece y los slots se ensanchan.
+   align-items: stretch → los slots toman el alto de la banda (= alto de la
+   columna central), sin número mágico: la altura es relativa al layout. */
 .slots {
-    width: 34%;
+    flex-direction: row;
+    align-items: stretch;
+    flex-grow: 1;
+    flex-basis: 0;
 }
 
+/* Jugador derecho (Policías): el slot 1/2 ("del fondo") va pegado al borde
+   derecho, así que invertimos el orden visual de la fila. */
 .slots--right {
-    align-items: flex-end;
+    flex-direction: row-reverse;
 }
 
 .slot {
-    height: 54px;
-    margin: 5px 0;
-    padding: 6px 14px;
-    border-radius: 8px;
+    flex-grow: 1;
+    flex-basis: 0;
+    min-width: 56px;
+    margin: 0 3px;
+    padding: 8px 4px;
+    border-radius: 9px;
     border-width: 2px;
-    border-color: rgba(255, 255, 255, 0.06);
-    background-color: rgb(44, 48, 60);
+    border-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(40, 44, 56, 0.95);
+    flex-direction: column;
     justify-content: center;
-    min-width: 230px;
+    align-items: stretch;
+    transition-property: background-color, border-color;
+    transition-duration: 0.3s;
 }
 
 .slot--empty {
-    background-color: rgba(44, 48, 60, 0.35);
-    border-color: rgba(255, 255, 255, 0.03);
-    min-height: 54px;
+    background-color: rgba(28, 30, 40, 0.4);
+    border-color: rgba(255, 255, 255, 0.22);
+    justify-content: center;
+    align-items: center;
 }
 
 .slot--attacker {
-    border-color: rgb(120, 180, 235);
+    border-color: rgb(100, 170, 230);
 }
 
 .slot--attacker:hover {
-    background-color: rgb(56, 62, 78);
+    background-color: rgba(52, 58, 76, 0.95);
+    border-color: rgb(140, 200, 255);
 }
 
 .slot--target {
@@ -111,54 +169,151 @@
 }
 
 .slot--target:hover {
-    background-color: rgb(60, 65, 80);
+    background-color: rgba(58, 52, 52, 0.95);
+    border-color: rgb(255, 140, 100);
 }
 
 .slot__name {
-    font-size: 19px;
+    font-size: 12px;
     color: rgb(235, 237, 242);
     -unity-font-style: bold;
+    white-space: normal;
+    -unity-text-align: middle-center;
 }
 
 .slot__meta {
-    font-size: 16px;
-    color: rgb(170, 176, 188);
-}
-
-.game__center {
-    width: 16%;
-}
-
-/* ── Hand ─────────────────────────────────────────────────────────────── */
-.game__hint {
-    font-size: 20px;
-    color: rgb(220, 200, 120);
+    font-size: 12px;
+    color: rgb(160, 168, 182);
+    margin-top: 4px;
     -unity-text-align: middle-center;
-    height: 26px;
+}
+
+/* Barra de HP */
+.slot__hp-bar-outer {
+    height: 9px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 9px;
+}
+
+.slot__hp-bar-inner {
+    height: 100%;
+    border-radius: 3px;
+}
+
+.hp-bar--high { background-color: rgb(80, 195, 80); }
+.hp-bar--mid  { background-color: rgb(220, 175, 50); }
+.hp-bar--low  { background-color: rgb(210, 65, 50); }
+
+/* Animaciones de combate */
+.slot--flash-attack {
+    background-color: rgb(45, 78, 155);
+    border-color: rgb(95, 148, 240);
+}
+
+.slot--flash-hit {
+    background-color: rgb(172, 44, 36);
+    border-color: rgb(232, 90, 70);
+}
+
+.slot--flash-dead {
+    background-color: rgb(16, 16, 24);
+    border-color: rgba(255, 255, 255, 0.02);
+}
+
+/* ── Columna central: dropzones + hint + mano ─────────────────────────── */
+/* Ancho fijo en % (no flex-grow): así NO se queda con todo el sobrante y los
+   grupos de slots se ensanchan. ~23% deja las cartas un poco más anchas que el
+   mínimo, manteniendo las unidades grandes. */
+.game__center-col {
+    width: 36%;
+    flex-grow: 0;
+    flex-shrink: 0;
+    align-items: stretch;
+    justify-content: flex-end;
+    margin: 0 16px;
+}
+
+.dropzones {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.dropzone {
+    flex-grow: 1;
+    flex-basis: 0;
+    height: 112px;
+    margin: 0 5px;
+    border-radius: 12px;
+    border-width: 2px;
+    border-color: rgba(255, 255, 255, 0.25);
+    background-color: rgba(20, 22, 28, 0.55);
+    align-items: center;
+    justify-content: center;
+    transition-property: background-color, border-color;
+    transition-duration: 0.12s;
+}
+
+.dropzone--play {
+    border-color: rgb(120, 200, 130);
+    background-color: rgba(38, 88, 48, 0.5);
+}
+
+.dropzone--discard {
+    border-color: rgb(214, 120, 110);
+    background-color: rgba(88, 38, 38, 0.5);
+}
+
+.dropzone--disabled {
+    opacity: 0.3;
+}
+
+.dropzone__label {
+    font-size: 16px;
+    -unity-font-style: bold;
+    color: rgb(235, 237, 242);
+}
+
+.game__hint {
+    font-size: 19px;
+    color: rgb(235, 215, 140);
+    -unity-text-align: middle-center;
+    height: 24px;
     margin-bottom: 4px;
+    white-space: normal;
 }
 
 .hand {
+    width: 100%;
     flex-direction: row;
     justify-content: center;
-    margin-top: 6px;
+    align-items: flex-end;
 }
 
 .card {
-    width: 150px;
+    width: 84px;
+    min-width: 60px;
     height: 190px;
-    margin: 0 6px;
-    padding: 12px;
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin: 0 4px;
+    padding: 9px;
     border-radius: 8px;
     border-width: 2px;
     border-color: rgba(255, 255, 255, 0.08);
-    background-color: rgb(48, 52, 66);
+    background-color: rgba(48, 52, 66, 0.96);
     align-items: flex-start;
     justify-content: flex-start;
+    transition-property: translate, border-color;
+    transition-duration: 0.1s;
 }
 
 .card:hover {
-    border-color: rgba(255, 255, 255, 0.4);
+    border-color: rgba(255, 255, 255, 0.45);
+    translate: 0 -8px;
 }
 
 .card--unaffordable {
@@ -170,68 +325,23 @@
 }
 
 .card__name {
-    font-size: 18px;
+    font-size: 15px;
     -unity-font-style: bold;
     color: rgb(240, 242, 247);
     white-space: normal;
 }
 
 .card__cost {
-    font-size: 17px;
+    font-size: 14px;
     color: rgb(220, 200, 120);
-    margin-top: 6px;
+    margin-top: 5px;
 }
 
 .card__body {
-    font-size: 14px;
+    font-size: 13px;
     color: rgb(190, 196, 208);
     white-space: normal;
-    margin-top: 8px;
-}
-
-/* ── Zonas de soltar + fin de turno ───────────────────────────────────── */
-.game__actions {
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    margin-top: 12px;
-}
-
-.dropzone {
-    width: 180px;
-    height: 64px;
-    margin: 0 10px;
-    border-radius: 10px;
-    border-width: 2px;
-    border-color: rgba(255, 255, 255, 0.25);
-    background-color: rgba(255, 255, 255, 0.05);
-    align-items: center;
-    justify-content: center;
-}
-
-.dropzone--play {
-    border-color: rgb(120, 200, 130);
-}
-
-.dropzone--discard {
-    border-color: rgb(210, 120, 110);
-}
-
-.dropzone--disabled {
-    opacity: 0.3;
-}
-
-.dropzone__label {
-    font-size: 22px;
-    -unity-font-style: bold;
-    color: rgb(235, 237, 242);
-}
-
-.end-turn {
-    min-width: 200px;
-    height: 64px;
-    font-size: 22px;
-    margin-left: 24px;
+    margin-top: 6px;
 }
 
 /* ── Popover de ataque ────────────────────────────────────────────────── */
@@ -252,16 +362,14 @@
 }
 
 /* ── Fantasma de drag ─────────────────────────────────────────────────── */
+/* El ghost es una copia de la carta (.card); acá solo lo posicionamos y le
+   damos el look de "levantada": semitransparente, inclinada y un poco más grande. */
 .drag-ghost {
     position: absolute;
-    padding: 8px 12px;
-    border-radius: 6px;
-    background-color: rgba(48, 52, 66, 0.95);
-    border-width: 2px;
+    opacity: 0.92;
+    rotate: 3deg;
+    scale: 1.05;
     border-color: rgb(232, 108, 70);
-    color: rgb(240, 242, 247);
-    font-size: 16px;
-    -unity-font-style: bold;
 }
 
 /* ── Overlay ──────────────────────────────────────────────────────────── */

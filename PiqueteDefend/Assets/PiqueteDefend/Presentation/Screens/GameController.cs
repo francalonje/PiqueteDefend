@@ -32,11 +32,21 @@ namespace PiqueteDefend.Presentation
         private bool _dragging;
         private int _dragIndex = -1;
         private VisualElement _ghost;
+        private Vector2 _dragPointerOffset;
+
+        // Slot element refs (rebuilt each Render — used for animations)
+        private readonly VisualElement[] _p0SlotEls = new VisualElement[6];
+        private readonly VisualElement[] _p1SlotEls = new VisualElement[6];
+
+        // Pending attack animation state
+        private int _animAttackerIdx = -1;
+        private int _animAttackerPlayer = -1;
+        private int[] _animOpponentSnap;
 
         // UI refs
         private VisualElement _root, _hand, _p0Slots, _p1Slots, _overlay, _playZone, _discardZone;
         private Button _popover;
-        private Label _turnBanner, _hint, _overlayTitle, _overlayMsg;
+        private Label _turnChip, _hint, _overlayTitle, _overlayMsg;
         private Button _overlayPrimary, _overlaySecondary, _endTurnButton;
         private readonly Label[] _faction = new Label[2];
         private readonly Label[] _res = new Label[2];
@@ -52,7 +62,7 @@ namespace PiqueteDefend.Presentation
             if (_root == null) return;
 
             CacheRefs(_root);
-            ApplyBackground(_root);
+            SceneBackground.Apply(_root, "bg");
             BuildPopover();
 
             var catalog = Resources.Load<CardCatalog>(CatalogResource);
@@ -63,7 +73,10 @@ namespace PiqueteDefend.Presentation
             }
 
             _engine = new GameEngine(new GameConfig(), new SystemRandomProvider(), catalog);
-            _engine.StartGame(MatchConfig.Player0, MatchConfig.Player1);
+            // Manifestantes = jugador 0 (izquierda), Policías = jugador 1 (derecha). La selección
+            // solo decide quién arranca, no los lados.
+            int firstIndex = MatchConfig.StartingFaction == MatchConfig.Player0 ? 0 : 1;
+            _engine.StartGame(MatchConfig.Player0, MatchConfig.Player1, firstIndex);
 
             _endTurnButton.clicked += OnEndTurnButton;
 
@@ -73,7 +86,7 @@ namespace PiqueteDefend.Presentation
 
         private void CacheRefs(VisualElement root)
         {
-            _turnBanner = root.Q<Label>("turn-banner");
+            _turnChip = root.Q<Label>("turn-chip");
             _hint = root.Q<Label>("hint");
             _hand = root.Q<VisualElement>("hand");
             _p0Slots = root.Q<VisualElement>("p0-slots");
@@ -101,16 +114,6 @@ namespace PiqueteDefend.Presentation
             _popover.style.display = DisplayStyle.None;
             _popover.clicked += OnPopoverClicked;
             _root.Add(_popover);
-        }
-
-        private static void ApplyBackground(VisualElement root)
-        {
-            var bg = root.Q<VisualElement>("bg");
-            if (bg == null) return;
-            var texture = Resources.Load<Texture2D>("bg");
-            if (texture != null) { bg.style.backgroundImage = new StyleBackground(texture); return; }
-            var sprite = Resources.Load<Sprite>("bg");
-            if (sprite != null) bg.style.backgroundImage = new StyleBackground(sprite);
         }
 
         // ── Flujo de turno ────────────────────────────────────────────────────
@@ -219,10 +222,25 @@ namespace PiqueteDefend.Presentation
                 ? $"⚔ Atacar (elegí 1) · {ua.damagePerSlot}"
                 : $"⚔ Atacar · {ua.damagePerSlot}";
 
+            // worldBound está en panel space; WorldToLocal convierte al content space del root,
+            // que es el origin correcto para position:absolute en UI Toolkit.
             Rect wb = slotEl.worldBound;
-            _popover.style.left = wb.x;
-            _popover.style.top = Mathf.Max(0f, wb.y - 44f);
+            Vector2 local = _root.WorldToLocal(wb.position);
+            float slotW = wb.width;
+            _popover.style.left = local.x;
+            _popover.style.top = Mathf.Max(0f, local.y - 44f);
             _popover.style.display = DisplayStyle.Flex;
+
+            // Tras el layout ya conocemos el ancho real del popover: lo centramos sobre
+            // el slot y lo clampeamos para que no se salga por los bordes (slots del borde derecho).
+            _popover.schedule.Execute(() =>
+            {
+                float w = _popover.resolvedStyle.width;
+                float avail = _root.contentRect.width;
+                float centered = local.x + slotW * 0.5f - w * 0.5f;
+                float maxLeft = Mathf.Max(4f, avail - w - 4f);
+                _popover.style.left = Mathf.Clamp(centered, 4f, maxLeft);
+            }).StartingIn(0);
         }
 
         private void HidePopover() => _popover.style.display = DisplayStyle.None;
@@ -241,10 +259,15 @@ namespace PiqueteDefend.Presentation
                 return;
             }
 
+            PrepareAttackAnimation(_pendingAttacker);
             ResolveAttack(_engine.AttackWithUnit(_pendingAttacker));
         }
 
-        private void OnAttackTargetChosen(int slot) => ResolveAttack(_engine.AttackWithUnit(_pendingAttacker, new[] { slot }));
+        private void OnAttackTargetChosen(int slot)
+        {
+            PrepareAttackAnimation(_pendingAttacker);
+            ResolveAttack(_engine.AttackWithUnit(_pendingAttacker, new[] { slot }));
+        }
 
         private void ResolveAttack(ActionResult result)
         {
@@ -259,7 +282,7 @@ namespace PiqueteDefend.Presentation
         private void Render()
         {
             HidePopover();
-            _turnBanner.text = $"Turno: {Display(_engine.ActivePlayer.faction)}";
+            RenderTurnChip();
             _hint.text = string.Empty;
             _endTurnButton.text = "Terminar turno";
             RenderPanel(0);
@@ -267,6 +290,16 @@ namespace PiqueteDefend.Presentation
             RenderSlots();
             RenderHand();
             UpdateZones();
+            if (_animAttackerIdx >= 0) ApplyPendingAnimations();
+        }
+
+        /// <summary>Actualiza el chip de turno y lo manda al lado del jugador activo.</summary>
+        private void RenderTurnChip()
+        {
+            bool p0Active = _engine.ActiveIndex == 0;
+            _turnChip.text = $"▶ {Display(_engine.ActivePlayer.faction)}";
+            _turnChip.EnableInClassList("turn-chip--left", p0Active);
+            _turnChip.EnableInClassList("turn-chip--right", !p0Active);
         }
 
         private void RenderPanel(int index)
@@ -287,6 +320,7 @@ namespace PiqueteDefend.Presentation
         private void RenderSlotColumn(VisualElement column, int playerIndex)
         {
             column.Clear();
+            VisualElement[] slotEls = playerIndex == 0 ? _p0SlotEls : _p1SlotEls;
             PlayerState p = _engine.PlayerAt(playerIndex);
             int activeIdx = _engine.ActiveIndex;
 
@@ -295,6 +329,7 @@ namespace PiqueteDefend.Presentation
                 UnitSlot slot = p.unitSlots[i];
                 var el = new VisualElement();
                 el.AddToClassList("slot");
+                slotEls[i] = el;
 
                 if (slot == null)
                 {
@@ -303,9 +338,22 @@ namespace PiqueteDefend.Presentation
                 }
                 else
                 {
-                    var name = new Label(slot.unit.cardName); name.AddToClassList("slot__name");
-                    var hp = new Label($"HP {slot.currentHp}/{slot.MaxHp}"); hp.AddToClassList("slot__meta");
-                    el.Add(name); el.Add(hp);
+                    var nameLabel = new Label(slot.unit.cardName);
+                    nameLabel.AddToClassList("slot__name");
+                    var hpLabel = new Label($"HP {slot.currentHp}/{slot.MaxHp}");
+                    hpLabel.AddToClassList("slot__meta");
+                    el.Add(nameLabel);
+                    el.Add(hpLabel);
+
+                    float ratio = Mathf.Clamp01((float)slot.currentHp / slot.MaxHp);
+                    var barOuter = new VisualElement();
+                    barOuter.AddToClassList("slot__hp-bar-outer");
+                    var barInner = new VisualElement();
+                    barInner.AddToClassList("slot__hp-bar-inner");
+                    barInner.AddToClassList(ratio > 0.5f ? "hp-bar--high" : ratio > 0.25f ? "hp-bar--mid" : "hp-bar--low");
+                    barInner.style.width = Length.Percent(ratio * 100f);
+                    barOuter.Add(barInner);
+                    el.Add(barOuter);
                 }
 
                 WireSlot(el, playerIndex, activeIdx, i, slot);
@@ -363,19 +411,28 @@ namespace PiqueteDefend.Presentation
             for (int i = 0; i < active.hand.Count; i++)
             {
                 CardData card = active.hand[i];
-                var el = new VisualElement();
-                el.AddToClassList("card");
+                var el = BuildCardVisual(card);
                 if (!active.CanAfford(card)) el.AddToClassList("card--unaffordable");
                 if (cardUsed) el.AddToClassList("card--used");
-
-                var name = new Label(card.cardName); name.AddToClassList("card__name");
-                var cost = new Label(CostText(card)); cost.AddToClassList("card__cost");
-                var body = new Label(EffectText(card)); body.AddToClassList("card__body");
-                el.Add(name); el.Add(cost); el.Add(body);
 
                 if (!cardUsed) MakeDraggable(el, i);
                 _hand.Add(el);
             }
+        }
+
+        /// <summary>
+        /// Construye el visual de una carta (.card con nombre/costo/cuerpo).
+        /// Lo comparten la mano y el ghost que acompaña el drag.
+        /// </summary>
+        private static VisualElement BuildCardVisual(CardData card)
+        {
+            var el = new VisualElement();
+            el.AddToClassList("card");
+            var name = new Label(card.cardName); name.AddToClassList("card__name");
+            var cost = new Label(CostText(card)); cost.AddToClassList("card__cost");
+            var body = new Label(EffectText(card)); body.AddToClassList("card__body");
+            el.Add(name); el.Add(cost); el.Add(body);
+            return el;
         }
 
         private void UpdateZones()
@@ -409,9 +466,20 @@ namespace PiqueteDefend.Presentation
             AudioManager.Instance?.PlaySfx(AudioId.CardClick);
             HidePopover();
 
-            _ghost = new Label(_engine.ActivePlayer.hand[index].cardName) { pickingMode = PickingMode.Ignore };
+            // El ghost es una copia visual de la carta (no solo el nombre) que sigue al puntero.
+            _ghost = BuildCardVisual(_engine.ActivePlayer.hand[index]);
             _ghost.AddToClassList("drag-ghost");
+            _ghost.pickingMode = PickingMode.Ignore;
+            // Forzamos absolute inline: si la regla USS no se resuelve a tiempo, el ghost
+            // entraría en el flujo del root (flex column) y empujaría la banda inferior.
+            _ghost.style.position = Position.Absolute;
             _root.Add(_ghost);
+
+            // Offset en content space: mantiene el ghost alineado al punto de agarre
+            Vector2 cardLocal = _root.WorldToLocal(card.worldBound.position);
+            Vector2 pointerLocal = _root.WorldToLocal(e.position);
+            _dragPointerOffset = cardLocal - pointerLocal;
+
             PositionGhost(e.position);
         }
 
@@ -438,8 +506,9 @@ namespace PiqueteDefend.Presentation
         private void PositionGhost(Vector2 pos)
         {
             if (_ghost == null) return;
-            _ghost.style.left = pos.x - 55f;
-            _ghost.style.top = pos.y - 30f;
+            Vector2 local = _root.WorldToLocal(pos);
+            _ghost.style.left = local.x + _dragPointerOffset.x;
+            _ghost.style.top = local.y + _dragPointerOffset.y;
         }
 
         // ── Overlay ──────────────────────────────────────────────────────────
@@ -471,6 +540,64 @@ namespace PiqueteDefend.Presentation
                 onClick?.Invoke();
             });
             button.style.display = DisplayStyle.Flex;
+        }
+
+        // ── Animaciones de combate ───────────────────────────────────────────────
+
+        private void PrepareAttackAnimation(int attackerSlot)
+        {
+            _animAttackerIdx = attackerSlot;
+            _animAttackerPlayer = _engine.ActiveIndex;
+            int opp = 1 - _engine.ActiveIndex;
+            var p = _engine.PlayerAt(opp);
+            _animOpponentSnap = new int[p.unitSlots.Length];
+            for (int i = 0; i < _animOpponentSnap.Length; i++)
+                _animOpponentSnap[i] = p.unitSlots[i]?.currentHp ?? 0;
+        }
+
+        private void ApplyPendingAnimations()
+        {
+            VisualElement[] attackerEls = _animAttackerPlayer == 0 ? _p0SlotEls : _p1SlotEls;
+            VisualElement[] defenderEls = _animAttackerPlayer == 0 ? _p1SlotEls : _p0SlotEls;
+            int oppIdx = 1 - _animAttackerPlayer;
+
+            FlashElement(attackerEls[_animAttackerIdx], "slot--flash-attack");
+
+            PlayerState opp = _engine.PlayerAt(oppIdx);
+            for (int i = 0; i < _animOpponentSnap.Length; i++)
+            {
+                int hpBefore = _animOpponentSnap[i];
+                if (hpBefore <= 0) continue;
+                int hpNow = opp.unitSlots[i]?.currentHp ?? 0;
+                if (hpBefore <= hpNow) continue;
+
+                bool killed = hpNow <= 0;
+                FlashElement(defenderEls[i], killed ? "slot--flash-dead" : "slot--flash-hit");
+                ShakeElement(defenderEls[i]);
+            }
+
+            _animAttackerIdx = -1;
+            _animAttackerPlayer = -1;
+            _animOpponentSnap = null;
+        }
+
+        private static void FlashElement(VisualElement el, string cls)
+        {
+            el.AddToClassList(cls);
+            el.schedule.Execute(() => el.RemoveFromClassList(cls)).StartingIn(500);
+        }
+
+        private static void ShakeElement(VisualElement el)
+        {
+            float[] xs = { 7f, -6f, 5f, -4f, 3f, -2f, 0f };
+            int step = 0;
+            el.schedule.Execute(() =>
+            {
+                el.transform.position = step < xs.Length
+                    ? new Vector3(xs[step], 0f, 0f)
+                    : Vector3.zero;
+                step++;
+            }).Every(28).Until(() => step > xs.Length);
         }
 
         // ── Helpers de texto ────────────────────────────────────────────────────

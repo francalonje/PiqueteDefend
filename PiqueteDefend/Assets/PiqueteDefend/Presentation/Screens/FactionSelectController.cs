@@ -6,16 +6,14 @@ using PiqueteDefend.Core;
 namespace PiqueteDefend.Presentation
 {
     /// <summary>
-    /// Selección de facción (spec §11.2). Hotseat: primero elige el Jugador 1, luego el Jugador 2
-    /// (pueden repetir facción). Guarda en <see cref="MatchConfig"/> y pasa a la pantalla de juego.
+    /// Selección de facción (spec §11.2). Por ahora los lados son fijos (Manifestantes a la
+    /// izquierda, Policías a la derecha): la elección solo decide qué facción juega primero.
+    /// Guarda <see cref="MatchConfig.StartingFaction"/> y pasa a la pantalla de juego.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class FactionSelectController : MonoBehaviour
     {
         private const string PanelSettingsResource = "UIPanelSettings";
-
-        private int _step;
-        private Label _prompt;
 
         private void OnEnable()
         {
@@ -26,10 +24,12 @@ namespace PiqueteDefend.Presentation
             VisualElement root = doc.rootVisualElement;
             if (root == null) return;
 
-            AudioManager.Instance?.PlayMusic(AudioId.MusicLobby);
+            SceneBackground.Apply(root, "bg-menu");
 
-            _step = 0;
-            _prompt = root.Q<Label>("prompt");
+            AudioManager.Instance?.PlayMusic(AudioId.MusicFactionSelect);
+
+            Label prompt = root.Q<Label>("prompt");
+            if (prompt != null) prompt.text = "Elegí la facción que juega primero";
 
             Button manif = root.Q<Button>("manifestantes-button");
             Button pol = root.Q<Button>("policias-button");
@@ -40,16 +40,7 @@ namespace PiqueteDefend.Presentation
         private void Pick(Faction faction)
         {
             AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
-
-            if (_step == 0)
-            {
-                MatchConfig.Player0 = faction;
-                _step = 1;
-                if (_prompt != null) _prompt.text = "Jugador 2 — elegí tu facción";
-                return;
-            }
-
-            MatchConfig.Player1 = faction;
+            MatchConfig.StartingFaction = faction;
             SceneManager.LoadScene("Game");
         }
     }

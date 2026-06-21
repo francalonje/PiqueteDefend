@@ -1,6 +1,6 @@
 # PiqueteDefend
 
-> Juego de cartas por turnos para 2 jugadores en local. **Manifestantes vs Policías**, con humor político argentino. Inspirado en Castle Wars / Arcomage.
+> Juego de cartas por turnos para 2 jugadores en local. **Manifestantes vs Policías**, con humor político argentino. Inspirado en Castle Wars, The King is Watching, Legends of Runeterra y Slay the Spire.
 
 ![Unity](https://img.shields.io/badge/Unity-6000.5.0f1-black?logo=unity)
 ![Pipeline](https://img.shields.io/badge/render-URP-blue)
@@ -21,11 +21,14 @@ Un sistema de *muerte súbita* a partir del turno 30 garantiza que ninguna parti
 
 ## Facciones
 
-- **Manifestantes** — bombos, banderas y ollas populares. Economía social barata, más cura.
-- **Policías** — escudos, patrulleros y comunicados. Invierten en Fuerza, pegan más fuerte.
+- **Manifestantes** — bombos, banderas, pañuelos, ollas populares.
+- **Policías** — escudos, patrulleros, gases lacrimógenos, comisarías.
 
-32 cartas (16 por facción) entre **unidades** (atacantes, defensivas, productoras) y
-**acciones** (ataque, defensa, sabotaje, boost, efecto especial).
+32 cartas (16 por facción) entre **unidades** (persistentes; atacan y producen recursos)
+y **acciones** (boost, sabotaje, ataque, defensa, efecto especial).
+
+Cada facción tiene pool propio temático y una o más **unidades iniciales** que se despliegan
+gratis al empezar la partida.
 
 > **Balance:** todavía sin validar. Las unidades usan una baseline uniforme de prueba
 > (20 HP / 5 daño) para iterar jugabilidad antes de diferenciar y balancear.
@@ -33,10 +36,18 @@ Un sistema de *muerte súbita* a partir del turno 30 garantiza que ninguna parti
 ## Cómo jugar
 
 1. **Jugar** en el menú → cada jugador elige su facción.
-2. En tu turno recibís producción automática y podés **jugar/descartar una carta** y **atacar con una unidad**.
+2. En tu turno, las unidades con pasiva generan recursos (la producción base es 0; el turno 1 no produce). Luego podés **jugar o descartar una carta** y **atacar con una unidad** (en cualquier orden).
 3. El turno pasa al rival. Repetir hasta que un jugador se quede sin unidades (KO).
 
-Controles: mouse (clic en cartas y botones).
+Algunas cartas aplican **efectos de status** al rival o a uno mismo (bloquear producción, duplicarla) que se activan al inicio del turno siguiente.
+
+**Controles:**
+| Acción | Mouse | Teclado |
+|--------|-------|---------|
+| Jugar carta | Arrastrar sobre zona **JUGAR** | Seleccionar (1–6) + Enter |
+| Descartar carta | Arrastrar sobre zona **DESCARTAR** | Seleccionar (1–6) + Backspace |
+| Atacar con unidad | Clic en la unidad → clic en el popover | — |
+| Elegir slot objetivo | Clic en el slot | — |
 
 ---
 

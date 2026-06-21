@@ -3,6 +3,7 @@
     <ui:VisualElement name="root" class="screen screen--faction">
         <Style src="Common.uss" />
         <Style src="FactionSelect.uss" />
+        <ui:VisualElement name="bg" class="scene-bg" picking-mode="Ignore" />
         <ui:VisualElement class="faction__panel">
             <ui:Label name="prompt" text="Jugador 1 — elegí tu facción" class="faction__prompt" />
             <ui:VisualElement class="faction__options">

@@ -61,14 +61,17 @@ namespace PiqueteDefend.Core
 
         /// <summary>
         /// Inicializa la partida: recursos iniciales, unidades iniciales desplegadas y manos.
-        /// Coinflip determina quién juega primero. Queda en <see cref="GamePhase.AwaitingTurnStart"/>.
+        /// Queda en <see cref="GamePhase.AwaitingTurnStart"/>.
         /// </summary>
-        public void StartGame(Faction player0Faction, Faction player1Faction)
+        /// <param name="firstIndex">
+        /// Índice (0/1) del jugador que arranca. Si es negativo (default), se decide por coinflip.
+        /// </param>
+        public void StartGame(Faction player0Faction, Faction player1Faction, int firstIndex = -1)
         {
             _players[0] = NewPlayer(player0Faction);
             _players[1] = NewPlayer(player1Faction);
 
-            _firstIndex = _rng.Next(2);
+            _firstIndex = firstIndex >= 0 ? firstIndex : _rng.Next(2);
             _activeIndex = _firstIndex;
             HalfTurn = 0;
             _outcome = null;

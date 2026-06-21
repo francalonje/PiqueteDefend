@@ -3,6 +3,7 @@
     <ui:VisualElement name="root" class="screen screen--menu">
         <Style src="Common.uss" />
         <Style src="MainMenu.uss" />
+        <ui:VisualElement name="bg" class="scene-bg" picking-mode="Ignore" />
         <ui:VisualElement class="menu__panel">
             <ui:Label text="PiqueteDefend" class="menu__title" />
             <ui:Label text="Manifestantes vs Policías" class="menu__subtitle" />

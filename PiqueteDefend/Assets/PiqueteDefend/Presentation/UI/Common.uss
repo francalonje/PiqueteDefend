@@ -7,6 +7,19 @@
     background-color: rgb(24, 26, 33);
 }
 
+/* Fondo full-bleed de una pantalla. Va como primer hijo del root (detrás del
+   contenido) con name="bg"; el controlador le carga la imagen vía SceneBackground. */
+.scene-bg {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
 .btn {
     min-width: 220px;
     height: 52px;
