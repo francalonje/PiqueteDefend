@@ -44,4 +44,25 @@ class GlobalKnobs:
 
     def label(self) -> str:
         return (f"hp={self.hp_mult:g} dmg={self.dmg_mult:g} cost={self.cost_mult:g} "
-                f"base={self.base_prod_mult:g} init={self.initial_mult:g} prod={self.producer_mult:g}")
+                f"base={self.base_prod_mult:g} init={self.initial_mult:g} prod={self.producer_mult:g} "
+                f"no_atk_t1={self.first_no_attack_t1} prod_t1={self.first_produces_t1}")
+
+
+# ── Config ADOPTADA (la que shippea el juego) ────────────────────────────────
+#
+# El balance horneado en docs/game-spec.md §9/§10 y Core/CardLibrary.cs sale de aplicar
+# ESTOS knobs a los valores base de cards.py: durabilidad (daño ×1.5 / HP ×0.85) + las dos
+# reglas de iniciativa. Verificado por parity_check.py (cards.py × SHIPPED == catálogo del Core).
+#
+# Es el DEFAULT de los comandos run/game/dump (main.py). Los valores base de cards.py NO son
+# los que ship­ea el juego: sólo coinciden con el Core bajo esta config. Para barrer el escalado
+# global (sweep) o reproducir el juego "crudo" pre-tune, pasá --baseline o knobs explícitos.
+SHIPPED = GlobalKnobs(
+    hp_mult=0.85,
+    dmg_mult=1.5,
+    first_no_attack_t1=True,
+    first_produces_t1=True,
+)
+
+# Config "cruda": todo en 1.0 y sin reglas de iniciativa (valores base de cards.py tal cual).
+BASELINE = GlobalKnobs()

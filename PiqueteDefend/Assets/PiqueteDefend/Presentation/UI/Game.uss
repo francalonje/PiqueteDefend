@@ -164,13 +164,46 @@
     border-color: rgb(140, 200, 255);
 }
 
+/* Unidad del jugador activo que PUEDE actuar este turno (no aturdida, sin atacar,
+   y permitido por la regla del turno 1). Resalta el borde + un leve glow verde. */
+.slot--can-act {
+    border-color: rgb(120, 210, 140);
+    background-color: rgba(46, 66, 52, 0.95);
+}
+
+.slot--can-act:hover {
+    border-color: rgb(170, 255, 190);
+    background-color: rgba(58, 84, 66, 0.97);
+}
+
 .slot--target {
     border-color: rgb(232, 108, 70);
+}
+
+/* Primer slot ya elegido en un efecto de dos pasos (Move/Swap): se marca y queda fijo. */
+.slot--selected {
+    border-color: rgb(120, 210, 140);
+    border-width: 3px;
+    background-color: rgba(46, 70, 52, 0.96);
 }
 
 .slot--target:hover {
     background-color: rgba(58, 52, 52, 0.95);
     border-color: rgb(255, 140, 100);
+}
+
+/* Slot habilitado para recibir la carta que se está arrastrando (drag): brilla
+   con borde cian, fondo resaltado y un leve "pop". */
+.slot--drop-ok {
+    border-color: rgb(112, 222, 238);
+    border-width: 3px;
+    background-color: rgba(40, 80, 92, 0.96);
+    scale: 1.04;
+}
+
+.slot--drop-ok:hover {
+    border-color: rgb(170, 245, 255);
+    background-color: rgba(54, 100, 112, 0.98);
 }
 
 .slot__name {
@@ -205,6 +238,30 @@
 .hp-bar--high { background-color: rgb(80, 195, 80); }
 .hp-bar--mid  { background-color: rgb(220, 175, 50); }
 .hp-bar--low  { background-color: rgb(210, 65, 50); }
+
+/* ── Badges de estado/equipo por unidad ───────────────────────────────── */
+.slot__badges {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 5px;
+}
+
+.badge {
+    font-size: 11px;
+    -unity-font-style: bold;
+    padding: 0 4px;
+    margin: 1px;
+    border-radius: 6px;
+    color: rgb(18, 18, 22);
+    -unity-text-align: middle-center;
+}
+
+.badge--poison { background-color: rgb(126, 196, 92); }
+.badge--stun   { background-color: rgb(150, 170, 214); }
+.badge--furia  { background-color: rgb(236, 128, 66); }
+.badge--desmor { background-color: rgb(150, 138, 180); color: rgb(238, 238, 244); }
+.badge--equip  { background-color: rgb(210, 184, 96); }
 
 /* Animaciones de combate */
 .slot--flash-attack {
@@ -359,6 +416,70 @@
 
 .attack-popover:hover {
     background-color: rgb(44, 58, 80);
+}
+
+/* ── Popover informativo (hover sobre una unidad) ─────────────────────── */
+/* Panel opaco con header + cuerpo. Fondo sólido (no rgba) para legibilidad
+   sobre el fondo de la escena; borde + recuadro interno hacen de "sombra". */
+.info-popover {
+    position: absolute;
+    width: 290px;
+    max-width: 290px;
+    border-radius: 11px;
+    border-width: 2px;
+    border-color: rgb(96, 122, 160);
+    background-color: rgb(22, 26, 36);
+    overflow: hidden;
+}
+
+.info-popover__header {
+    background-color: rgb(40, 48, 66);
+    padding: 9px 13px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(255, 255, 255, 0.14);
+}
+
+.info-popover__title {
+    font-size: 19px;
+    -unity-font-style: bold;
+    color: rgb(246, 248, 252);
+    white-space: normal;
+}
+
+.info-popover__hp {
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: rgb(150, 205, 150);
+    margin-top: 2px;
+}
+
+.info-popover__body {
+    padding: 9px 13px 11px 13px;
+}
+
+.info-popover__desc {
+    font-size: 14px;
+    color: rgb(176, 182, 198);
+    white-space: normal;
+    -unity-font-style: italic;
+}
+
+.info-popover__section {
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: rgb(150, 196, 236);
+    margin-top: 9px;
+    padding-top: 7px;
+    border-top-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.10);
+}
+
+.info-popover__line {
+    font-size: 15px;
+    color: rgb(218, 222, 232);
+    white-space: normal;
+    margin-top: 3px;
+    padding-left: 8px;
 }
 
 /* ── Fantasma de drag ─────────────────────────────────────────────────── */

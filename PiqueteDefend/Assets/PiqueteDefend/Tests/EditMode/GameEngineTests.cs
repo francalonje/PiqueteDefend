@@ -403,5 +403,406 @@ namespace PiqueteDefend.Tests
             Assert.AreEqual(WinCondition.Timeout, e.Outcome.Value.Condition);
             Assert.AreEqual(Faction.Manifestantes, e.Outcome.Value.Winner);  // 2 > 1
         }
+
+        [Test]
+        public void Timeout_Tiebreak_EqualUnits_MoreHpWins()
+        {
+            var cfg = PlainCfg(); cfg.maxTurns = 1;
+            var e = NewEngine(cfg, out _);
+            e.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
+            e.PlayerAt(0).unitSlots[0] = new UnitSlot(U(20));
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));
+            e.BeginTurn();
+            e.EndTurn();
+            Assert.AreEqual(Faction.Manifestantes, e.Outcome.Value.Winner);  // 20 > 10 HP
+        }
+
+        [Test]
+        public void Timeout_Tiebreak_FullTie_NotFirstWins()
+        {
+            var cfg = PlainCfg(); cfg.maxTurns = 1;
+            var e = NewEngine(cfg, out _);
+            e.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
+            e.PlayerAt(0).unitSlots[0] = new UnitSlot(U(10));
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));
+            e.BeginTurn();
+            e.EndTurn();
+            // empate de unidades y HP → gana el que NO fue primero (firstIndex 0 → gana p1)
+            Assert.AreEqual(Faction.Policias, e.Outcome.Value.Winner);
+        }
+
+        // ── Interacciones de daño efectivo (integradas, no sólo el cálculo) ────
+
+        [Test]
+        public void Attack_AppliesEffectiveDamage_AuraFuriaEquipMinusDesmoralizar()
+        {
+            var e = Combat(out _);
+            var attacker = new UnitSlot(U(10, Duel(5)));
+            attacker.activeStatuses.Add(new StatusEffect(StatusType.Furia, 3, 2));
+            attacker.activeStatuses.Add(new StatusEffect(StatusType.Desmoralizar, 1, 2));
+            attacker.Attach(EquipDamage(2));
+            e.PlayerAt(0).unitSlots[2] = attacker;
+            e.PlayerAt(0).unitSlots[1] = new UnitSlot(U(10, Duel(0), null, Aura(4)));  // aura cubre slot 2
+            e.PlayerAt(1).unitSlots[2] = new UnitSlot(U(50));
+            e.BeginTurn();
+
+            e.AttackWithUnit(2);
+            // 5 base + 2 equipo + 3 furia − 1 desmoralizar + 4 aura = 13
+            Assert.AreEqual(50 - 13, e.PlayerAt(1).unitSlots[2].currentHp);
+        }
+
+        [Test]
+        public void Desmoralizar_FloorsEffectiveDamageAtZero()
+        {
+            var e = Combat(out _);
+            var attacker = new UnitSlot(U(10, Duel(3)));
+            attacker.activeStatuses.Add(new StatusEffect(StatusType.Desmoralizar, 10, 2));
+            e.PlayerAt(0).unitSlots[2] = attacker;
+            e.PlayerAt(1).unitSlots[2] = new UnitSlot(U(10));
+            e.BeginTurn();
+
+            e.AttackWithUnit(2);
+            Assert.AreEqual(10, e.PlayerAt(1).unitSlots[2].currentHp);  // daño 3−10 → 0
+        }
+
+        [Test]
+        public void Retaliate_Lethal_KillsAttacker_OpponentWins()
+        {
+            var e = Combat(out _);
+            e.PlayerAt(0).unitSlots[2] = new UnitSlot(U(2, Duel(50)));        // único de p0, frágil
+            e.PlayerAt(1).unitSlots[2] = new UnitSlot(U(10, Duel(0), null, Retaliate(5)));
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));                 // keepalive de p1
+            e.BeginTurn();
+
+            e.AttackWithUnit(2);
+            Assert.IsNull(e.PlayerAt(1).unitSlots[2]);   // defensor muere por el golpe
+            Assert.IsNull(e.PlayerAt(0).unitSlots[2]);   // atacante muere por Espinas
+            Assert.IsTrue(e.IsFinished);
+            Assert.AreEqual(Faction.Policias, e.Outcome.Value.Winner);  // p0 se quedó sin unidades
+        }
+
+        [Test]
+        public void Equipment_GrantedAura_AddsToNeighborEffectiveDamage()
+        {
+            var e = Combat(out _);
+            e.PlayerAt(0).unitSlots[2] = new UnitSlot(U(10, Duel(5)));
+            var auraUnit = new UnitSlot(U(10));
+            var eq = ScriptableObject.CreateInstance<EquipmentCardData>();
+            eq.grantedPassives = new List<PassiveEffect> { Aura(3) };
+            auraUnit.Attach(eq);
+            e.PlayerAt(0).unitSlots[1] = auraUnit;  // aura desde slot 1 cubre slot 2
+
+            Assert.AreEqual(8, e.EffectiveAttackDamage(e.PlayerAt(0).unitSlots, 2));  // 5 + 3
+        }
+
+        // ── Curación: whiff / cap ──────────────────────────────────────────────
+
+        [Test]
+        public void Heal_WhiffOnEmptySlot_StillConsumesAttack()
+        {
+            var e = Combat(out _);
+            var healer = new UnitSlot(U(10, new UnitAttack(AttackReference.Relative, new[] { 1 }, 0, 6, AttackEffect.HealAllies)));
+            e.PlayerAt(0).unitSlots[2] = healer;  // cura slot 3 (vacío) → whiff
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));  // keepalive
+            e.BeginTurn();
+
+            Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(2));
+            Assert.IsTrue(e.AttackUsed);
+            Assert.AreEqual(ActionResult.AlreadyAttacked, e.AttackWithUnit(2));
+        }
+
+        // ── Pasivas de inicio de turno ─────────────────────────────────────────
+
+        [Test]
+        public void Regeneration_HealsAtTurnStart_CapsAtMaxHp()
+        {
+            var e = Combat(out _);
+            var u = new UnitSlot(U(10, Duel(0), null, Regen(5)));
+            u.currentHp = 8;
+            e.PlayerAt(0).unitSlots[0] = u;
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));  // keepalive
+            e.BeginTurn();
+            Assert.AreEqual(10, e.PlayerAt(0).unitSlots[0].currentHp);  // 8 + 5 capado a 10
+        }
+
+        [Test]
+        public void TurnDamage_KillsEnemyAtTurnStart_Wins()
+        {
+            var e = Combat(out _);
+            // Emisor con Humo: TurnDamage a la vanguardia enemiga {3,4,5}
+            var emisor = new UnitSlot(U(10, Duel(0), null, TurnDmg(50, new[] { 3, 4, 5 })));
+            e.PlayerAt(0).unitSlots[0] = emisor;
+            e.PlayerAt(1).unitSlots[4] = new UnitSlot(U(10));  // única de p1, en vanguardia
+            e.BeginTurn();
+            Assert.IsTrue(e.IsFinished);
+            Assert.AreEqual(Faction.Manifestantes, e.Outcome.Value.Winner);
+        }
+
+        [Test]
+        public void TurnStatus_GasPoisonsEnemyFront_AtTurnStart()
+        {
+            var e = Combat(out _);
+            var gasero = new UnitSlot(U(10, Duel(0), null, GasPoison(3)));
+            e.PlayerAt(0).unitSlots[0] = gasero;
+            var enemy = new UnitSlot(U(20));
+            e.PlayerAt(1).unitSlots[4] = enemy;  // vanguardia enemiga
+            e.BeginTurn();
+            Assert.IsTrue(enemy.HasStatus(StatusType.Poison));
+            Assert.AreEqual(20, enemy.currentHp);  // el veneno daña en EL turno del enemigo, no ahora
+        }
+
+        // ── Estados: producción y combinaciones ────────────────────────────────
+
+        [Test]
+        public void DoubleAndSkipProduction_SkipWins()
+        {
+            var cfg = PlainCfg();
+            cfg.baseProdDinero = 2; cfg.firstProducesTurn1 = true;
+            var e = NewEngine(cfg, out _);
+            e.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
+            e.PlayerAt(0).unitSlots[0] = new UnitSlot(U(10));
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));
+            e.PlayerAt(0).activeStatuses.Add(new StatusEffect(StatusType.DoubleProduction, 2, 1));
+            e.PlayerAt(0).activeStatuses.Add(new StatusEffect(StatusType.SkipProduction, 0, 1));
+            int before = e.PlayerAt(0).dinero;
+            e.BeginTurn();
+            Assert.AreEqual(before, e.PlayerAt(0).dinero);  // skip gana: no produce nada
+        }
+
+        [Test]
+        public void Poison_AndSuddenDeath_BothApplySameTurn()
+        {
+            var cfg = PlainCfg(); cfg.suddenDeathStart = 1; cfg.suddenDeathDamage = 1;
+            var e = NewEngine(cfg, out _);
+            e.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
+            var u = new UnitSlot(U(10));
+            u.activeStatuses.Add(new StatusEffect(StatusType.Poison, 3, 2));
+            e.PlayerAt(0).unitSlots[0] = u;
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));
+            e.BeginTurn();                   // veneno: 10 → 7
+            Assert.AreEqual(7, u.currentHp);
+            e.EndTurn();                     // muerte súbita (ht1≥1): ambos −1
+            Assert.AreEqual(6, e.PlayerAt(0).unitSlots[0].currentHp);
+            Assert.AreEqual(9, e.PlayerAt(1).unitSlots[0].currentHp);
+        }
+
+        // ── Acciones: efectos sobre recursos / unidades ────────────────────────
+
+        [Test]
+        public void ModifyResource_ClampsAtZeroAndMax()
+        {
+            var e = Combat(out _);
+            e.PlayerAt(0).unitSlots[0] = new UnitSlot(U(10));
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));
+            e.BeginTurn();
+
+            e.PlayerAt(0).dinero = 2;
+            e.PlayerAt(0).hand[0] = ActionCard(
+                new CardEffect(CardEffectType.ModifyResource, TargetType.Self, ResourceType.Dinero, -10));
+            Assert.AreEqual(ActionResult.Success, e.PlayCard(0));
+            Assert.AreEqual(0, e.PlayerAt(0).dinero);  // no baja de 0
+
+            e.PlayerAt(0).fuerza = e.Config.maxResource - 1;
+            // segundo turno para volver a poder jugar carta
+            e.EndTurn(); e.BeginTurn(); e.EndTurn(); e.BeginTurn();
+            e.PlayerAt(0).hand[0] = ActionCard(
+                new CardEffect(CardEffectType.ModifyResource, TargetType.Self, ResourceType.Fuerza, 50));
+            e.PlayCard(0);
+            Assert.AreEqual(e.Config.maxResource, e.PlayerAt(0).fuerza);  // capado al máximo
+        }
+
+        [Test]
+        public void ApplyStatus_RoutesPlayerStatusToPlayer_UnitStatusToUnit()
+        {
+            var e = Combat(out _);
+            var enemy = new UnitSlot(U(10));
+            e.PlayerAt(1).unitSlots[2] = enemy;
+            e.PlayerAt(0).unitSlots[0] = new UnitSlot(U(10));  // keepalive activo
+            e.BeginTurn();
+
+            // SkipProduction (estado de jugador) sobre el oponente → va al jugador
+            e.PlayerAt(0).hand[0] = ActionCard(new CardEffect(CardEffectType.ApplyStatus,
+                TargetType.Opponent, status: new StatusEffect(StatusType.SkipProduction, 0, 1)));
+            Assert.AreEqual(ActionResult.Success, e.PlayCard(0));
+            Assert.AreEqual(1, e.PlayerAt(1).activeStatuses.Count);
+            Assert.IsFalse(enemy.HasStatus(StatusType.Poison));
+
+            // Stun (estado de unidad) sobre una unidad enemiga → va a la unidad
+            e.EndTurn(); e.BeginTurn(); e.EndTurn(); e.BeginTurn();  // de nuevo turno de p0
+            e.PlayerAt(0).hand[0] = ActionCard(new CardEffect(CardEffectType.ApplyStatus,
+                TargetType.Opponent, status: new StatusEffect(StatusType.Stun, 0, 1), targetSlot: 2));
+            Assert.AreEqual(ActionResult.Success, e.PlayCard(0, effectTargetSlot: 2));
+            Assert.IsTrue(enemy.IsStunned);
+        }
+
+        // ── Despliegue / reemplazo ──────────────────────────────────────────────
+
+        [Test]
+        public void Deploy_NoFreeAllowedSlot_IsInvalid_NoReplacement()
+        {
+            var e = Combat(out _);
+            var standing = new UnitSlot(U(10));
+            e.PlayerAt(0).unitSlots[3] = standing;             // ocupa el único slot permitido
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));  // keepalive
+            e.BeginTurn();
+
+            var unit = U(10, Duel(0), new[] { 3 });  // sólo puede ir al slot 3 (ocupado)
+            e.PlayerAt(0).hand[0] = unit;
+            Assert.AreEqual(ActionResult.InvalidTarget, e.PlayCard(0));               // auto: no hay libre
+            Assert.AreEqual(ActionResult.InvalidTarget, e.PlayCard(0, deploySlot: 3)); // ocupado: sin reemplazo
+            Assert.AreSame(standing, e.PlayerAt(0).unitSlots[3]);                     // la original queda intacta
+        }
+
+        [Test]
+        public void Deploy_OntoOccupiedSlot_IsRejected_NoResourcesSpent()
+        {
+            var e = Combat(out _);
+            var veteran = new UnitSlot(U(10));
+            e.PlayerAt(0).unitSlots[0] = veteran;
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));  // keepalive
+            e.BeginTurn();
+
+            var fresh = U(10, Duel(0));  // cualquiera, pero el slot 0 está ocupado
+            e.PlayerAt(0).hand[0] = fresh;
+            Assert.AreEqual(ActionResult.InvalidTarget, e.PlayCard(0, deploySlot: 0));
+            Assert.AreSame(veteran, e.PlayerAt(0).unitSlots[0]);  // no se reemplaza
+            Assert.IsFalse(e.CardActionUsed);                     // acción no consumida
+        }
+
+        [Test]
+        public void Deploy_AutoPicksFirstFreeAllowedSlot()
+        {
+            var e = Combat(out _);
+            e.PlayerAt(0).unitSlots[0] = new UnitSlot(U(10));  // slot 0 ocupado
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));  // keepalive
+            e.BeginTurn();
+
+            var unit = U(10, Duel(0));  // cualquiera
+            e.PlayerAt(0).hand[0] = unit;
+            Assert.AreEqual(ActionResult.Success, e.PlayCard(0));     // auto → primer libre = slot 1
+            Assert.AreSame(unit, e.PlayerAt(0).unitSlots[1].unit);
+            Assert.IsNotNull(e.PlayerAt(0).unitSlots[0]);             // el slot 0 intacto
+        }
+
+        [Test]
+        public void MoveUnit_ToOccupiedSlot_IsNoOp()
+        {
+            var e = Combat(out _);
+            var mover = new UnitSlot(U(10));
+            e.PlayerAt(0).unitSlots[0] = mover;
+            e.PlayerAt(0).unitSlots[4] = new UnitSlot(U(10));  // destino ocupado
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));  // keepalive
+            e.BeginTurn();
+
+            e.PlayerAt(0).hand[0] = ActionCard(new CardEffect(CardEffectType.MoveUnit, TargetType.Self));
+            e.PlayCard(0, effectTargetSlot: 0, effectTargetSlotB: 4);
+            Assert.AreSame(mover, e.PlayerAt(0).unitSlots[0]);  // no se movió
+        }
+
+        [Test]
+        public void SwapUnits_WithEmptySlot_MovesUnit()
+        {
+            var e = Combat(out _);
+            var u = new UnitSlot(U(10));
+            e.PlayerAt(1).unitSlots[0] = u;
+            e.PlayerAt(0).unitSlots[2] = new UnitSlot(U(10));  // keepalive activo
+            e.BeginTurn();
+
+            e.PlayerAt(0).hand[0] = ActionCard(new CardEffect(CardEffectType.SwapUnits, TargetType.Opponent));
+            e.PlayCard(0, effectTargetSlot: 0, effectTargetSlotB: 3);
+            Assert.IsNull(e.PlayerAt(1).unitSlots[0]);
+            Assert.AreSame(u, e.PlayerAt(1).unitSlots[3]);
+        }
+
+        // ── Reglas de iniciativa ────────────────────────────────────────────────
+
+        [Test]
+        public void SecondPlayer_CanAttackOnItsFirstTurn()
+        {
+            var cfg = new GameConfig { suddenDeathStart = 999, maxTurns = 999 };  // reglas ON
+            var e = NewEngine(cfg, out _);
+            e.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
+            e.PlayerAt(0).unitSlots[2] = new UnitSlot(U(10));
+            e.PlayerAt(1).unitSlots[2] = new UnitSlot(U(10, Duel(5)));
+
+            e.BeginTurn();                 // p0, half-turn 1: no puede atacar
+            Assert.IsFalse(e.CanAttackThisTurn);
+            e.EndTurn();
+            e.BeginTurn();                 // p1, half-turn 2: SÍ puede
+            Assert.IsTrue(e.CanAttackThisTurn);
+            Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(2));
+            Assert.AreEqual(5, e.PlayerAt(0).unitSlots[2].currentHp);
+        }
+
+        // ── Robo ponderado (drawWeight) ─────────────────────────────────────────
+
+        [Test]
+        public void WeightedDraw_RespectsDrawWeight()
+        {
+            // Pool: A (peso 1) + B (peso 3) → total 4. r∈[0,1)→A, r∈[1,4)→B.
+            var catB = new TestCatalog();
+            var a = U(1); a.id = "A"; a.drawWeight = 1;
+            var b = U(1); b.id = "B"; b.drawWeight = 3;
+            catB.pool.Add(a); catB.pool.Add(b);
+
+            var eB = new GameEngine(PlainCfg(), new FixedRng(2), catB);  // r=2 → B
+            eB.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
+            foreach (CardData c in eB.PlayerAt(0).hand) Assert.AreSame(b, c);
+
+            var eA = new GameEngine(PlainCfg(), new FixedRng(0), catB);  // r=0 → A
+            eA.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
+            foreach (CardData c in eA.PlayerAt(0).hand) Assert.AreSame(a, c);
+        }
+
+        // ── Helpers adicionales ─────────────────────────────────────────────────
+
+        /// <summary>RNG determinista que devuelve siempre el mismo valor (acotado) en Next.</summary>
+        private sealed class FixedRng : IRandomProvider
+        {
+            private readonly int _val;
+            public FixedRng(int val) { _val = val; }
+            public int Next(int maxExclusive) => maxExclusive <= 0 ? 0 : _val % maxExclusive;
+            public T Choice<T>(IReadOnlyList<T> list) => list[0];
+        }
+
+        private static PassiveEffect Produce(ResourceType r, int v) =>
+            new PassiveEffect(PassiveType.ProduceResource, r, v);
+
+        private static PassiveEffect Regen(int v) =>
+            new PassiveEffect { passiveType = PassiveType.Regeneration, value = v, target = PassiveTarget.Self };
+
+        private static PassiveEffect TurnDmg(int v, int[] absPattern) => new PassiveEffect
+        {
+            passiveType = PassiveType.TurnDamage, value = v, target = PassiveTarget.Enemies,
+            reference = AttackReference.Absolute, pattern = absPattern
+        };
+
+        private static PassiveEffect GasPoison(int v) => new PassiveEffect
+        {
+            passiveType = PassiveType.TurnStatus, status = new StatusEffect(StatusType.Poison, v, 1),
+            target = PassiveTarget.Enemies, reference = AttackReference.Absolute, pattern = new[] { 3, 4, 5 }
+        };
+
+        private static EquipmentCardData EquipDamage(int v)
+        {
+            var eq = ScriptableObject.CreateInstance<EquipmentCardData>();
+            eq.statModifiers = new List<StatModifier> { new StatModifier(StatType.Damage, v) };
+            return eq;
+        }
+
+        private static EquipmentCardData EquipMaxHp(int v)
+        {
+            var eq = ScriptableObject.CreateInstance<EquipmentCardData>();
+            eq.statModifiers = new List<StatModifier> { new StatModifier(StatType.MaxHp, v) };
+            return eq;
+        }
+
+        private static ActionCardData ActionCard(params CardEffect[] effects)
+        {
+            var a = ScriptableObject.CreateInstance<ActionCardData>();
+            a.id = "act"; a.costs = new List<ResourceCost>();
+            a.effects = new List<CardEffect>(effects);
+            return a;
+        }
     }
 }

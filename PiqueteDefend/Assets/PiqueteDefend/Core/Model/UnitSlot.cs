@@ -16,7 +16,11 @@ namespace PiqueteDefend.Core
         public readonly UnitCardData unit;
         public int currentHp;
 
-        /// <summary>[FUTURO] apilamiento. Default 1, sin mecánica activa.</summary>
+        /// <summary>
+        /// [FUTURO] apilamiento. Default 1, sin mecánica activa. Al activarlo, el Core ya multiplica
+        /// MaxHp y la producción por count; OJO: el simulador (`sim/`) hoy NO lo hace — alinear ambos
+        /// (y re-validar balance) antes de habilitar el stacking.
+        /// </summary>
         public int count = 1;
 
         /// <summary>Equipo adjunto mientras la unidad viva (spec §8.4). Se destruye con ella.</summary>

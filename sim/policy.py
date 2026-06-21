@@ -115,13 +115,7 @@ def choose_deploy_slot(engine: GameEngine, p: PlayerState, unit: UnitCardData) -
             if cov > best_cov or (cov == best_cov and i > best):
                 best, best_cov = i, cov
         return best
-    # Sin slot libre permitido: reemplazo sólo si conviene
-    allowed_occ = [i for i in range(BOARD) if unit.allows_slot(i) and p.slots[i]]
-    if allowed_occ:
-        worst = min(allowed_occ, key=lambda i: slot_value(p.slots[i]))
-        if base_unit_value(unit) > slot_value(p.slots[worst]):
-            return worst
-    return -1
+    return -1  # sin slot libre permitido: no se despliega (no hay reemplazo, §8.3)
 
 
 # ── Puntaje de cartas (§16.3) ────────────────────────────────────────────────

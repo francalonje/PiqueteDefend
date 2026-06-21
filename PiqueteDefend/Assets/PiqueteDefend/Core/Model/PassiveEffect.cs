@@ -28,6 +28,13 @@ namespace PiqueteDefend.Core
         /// <summary>Targeting igual que <see cref="UnitAttack"/> (ignorado si <see cref="target"/> = Self).</summary>
         public AttackReference reference = AttackReference.Relative;
         public int[] pattern = Array.Empty<int>();
+
+        /// <summary>
+        /// Reservado: la resolución de pasivas dirigidas (GameEngine.PassiveTargets) <b>NO</b> honra
+        /// <see cref="pickCount"/> hoy — siempre afecta todos los slots del patrón. Usar pick 0 en la
+        /// data para que la intención sea explícita. Implementar elección requeriría heurística en
+        /// motor+bot y re-validar balance (espejo de esta limitación en el sim, `rules.py`).
+        /// </summary>
         public int pickCount;
 
         public PassiveEffect() { }

@@ -9,9 +9,12 @@ humor político argentino. Inspirado en Castle Wars / Arcomage. Unity 6 (6000.5.
 Reglas, cartas, UI, parámetros y modelo de datos. Ante cualquier duda de comportamiento
 (timing de status, orden de fases, fórmula de daño, desempates, empates), manda el spec.
 
-> El balance de cartas todavía **no está validado**: las unidades usan una baseline uniforme
-> de prueba (20 HP / 5 daño). La validación por simulación se hará con una herramienta a
-> construir para el modelo actual (combate posicional por slots, victoria por KO).
+**`docs/dev-guide.md`** — guía del desarrollador (el "cómo se hace"): mapa de archivos y recetas
+para cartas, efectos, ataques, estados, condiciones de partida, sprites y animaciones.
+
+> El balance está **validado por simulación** (`sim/`) y horneado en `game-spec.md` §9/§10 y
+> `Core/CardLibrary.cs` (el juego no usa multiplicadores en runtime). El sim es un espejo del motor:
+> al cambiar una regla, replicala en `sim/` y corré `py sim/parity_check.py`.
 
 ## Arquitectura
 
