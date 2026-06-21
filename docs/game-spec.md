@@ -467,10 +467,10 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 |-------|-------|-----------|-------|--------|---------------|--------|-------------|
 | **Piquetero** | 4 ⚡ | Escaramuza | 24 | Cualquiera | `Rel [-1,0,+1]` pick 1 · 9 | Aura +1 daño (adyac.) | *Bombo, bandera y aguante para parar todo. El GPS del camionero lo putea de memoria.* |
 | **Jubilado** | 5 $ | Muro | 38 | Frente {4,5,6} | `Abs {4,5,6}` pick 0 · 3 | Espinas 2 | *83 pirulos, bastón y primera fila. La cana le tiene cagazo a lo que largue en la tele.* |
-| **Olla Popular** | 3 $ | Productora | 14 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 2 | +1 $/turno | *Arroz, fideos y un guiso que estira para todos. Solidaridad a cucharón.* |
-| **Quilombero** | 5 ⚡ | Cleave | 22 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · 3 | +1 ⚡/turno | *No tiene bien claro por qué se prende, pero le mete con todo. Quilombo de profesión.* |
+| **Gordo Sindical** | 3 $ | Productora | 14 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 2 | +1 $/turno | *El que arregla la paritaria y maneja la caja. Aparece en el palco, jamás en la primera fila.* |
+| **Fisura** | 5 ⚡ | Cleave | 22 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · 3 | +1 ⚡/turno | *Arranca la baldosa de la plaza con las manos y la parte en cuatro. Cada cascote tiene destinatario.* |
 | **Tuitero Militante** | 2 📣 | Productora | 12 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 1 | +1 📣/turno | *2.300 seguidores y la certeza de que cambió la historia con un hilo.* |
-| **Brigada Sanitaria** | 4 📣 | Healer | 18 | {2,3,4,5} | `Abs {4,5,6}` pick 1 · cura 6 | — | *Alcohol en gel, gasa y paciencia de santo. Te cura de onda, sin preguntar de qué lado estás.* |
+| **Choripanero** | 4 📣 | Healer | 18 | {2,3,4,5} | `Abs {4,5,6}` pick 1 · cura 6 | — | *Pan, chori y chimi para aguantar la jornada. El que morfa, vuelve a la marcha.* |
 | **Mortero Casero** | 5 ⚡ | Sniper | 14 | {2,3,4} | `Abs {1,2,3}` pick 1 · 9 | — | *Un caño, pólvora trucha y puntería de chiripa. Igual le encaja justo en la oficina del fondo.* |
 | **Quema de Cubiertas** | 5 📣 | Emisor | 16 | {2,3,4,5} | `Rel [0]` pick 0 · 1 | Humo: 1 daño/turno a vanguardia enemiga | *Diez gomas viejas y el viento a favor. El humo negro no le hace asco a nadie.* |
 
@@ -495,7 +495,7 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 |-------|-------|--------|-------------|
 | **Pechera de Cartón** | 2 $ | +12 maxHp | *Cartón, cinta de embalar y fe. Aguanta más de lo que el sentido común permite.* |
 | **Cascote** | 2 ⚡ | +3 daño | *El fierro más democrático: gratis, abundante y siempre a mano.* |
-| **Botiquín Solidario** | 3 $ | Otorga Regeneración (+3 HP/turno) | *Curitas, alcohol y una abuela que sabe más que el SAME.* |
+| **Parrilla Portátil** | 3 $ | Otorga Regeneración (+3 HP/turno) | *Media parrilla, una bolsa de carbón y olor a asado. Cura lo que ninguna obra social.* |
 | **Miguelitos** | 2 ⚡ | Otorga Espinas 3 (Retaliate) | *Tres clavos soldados con saña. El patrullero los encuentra tarde, siempre.* |
 
 ---
@@ -507,14 +507,14 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 ### Unidades
 | Carta | Costo | Arquetipo | maxHp | Deploy | Ataque · daño | Pasiva | Descripción |
 |-------|-------|-----------|-------|--------|---------------|--------|-------------|
-| **Patrullero** | 6 ⚡ | Escaramuza | 26 | Cualquiera | `Rel [-1,0,+1]` pick 1 · 10 | Aura +1 daño (adyac.) | *Sirena, balizas y un milico con 14 horas de turno. No le preguntes cómo anda.* |
-| **Comisaría** | 3 $ | Muro | 46 | Frente {4,5,6} | `Abs {4,5,6}` pick 0 · 2 | Espinas 2 | *El edificio más viejo del barrio. Aguantó cuatro gobiernos, dos default y una inundación.* |
-| **Subsidio** | 5 $ | Productora | 14 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 2 | +1 $/turno | *El Estado se paga a sí mismo. Sustentable, dicen los que cobran.* |
-| **Gorra de Barrio** | 3 ⚡ | Cleave | 22 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · 3 | +1 ⚡/turno | *Lo conoce todo el barrio. Nadie sabe bien qué hace, pero siempre está parado en la esquina.* |
-| **Conferencia de Prensa** | 5 📣 | Productora | 16 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 1 | +1 📣/turno | *El ministro sonríe, los periodistas anotan. Nadie pregunta nada que incomode.* |
-| **Sanidad Oficial** | 4 $ | Healer | 18 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · cura 3 | — | *Una ambulancia que llega cuando ya fue. Pero llega.* |
-| **Francotirador** | 6 ⚡ | Sniper | 14 | {2,3,4} | `Abs {1,2,3}` pick 1 · 10 | — | *Hace seis horas que está en una terraza. Vos no lo ves; él te tiene fichado hace rato.* |
-| **Gas Lacrimógeno** | 5 📣 | Emisor | 18 | {2,3,4,5} | `Rel [0]` pick 0 · 1 | Gas: Veneno (2) a 1 de vanguardia enemiga/turno | *Para dispersar la marcha de forma "pacífica". Con química y los ojos llorando.* |
+| **Infante** | 6 ⚡ | Escaramuza | 26 | Cualquiera | `Rel [-1,0,+1]` pick 1 · 10 | Aura +1 daño (adyac.) | *Escudo, casco y 14 horas de turno. Va al frente porque le pagan para eso.* |
+| **Gendarme** | 3 $ | Muro | 46 | Frente {4,5,6} | `Abs {4,5,6}` pick 0 · 2 | Espinas 2 | *Lo trajeron de la frontera a cuidar una esquina. No se mueve, no se cansa, no entiende el reclamo.* |
+| **Puntero** | 5 $ | Productora | 14 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 2 | +1 $/turno | *Reparte bolsones y promesas. La guita sale de algún lado, siempre.* |
+| **Itakero** | 3 ⚡ | Cleave | 22 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · 3 | +1 ⚡/turno | *Escopeta Itaka y postas de goma. Apunta al montón, total alguno cae.* |
+| **Trol Oficial** | 5 📣 | Productora | 16 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 1 | +1 📣/turno | *Diez cuentas, un solo sueldo del Estado. Inventa la tendencia antes del mediodía.* |
+| **Médico del SAME** | 4 $ | Healer | 18 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · cura 3 | — | *Llega en ambulancia y atiende a todos. Después hace tres guardias para llegar a fin de mes.* |
+| **Halcón** | 6 ⚡ | Sniper | 14 | {2,3,4} | `Abs {1,2,3}` pick 1 · 10 | — | *Grupo especial, mira telescópica y paciencia de cazador. Desde la terraza ve toda la plaza.* |
+| **Gasero** | 5 📣 | Emisor | 18 | {2,3,4,5} | `Rel [0]` pick 0 · 1 | Gas: Veneno (2) a 1 de vanguardia enemiga/turno | *Granada en mano, pañuelo en la cara. "Es para dispersar", dice, mientras llora hasta él.* |
 
 ### Acciones
 | Carta | Categoría | Costo | Efecto | Descripción |
@@ -638,7 +638,7 @@ Overlay con:
 
 - **Balance de unidades:** unidades ya diferenciadas por arquetipo (§9/§10); los valores de HP/daño son **provisionales y sin validar**, a balancear por simulación (Fase 5).
 - **Apilamiento:** punto de extensión reservado (`UnitSlot.count`), inactivo en v1.
-- **Unidades iniciales por facción:** definidas — Manifestantes = Piquetero + Olla Popular; Policías = Patrullero + Subsidio (1 peleador + 1 productora), en slots 1–2. El peleador inicial usa deploy **Cualquiera** para poder ocupar la retaguardia inicial.
+- **Unidades iniciales por facción:** definidas — Manifestantes = Piquetero + Gordo Sindical; Policías = Infante + Puntero (1 peleador + 1 productora), en slots 1–2. El peleador inicial usa deploy **Cualquiera** para poder ocupar la retaguardia inicial.
 - **Feedback visual por unidad:** si requiere config por carta en Presentation o alcanzan convenciones globales (§7.10). Incluye **iconografía de estados por unidad** (Veneno/Aturdir/Furia/Desmoralizar) y de **equipo adjunto** (§11.3/§11.4).
 - **Tope de equipos por unidad:** hoy sin límite (§8.4); definir si conviene un máximo.
 - **EquipmentCardData:** diseñado e incluido en el catálogo (§7.1 / §8.4 / §9/§10, 4 cartas/facción); falta implementar (capa de stats efectivos, §15 Fase 4).
@@ -678,7 +678,7 @@ Checklist para la sesión de implementación. **El spec es la fuente de verdad: 
   - `AuraDamage`: sumar al **daño efectivo** del aliado en `scope` al resolver su ataque (capa de stats efectivos; se comparte con el equipo de Fase 4).
   - `Retaliate`: en la resolución de ataque, cada defensora golpeada devuelve `value` al atacante; re-evaluar KO. Dispara aún si la defensora muere.
   - `HealAllies`: resolver como un ataque pero **sumando** HP a aliadas (cap maxHp); whiff en slot vacío o unidad llena.
-- [ ] Cartas nuevas en `CardLibrary` + assets: **Brigada Sanitaria** (Manif), **Sanidad Oficial** (Pol). Pasivas nuevas en Escaramuza (Aura) y Muro (Retaliate).
+- [ ] Cartas nuevas en `CardLibrary` + assets: **Choripanero** (Manif), **Médico del SAME** (Pol). Pasivas nuevas en Escaramuza (Aura) y Muro (Retaliate).
 
 ### Fase 3 — Acciones, estados por unidad y pasivas dirigidas
 - [ ] `UnitSlot.activeStatuses` (lista de `StatusEffect` por unidad).
