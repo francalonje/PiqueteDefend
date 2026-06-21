@@ -96,6 +96,33 @@
     left: auto;
 }
 
+/* Aviso "no podés atacar en tu turno 1", del lado del primer jugador (debajo de su panel). */
+.first-turn-notice {
+    position: absolute;
+    top: 124px;
+    max-width: 300px;
+    padding: 7px 16px;
+    border-radius: 9px;
+    border-width: 2px;
+    border-color: rgb(232, 184, 92);
+    background-color: rgba(62, 46, 18, 0.96);
+    color: rgb(246, 226, 158);
+    font-size: 16px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+
+.first-turn-notice--left {
+    left: 16px;
+    right: auto;
+}
+
+.first-turn-notice--right {
+    right: 16px;
+    left: auto;
+}
+
 /* ── Espaciador (deja ver el fondo entre top y la banda inferior) ─────── */
 .game__spacer {
     flex-grow: 1;

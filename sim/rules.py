@@ -282,28 +282,32 @@ class GameEngine:
                 continue
             for pe in list(s.all_passives()):
                 if pe.passive_type == PassiveType.REGENERATION:
-                    targets = self._passive_targets(pe, owner, opp, src_i)
                     board = owner.slots if pe.target != PassiveTarget.ENEMIES else opp.slots
-                    for t in targets:
+                    for t in self._passive_targets(pe, src_i, board):
                         u = board[t]
                         if u:
                             u.current_hp = min(u.max_hp, u.current_hp + pe.value)
                 elif pe.passive_type == PassiveType.TURN_DAMAGE:
                     board_owner = opp if pe.target == PassiveTarget.ENEMIES else owner
-                    for t in self._passive_targets(pe, owner, opp, src_i):
+                    for t in self._passive_targets(pe, src_i, board_owner.slots):
                         if board_owner.slots[t]:
                             self._direct_damage(board_owner, t, pe.value)
                 elif pe.passive_type == PassiveType.TURN_STATUS and pe.status is not None:
                     board_owner = opp if pe.target == PassiveTarget.ENEMIES else owner
-                    for t in self._passive_targets(pe, owner, opp, src_i):
+                    for t in self._passive_targets(pe, src_i, board_owner.slots):
                         u = board_owner.slots[t]
                         if u:
                             u.statuses.append(pe.status.clone())
 
-    def _passive_targets(self, pe, owner, opp, src_i) -> List[int]:
+    def _passive_targets(self, pe, src_i, board) -> List[int]:
+        """Honra pick_count: si >0, N slots OCUPADOS del patrón (orden ascendente, determinista)."""
         if pe.target == PassiveTarget.SELF:
             return [src_i]
-        return self.resolve_slots(pe.reference, pe.pattern, src_i)
+        cand = self.resolve_slots(pe.reference, pe.pattern, src_i)
+        if pe.pick_count <= 0:
+            return cand
+        occupied = sorted(t for t in cand if board[t] is not None)
+        return occupied[:pe.pick_count]
 
     # ── Acción: jugar carta ──
     def play_card(self, hand_index: int, deploy_slot: int = -1,
@@ -406,6 +410,20 @@ class GameEngine:
                 tgt.slots[a], tgt.slots[b] = tgt.slots[b], tgt.slots[a]
 
     # ── Acción: atacar ──
+    @staticmethod
+    def _has_valid_target(ua, targets, p: PlayerState, opp: PlayerState) -> bool:
+        """≥1 enemigo ocupado (daño) o aliado por debajo de maxHp (cura); si no, se cancela."""
+        for t in targets:
+            if not (0 <= t < BOARD):
+                continue
+            if ua.effect == AttackEffect.HEAL_ALLIES:
+                u = p.slots[t]
+                if u and u.current_hp < u.max_hp:
+                    return True
+            elif opp.slots[t] is not None:
+                return True
+        return False
+
     def attack_with_unit(self, attacker_slot: int, chosen_targets: Optional[List[int]] = None) -> bool:
         if self.attack_used or self.is_finished:
             return False
@@ -430,10 +448,14 @@ class GameEngine:
         else:
             targets = candidates
 
+        # Cancela (sin gastar el ataque) si no afecta a ningún objetivo válido (spec §6).
+        if not self._has_valid_target(ua, targets, p, opp):
+            return False
+
         if ua.effect == AttackEffect.HEAL_ALLIES:
             for t in targets:
                 u = p.slots[t]
-                if u:
+                if u and u.current_hp < u.max_hp:
                     u.current_hp = min(u.max_hp, u.current_hp + ua.amount_per_slot)
             self.attack_used = True
             return True

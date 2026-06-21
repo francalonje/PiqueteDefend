@@ -45,5 +45,5 @@ MonoBehaviour:
     target: 2
     reference: 0
     pattern: 030000000400000005000000
-    pickCount: 0
+    pickCount: 1
   unitSubtype: 0

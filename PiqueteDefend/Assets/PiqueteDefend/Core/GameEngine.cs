@@ -177,7 +177,7 @@ namespace PiqueteDefend.Core
                         case PassiveType.Regeneration:
                         {
                             PlayerState board = pe.target == PassiveTarget.Enemies ? opp : owner;
-                            foreach (int t in PassiveTargets(pe, srcIdx))
+                            foreach (int t in PassiveTargets(pe, srcIdx, board))
                             {
                                 UnitSlot u = board.unitSlots[t];
                                 if (u != null && u.currentHp < u.MaxHp)
@@ -188,7 +188,7 @@ namespace PiqueteDefend.Core
                         case PassiveType.TurnDamage:
                         {
                             PlayerState board = pe.target == PassiveTarget.Enemies ? opp : owner;
-                            foreach (int t in PassiveTargets(pe, srcIdx))
+                            foreach (int t in PassiveTargets(pe, srcIdx, board))
                                 if (board.unitSlots[t] != null) DirectDamage(board, t, pe.value);
                             break;
                         }
@@ -196,7 +196,7 @@ namespace PiqueteDefend.Core
                         {
                             if (pe.status == null) break;
                             PlayerState board = pe.target == PassiveTarget.Enemies ? opp : owner;
-                            foreach (int t in PassiveTargets(pe, srcIdx))
+                            foreach (int t in PassiveTargets(pe, srcIdx, board))
                                 if (board.unitSlots[t] != null)
                                     board.unitSlots[t].activeStatuses.Add(pe.status.Clone());
                             break;
@@ -206,11 +206,24 @@ namespace PiqueteDefend.Core
             }
         }
 
-        /// <summary>Slots objetivo de una pasiva dirigida (Self = sí misma; resto = patrón sobre su tablero).</summary>
-        private List<int> PassiveTargets(PassiveEffect pe, int srcIdx)
+        /// <summary>
+        /// Slots objetivo de una pasiva dirigida (Self = sí misma; resto = patrón sobre <paramref name="board"/>).
+        /// Honra <see cref="PassiveEffect.pickCount"/>: si es &gt; 0, elige N slots OCUPADOS del patrón
+        /// (orden ascendente de índice, determinista — espejo en el sim).
+        /// </summary>
+        private List<int> PassiveTargets(PassiveEffect pe, int srcIdx, PlayerState board)
         {
             if (pe.target == PassiveTarget.Self) return new List<int> { srcIdx };
-            return ResolveSlots(pe.reference, pe.pattern, srcIdx);
+
+            List<int> candidates = ResolveSlots(pe.reference, pe.pattern, srcIdx);
+            if (pe.pickCount <= 0) return candidates;
+
+            var occupied = new List<int>();
+            foreach (int t in candidates)
+                if (board.unitSlots[t] != null) occupied.Add(t);
+            occupied.Sort();
+            if (occupied.Count > pe.pickCount) occupied.RemoveRange(pe.pickCount, occupied.Count - pe.pickCount);
+            return occupied;
         }
 
         // ── Fase 3: ACCIÓN ────────────────────────────────────────────────────────
@@ -305,6 +318,10 @@ namespace PiqueteDefend.Core
                     if (!candidates.Contains(t)) return ActionResult.InvalidTarget;
                 targets = chosenTargets;
             }
+
+            // Regla de objetivos (spec §6): la acción se CANCELA (sin gastar el ataque) si no afecta a
+            // ningún objetivo válido. Si afecta al menos a uno, se permite aunque otros golpes whiffeen.
+            if (!HasValidTarget(ua, targets, active, opp)) return ActionResult.InvalidTarget;
 
             if (ua.IsHeal)
             {
@@ -564,6 +581,29 @@ namespace PiqueteDefend.Core
             dmg += s.StatusValue(StatusType.Furia) - s.StatusValue(StatusType.Desmoralizar);
             dmg += AuraBonusFor(board, slotIndex);
             return dmg < 0 ? 0 : dmg;
+        }
+
+        /// <summary>
+        /// True si el ataque afecta al menos a un objetivo válido: para daño, un slot enemigo ocupado;
+        /// para cura, un aliado por debajo de su maxHp. Si no, la acción se cancela (spec §6).
+        /// </summary>
+        public static bool HasValidTarget(UnitAttack ua, int[] targets, PlayerState active, PlayerState opp)
+        {
+            foreach (int t in targets)
+            {
+                if (ua.effect == AttackEffect.HealAllies)
+                {
+                    if (t < 0 || t >= active.unitSlots.Length) continue;
+                    UnitSlot u = active.unitSlots[t];
+                    if (u != null && u.currentHp < u.MaxHp) return true;
+                }
+                else
+                {
+                    if (t < 0 || t >= opp.unitSlots.Length) continue;
+                    if (opp.unitSlots[t] != null) return true;
+                }
+            }
+            return false;
         }
 
         private void DirectDamage(PlayerState owner, int slot, int amount)

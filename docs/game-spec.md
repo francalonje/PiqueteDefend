@@ -179,6 +179,8 @@ El conjunto de slots objetivo se resuelve según el ataque:
 
 El daño (`damagePerSlot`) se aplica al HP de la unidad que ocupe cada slot objetivo. **Si un slot objetivo está vacío, ese golpe se desperdicia (whiff)** — no se redirige. Si el HP de una unidad llega a 0, muere y el slot queda libre.
 
+> **Objetivo válido obligatorio:** la acción **se cancela** (no consume el ataque ni gasta nada) si **no afecta a ningún objetivo válido** — para daño, al menos un slot enemigo **ocupado**; para cura, al menos un aliado **por debajo de su maxHp**. Si afecta a **uno o más**, se permite **aunque parte del patrón whiffee** en slots vacíos.
+
 > **La posición es decisión defensiva:** colocar (o estar obligado a colocar, §8.3) unidades fuera de los patrones de ataque enemigos las protege; los ataques `Relative` y los obligatorios crean el juego de posicionamiento.
 
 **[FUTURO]** Cada unidad podría tener múltiples poderes (`List<UnitAttack>`) con distintos patrones, o habilidades que recuperen HP.
@@ -205,26 +207,37 @@ La posición pesa por **dos palancas**:
 
 `allowedSlots` y `UnitAttack.pattern` son **data libre** (`int[]`): cualquier combinación es expresable sin tocar el motor. Estos son los **presets nombrados** recomendados — el vocabulario disponible; no todas las unidades del catálogo usan todos.
 
-**Zonas de deploy (`allowedSlots`)**
+**Zonas de deploy (`allowedSlots`)** — *dónde se puede **colocar** una unidad. Independiente del
+patrón de **targeting** (abajo): una zona de deploy puede ser más amplia que las zonas de ataque.*
 
 | Preset | Slots |
 |--------|-------|
 | Cualquiera | `{}` (vacío) |
-| Retaguardia | {1,2,3} |
-| Frente | {4,5,6} |
+| Retaguardia (deploy) | {1,2,3} |
+| Frente (deploy) | {4,5,6} |
 | Pares | {1,2} · {3,4} · {5,6} |
 | Mitades | {1,2,3} · {4,5,6} |
 
-**Patrones de ataque (`UnitAttack`)**
+**Patrones de targeting (`UnitAttack` / pasivas dirigidas / efectos de carta)**
+
+Vocabulario **cerrado** de patrones para "decidir objetivos". Las **zonas son absolutas** (slots fijos del tablero objetivo, 1–6); `pickCount` es **ortogonal**: `0` = afecta todos los del patrón, `N>0` = elige/elige-auto N. El mismo vocabulario aplica a **curas** (sobre el tablero propio), **pasivas dirigidas** (§7.3) y **efectos de carta** (§7.6).
 
 | Preset | reference | pattern | pickCount | Efecto |
 |--------|-----------|---------|-----------|--------|
-| Duelo | Relative | `[0]` | 0 | pega el slot enfrentado |
-| Banda (elige) | Relative | `[-1,0,+1]` | 1 | elige 1 de los 3 alrededor del enfrentado |
-| Banda (cleave) | Relative | `[-1,0,+1]` | 0 | pega los 3 |
-| X adelante | Relative | `[+1,+2]` | 0 | pega 1–2 slots hacia el frente enemigo |
-| Zona fija | Absolute | `{a..b}` | 0 | pega una zona fija (ej. retaguardia {1,2,3}) |
-| Libre elección | Absolute | `{1..6}` | 1 | snipea cualquiera (reservado a acciones) |
+| **Enfrentado** (duelo) | Relative | `[0]` | 0 | el slot enfrentado |
+| **Banda** (elige) | Relative | `[-1,0,+1]` | 1 | 1 de los 3 alrededor del enfrentado |
+| **Banda** (cleave) | Relative | `[-1,0,+1]` | 0 | los 3 alrededor del enfrentado |
+| **A distancia** (X adelante) | Relative | `[+1..+X]` | 0 | X slots hacia el frente enemigo |
+| **Posición fija** | Absolute | `{n}` | 0 | un slot fijo del tablero objetivo |
+| **Retaguardia** | Absolute | `{1,2}` | 0/N | los 2 del fondo (lejos del rival) |
+| **Medio** | Absolute | `{3,4}` | 0/N | los 2 del medio |
+| **Vanguardia** | Absolute | `{5,6}` | 0/N | los 2 del frente (cerca del rival) |
+| **Mitades** | Absolute | `{1,2,3}` **o** `{4,5,6}` | 0/N | una mitad **predefinida** (atrás o adelante; no se elige cuál) |
+| **Todos** (AoE) | Absolute | `{1..6}` | 0 | todo el tablero |
+| **Libre** | Absolute | `{1..6}` | 1 | snipea cualquiera |
+| **Doble** (libre ×2) | Absolute | `{1..6}` | 2 | dos slots a elección (o A→B con roles, ej. MoveUnit/SwapUnits) |
+
+> En **ataques de unidad** con `pickCount>0` lo elige el jugador (click). En **pasivas** (automáticas) el motor elige N de forma determinista (§7.3). "Mitades" es una zona fija de 3 (la carta define cuál mitad), **no** una elección entre las dos mitades.
 
 > **Heurística de balance** (se valida por simulación, Fase 5): `daño_total = damagePerSlot × slots_que_pega`. A más slots golpeados o más HP, menos daño por golpe; a menos HP, más daño. Guía: `valor ≈ HP/4 + daño_total/2 + flexibilidad_de_deploy + valor_pasiva`; el costo de la carta sigue a ese valor.
 >
@@ -343,7 +356,7 @@ Un pasivo puede **producir recursos, curar/buffear aliadas o dañar/debuffear en
 
 Reglas: las auras **se suman** y no se aplican a sí mismas. `Retaliate` sólo responde a ataques de unidad (no a daño directo de cartas, pasivas ni muerte súbita) y **dispara aunque la unidad muera** (re-evaluar KO). `TurnDamage`/`TurnStatus` se resuelven al inicio del turno del dueño y respetan whiff en slots vacíos. El daño/estado de pasivas **no** dispara `Retaliate` (no es ataque de unidad).
 
-> **`pickCount` en pasivas (limitación actual):** la resolución de pasivas dirigidas **no** honra `pickCount` — siempre afecta **todos** los slots ocupados del patrón. Por convención, las pasivas del catálogo usan `pick 0`. Habilitar la elección (`pick N`) requeriría una heurística de targeting en el motor y el bot, y **re-validar balance**; es un [FUTURO]. Por eso Gas afecta toda la vanguardia enemiga, no un solo slot.
+> **`pickCount` en pasivas:** `0` = afecta **todos** los slots del patrón; `N>0` = afecta **N slots ocupados** del patrón. Como la pasiva es **automática** (no hay elección humana), el motor elige de forma **determinista**: índice ascendente entre los slots ocupados del patrón (espejo exacto en el sim). Ej.: el **Gas** del Gasero (`Abs {4,5,6}` pick 1) envenena **a 1** de la vanguardia enemiga ocupada.
 
 ---
 
@@ -534,7 +547,7 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 | **Trol Oficial** | 5 📣 | Productora | 14 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 2 | +1 📣/turno | *Diez cuentas, un solo sueldo del Estado. Inventa la tendencia antes del mediodía.* |
 | **Médico del SAME** | 4 $ | Healer | 15 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · cura 2 | — | *Llega en ambulancia y atiende a todos. Después hace tres guardias para llegar a fin de mes.* |
 | **Halcón** | 6 ⚡ | Sniper | 8 | {2,3,4} | `Abs {1,2,3}` pick 1 · 15 | — | *Grupo especial, mira telescópica y paciencia de cazador. Desde la terraza ve toda la plaza.* |
-| **Gasero** | 5 📣 | Emisor | 15 | {2,3,4,5} | `Rel [0]` pick 0 · 2 | Gas: Veneno (3) a la vanguardia enemiga/turno | *Granada en mano, pañuelo en la cara. "Es para dispersar", dice, mientras llora hasta él.* |
+| **Gasero** | 5 📣 | Emisor | 15 | {2,3,4,5} | `Rel [0]` pick 0 · 2 | Gas: Veneno (3) a 1 de la vanguardia enemiga/turno | *Granada en mano, pañuelo en la cara. "Es para dispersar", dice, mientras llora hasta él.* |
 
 ### Acciones
 | Carta | Categoría | Costo | Efecto | Descripción |

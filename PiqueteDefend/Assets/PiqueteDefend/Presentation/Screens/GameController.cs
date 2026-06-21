@@ -51,7 +51,7 @@ namespace PiqueteDefend.Presentation
         private VisualElement _root, _screen, _hand, _p0Slots, _p1Slots, _overlay, _playZone, _discardZone;
         private Button _popover;
         private VisualElement _infoPopover, _infoBody;
-        private Label _turnChip, _hint, _overlayTitle, _overlayMsg;
+        private Label _turnChip, _hint, _overlayTitle, _overlayMsg, _firstTurnNotice;
         private Button _overlayPrimary, _overlaySecondary, _endTurnButton;
         private readonly Label[] _faction = new Label[2];
         private readonly Label[] _res = new Label[2];
@@ -70,6 +70,7 @@ namespace PiqueteDefend.Presentation
             SceneBackground.Apply(_root, "bg");
             BuildPopover();
             BuildInfoPopover();
+            BuildFirstTurnNotice();
 
             var catalog = Resources.Load<CardCatalog>(CatalogResource);
             if (catalog == null)
@@ -139,6 +140,18 @@ namespace PiqueteDefend.Presentation
             _infoPopover.style.display = DisplayStyle.None;
             _root.Add(_infoPopover);
             Stylize(_infoPopover);
+        }
+
+        /// <summary>Cartel que avisa al primer jugador que no puede atacar en su turno 1 (spec §3/§16).</summary>
+        private void BuildFirstTurnNotice()
+        {
+            _firstTurnNotice = new Label();
+            _firstTurnNotice.AddToClassList("first-turn-notice");
+            _firstTurnNotice.pickingMode = PickingMode.Ignore;
+            _firstTurnNotice.style.position = Position.Absolute;
+            _firstTurnNotice.style.display = DisplayStyle.None;
+            _root.Add(_firstTurnNotice);
+            Stylize(_firstTurnNotice);
         }
 
         /// <summary>Copia las stylesheets de la pantalla a un elemento agregado fuera de su subárbol,
@@ -314,21 +327,35 @@ namespace PiqueteDefend.Presentation
             // que es el origin correcto para position:absolute en UI Toolkit.
             Rect wb = slotEl.worldBound;
             Vector2 local = _root.WorldToLocal(wb.position);
-            float slotW = wb.width;
-            _popover.style.left = local.x;
-            _popover.style.top = Mathf.Max(0f, local.y - 44f);
-            _popover.style.display = DisplayStyle.Flex;
+            ClampPopover(_popover, local.x, wb.width, local.y);
+        }
 
-            // Tras el layout ya conocemos el ancho real del popover: lo centramos sobre
-            // el slot y lo clampeamos para que no se salga por los bordes (slots del borde derecho).
-            _popover.schedule.Execute(() =>
+        /// <summary>
+        /// Centra <paramref name="pop"/> sobre el slot (anchor en coords de _root) ARRIBA de él y lo
+        /// clampea dentro del root. Re-aplica en GeometryChanged porque al primer frame el ancho real
+        /// puede no estar resuelto (causa del popover que se salía por el borde derecho).
+        /// </summary>
+        private void ClampPopover(VisualElement pop, float anchorLeft, float anchorWidth, float anchorTop)
+        {
+            void Apply()
             {
-                float w = _popover.resolvedStyle.width;
-                float avail = _root.contentRect.width;
-                float centered = local.x + slotW * 0.5f - w * 0.5f;
-                float maxLeft = Mathf.Max(4f, avail - w - 4f);
-                _popover.style.left = Mathf.Clamp(centered, 4f, maxLeft);
-            }).StartingIn(0);
+                float w = pop.resolvedStyle.width;
+                float h = pop.resolvedStyle.height;
+                float availW = _root.contentRect.width;
+                float centered = anchorLeft + anchorWidth * 0.5f - w * 0.5f;
+                float maxLeft = Mathf.Max(4f, availW - w - 4f);
+                pop.style.left = Mathf.Clamp(centered, 4f, maxLeft);
+                pop.style.top = Mathf.Max(4f, anchorTop - h - 8f);
+            }
+
+            pop.style.left = anchorLeft;
+            pop.style.top = Mathf.Max(4f, anchorTop - 44f);
+            pop.style.display = DisplayStyle.Flex;
+            Apply();  // si la geometría ya estaba resuelta (no dispara GeometryChanged)
+
+            EventCallback<GeometryChangedEvent> cb = null;
+            cb = _ => { Apply(); pop.UnregisterCallback(cb); };
+            pop.RegisterCallback(cb);
         }
 
         private void HidePopover()
@@ -382,7 +409,15 @@ namespace PiqueteDefend.Presentation
         private void ResolveAttack(ActionResult result)
         {
             HidePopover();
-            if (result != ActionResult.Success) { _hint.text = "Ataque inválido"; _mode = Mode.Acting; Render(); return; }
+            if (result != ActionResult.Success)
+            {
+                // InvalidTarget acá = no había objetivo válido → la acción se cancela sin gastar (spec §6).
+                _hint.text = result == ActionResult.InvalidTarget
+                    ? "No hay objetivos a alcance" : "Ataque inválido";
+                _mode = Mode.Acting;
+                Render();
+                return;
+            }
             _pendingAttacker = -1;
             AfterAction();
         }
@@ -411,6 +446,17 @@ namespace PiqueteDefend.Presentation
             _turnChip.text = $"▶ {Display(_engine.ActivePlayer.faction)}";
             _turnChip.EnableInClassList("turn-chip--left", p0Active);
             _turnChip.EnableInClassList("turn-chip--right", !p0Active);
+
+            // Aviso al primer jugador: en su turno 1 no puede atacar (regla de iniciativa, spec §3/§16).
+            // Sólo es true para el primer jugador en HalfTurn 1, así que va de su lado (el activo).
+            bool noAttack = _engine.HalfTurn == 1 && !_engine.CanAttackThisTurn;
+            _firstTurnNotice.style.display = noAttack ? DisplayStyle.Flex : DisplayStyle.None;
+            if (noAttack)
+            {
+                _firstTurnNotice.text = "No podés atacar en tu primer turno";
+                _firstTurnNotice.EnableInClassList("first-turn-notice--left", p0Active);
+                _firstTurnNotice.EnableInClassList("first-turn-notice--right", !p0Active);
+            }
         }
 
         private void RenderPanel(int index)
@@ -523,7 +569,10 @@ namespace PiqueteDefend.Presentation
                         {
                             UnitAttack ua = atk.unit.attack;
                             int targetSide = ua.IsHeal ? activeIdx : 1 - activeIdx;
-                            if (playerIndex == targetSide
+                            // Sólo slots alcanzables Y con objetivo válido (enemigo ocupado / aliado herido):
+                            // no se puede elegir un slot que whiffearía (spec §6).
+                            bool valid = slot != null && (!ua.IsHeal || slot.currentHp < slot.MaxHp);
+                            if (playerIndex == targetSide && valid
                                 && GameEngine.ResolveSlots(ua.reference, ua.pattern, _pendingAttacker).Contains(slotIndex))
                             {
                                 el.AddToClassList("slot--target");
@@ -720,27 +769,11 @@ namespace PiqueteDefend.Presentation
             _infoBody.Add(l);
         }
 
-        private void PositionInfoPopover(VisualElement slotEl)
+        private void PositionInfoPopover(VisualElement anchorEl)
         {
-            Rect wb = slotEl.worldBound;
+            Rect wb = anchorEl.worldBound;
             Vector2 local = _root.WorldToLocal(wb.position);
-            float slotW = wb.width;
-            _infoPopover.style.left = local.x;
-            _infoPopover.style.top = 0f;  // provisional; se reubica tras el layout
-            _infoPopover.style.display = DisplayStyle.Flex;
-
-            // Tras el layout conocemos el tamaño real: lo centramos sobre el slot y lo colocamos
-            // ARRIBA del slot (la banda de slots está abajo), clampeado dentro del root.
-            _infoPopover.schedule.Execute(() =>
-            {
-                float w = _infoPopover.resolvedStyle.width;
-                float h = _infoPopover.resolvedStyle.height;
-                float avail = _root.contentRect.width;
-                float centered = local.x + slotW * 0.5f - w * 0.5f;
-                float maxLeft = Mathf.Max(4f, avail - w - 4f);
-                _infoPopover.style.left = Mathf.Clamp(centered, 4f, maxLeft);
-                _infoPopover.style.top = Mathf.Max(4f, local.y - h - 8f);
-            }).StartingIn(0);
+            ClampPopover(_infoPopover, local.x, wb.width, local.y);
         }
 
         private void HideInfoPopover()
@@ -983,6 +1016,7 @@ namespace PiqueteDefend.Presentation
         {
             _mode = Mode.Finished;
             HidePopover();
+            _firstTurnNotice.style.display = DisplayStyle.None;
             GameOutcome o = _engine.Outcome.Value;
 
             string title = o.IsDraw ? "Empate" : $"Ganó {Display(o.Winner.Value)}";

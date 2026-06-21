@@ -30,10 +30,10 @@ namespace PiqueteDefend.Core
         public int[] pattern = Array.Empty<int>();
 
         /// <summary>
-        /// Reservado: la resolución de pasivas dirigidas (GameEngine.PassiveTargets) <b>NO</b> honra
-        /// <see cref="pickCount"/> hoy — siempre afecta todos los slots del patrón. Usar pick 0 en la
-        /// data para que la intención sea explícita. Implementar elección requeriría heurística en
-        /// motor+bot y re-validar balance (espejo de esta limitación en el sim, `rules.py`).
+        /// <c>0</c> = afecta TODOS los slots del patrón; <c>N&gt;0</c> = afecta N slots OCUPADOS del
+        /// patrón, elegidos de forma determinista (índice ascendente) por
+        /// <see cref="GameEngine"/>.PassiveTargets — no hay elección humana (la pasiva es automática).
+        /// Espejo en el sim (`rules.py`).
         /// </summary>
         public int pickCount;
 

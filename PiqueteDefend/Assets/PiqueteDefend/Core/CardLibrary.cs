@@ -286,13 +286,12 @@ namespace PiqueteDefend.Core
             reference = AttackReference.Absolute, pattern = new[] { 3, 4, 5 }, pickCount = 0
         };
 
-        // Las pasivas dirigidas NO honran pickCount (lo ignora la resolución, igual en el sim):
-        // afectan TODOS los slots ocupados del patrón. Por eso Gas usa pick 0 = toda la vanguardia
-        // enemiga (spec §7.3/§10). El balance se validó con esta conducta.
+        // Gas: Veneno a 1 de la vanguardia enemiga (pick 1; la resolución de pasivas elige N
+        // slots ocupados, determinista). Ver spec §7.3/§10.
         private static PassiveEffect Gas(int v) => new PassiveEffect
         {
             passiveType = PassiveType.TurnStatus, status = Poison(v, 1), target = PassiveTarget.Enemies,
-            reference = AttackReference.Absolute, pattern = new[] { 3, 4, 5 }, pickCount = 0
+            reference = AttackReference.Absolute, pattern = new[] { 3, 4, 5 }, pickCount = 1
         };
 
         // Efectos de acción

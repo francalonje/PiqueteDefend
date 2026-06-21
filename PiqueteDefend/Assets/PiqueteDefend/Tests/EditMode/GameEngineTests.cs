@@ -112,15 +112,30 @@ namespace PiqueteDefend.Tests
         }
 
         [Test]
-        public void Attack_EmptySlot_Whiffs()
+        public void Attack_AllTargetsEmpty_IsCanceled_NoConsume()
         {
             var e = Combat(out _);
             e.PlayerAt(0).unitSlots[2] = new UnitSlot(U(10, Duel(4)));
             e.PlayerAt(1).unitSlots[5] = new UnitSlot(U(10));  // keepalive; slot enfrentado (2) vacío
             e.BeginTurn();
 
-            Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(2));
-            Assert.IsNull(e.PlayerAt(1).unitSlots[2]);
+            // Sin objetivo válido (slot enfrentado vacío) → se cancela sin gastar el ataque (spec §6).
+            Assert.AreEqual(ActionResult.InvalidTarget, e.AttackWithUnit(2));
+            Assert.IsFalse(e.AttackUsed);
+        }
+
+        [Test]
+        public void Attack_PartialEmpty_AllowedAndHitsOccupied()
+        {
+            var e = Combat(out _);
+            var cleave = new UnitAttack(AttackReference.Relative, new[] { -1, 0, 1 }, 0, 5);
+            e.PlayerAt(0).unitSlots[2] = new UnitSlot(U(10, cleave));
+            e.PlayerAt(1).unitSlots[1] = new UnitSlot(U(20));  // sólo slot 1 ocupado (2 y 3 vacíos)
+            e.BeginTurn();
+
+            Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(2));  // pega al ocupado, whiff en los vacíos
+            Assert.AreEqual(15, e.PlayerAt(1).unitSlots[1].currentHp);
+            Assert.IsTrue(e.AttackUsed);
         }
 
         [Test]
@@ -498,17 +513,35 @@ namespace PiqueteDefend.Tests
         // ── Curación: whiff / cap ──────────────────────────────────────────────
 
         [Test]
-        public void Heal_WhiffOnEmptySlot_StillConsumesAttack()
+        public void Heal_NoHealableAlly_IsCanceled_NoConsume()
         {
             var e = Combat(out _);
             var healer = new UnitSlot(U(10, new UnitAttack(AttackReference.Relative, new[] { 1 }, 0, 6, AttackEffect.HealAllies)));
-            e.PlayerAt(0).unitSlots[2] = healer;  // cura slot 3 (vacío) → whiff
+            e.PlayerAt(0).unitSlots[2] = healer;  // cura slot 3 (vacío) → nadie a quien curar
             e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));  // keepalive
             e.BeginTurn();
 
-            Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(2));
-            Assert.IsTrue(e.AttackUsed);
-            Assert.AreEqual(ActionResult.AlreadyAttacked, e.AttackWithUnit(2));
+            Assert.AreEqual(ActionResult.InvalidTarget, e.AttackWithUnit(2));
+            Assert.IsFalse(e.AttackUsed);  // se cancela sin gastar (spec §6)
+        }
+
+        [Test]
+        public void Passive_TurnDamage_PickCount_HitsOnlyNOccupied()
+        {
+            var e = Combat(out _);
+            var emisor = new UnitSlot(U(10, Duel(0), null, new PassiveEffect
+            {
+                passiveType = PassiveType.TurnDamage, value = 3, target = PassiveTarget.Enemies,
+                reference = AttackReference.Absolute, pattern = new[] { 3, 4, 5 }, pickCount = 1
+            }));
+            e.PlayerAt(0).unitSlots[0] = emisor;
+            var a = new UnitSlot(U(20)); var b = new UnitSlot(U(20));
+            e.PlayerAt(1).unitSlots[3] = a;  // menor índice ocupado del patrón → es el elegido
+            e.PlayerAt(1).unitSlots[4] = b;
+            e.BeginTurn();  // turno de p0: TurnDamage pick 1 pega sólo a 1
+
+            Assert.AreEqual(17, a.currentHp);  // 20 − 3
+            Assert.AreEqual(20, b.currentHp);  // intacto
         }
 
         // ── Pasivas de inicio de turno ─────────────────────────────────────────
