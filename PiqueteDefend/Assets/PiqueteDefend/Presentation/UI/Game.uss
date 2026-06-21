@@ -180,6 +180,13 @@
     border-color: rgb(232, 108, 70);
 }
 
+/* Preview del alcance de un ataque/cura mientras el popover está abierto (a qué slots llega). */
+.slot--reach {
+    border-color: rgb(240, 205, 90);
+    border-width: 3px;
+    background-color: rgba(74, 64, 30, 0.92);
+}
+
 /* Primer slot ya elegido en un efecto de dos pasos (Move/Swap): se marca y queda fijo. */
 .slot--selected {
     border-color: rgb(120, 210, 140);
@@ -351,18 +358,18 @@
 }
 
 .card {
-    width: 84px;
-    min-width: 60px;
-    height: 190px;
+    width: 90px;
+    min-width: 62px;
+    height: 208px;
     flex-grow: 1;
     flex-shrink: 1;
     margin: 0 4px;
-    padding: 9px;
+    padding: 8px;
     border-radius: 8px;
     border-width: 2px;
     border-color: rgba(255, 255, 255, 0.08);
     background-color: rgba(48, 52, 66, 0.96);
-    align-items: flex-start;
+    align-items: stretch;
     justify-content: flex-start;
     transition-property: translate, border-color;
     transition-duration: 0.1s;
@@ -382,23 +389,31 @@
 }
 
 .card__name {
-    font-size: 15px;
+    font-size: 14px;
     -unity-font-style: bold;
     color: rgb(240, 242, 247);
     white-space: normal;
 }
 
+.card__type {
+    font-size: 10px;
+    -unity-font-style: bold;
+    color: rgb(150, 156, 172);
+    margin-top: 2px;
+}
+
 .card__cost {
     font-size: 14px;
-    color: rgb(220, 200, 120);
-    margin-top: 5px;
+    -unity-font-style: bold;
+    color: rgb(228, 206, 120);
+    margin-top: 4px;
 }
 
 .card__body {
-    font-size: 13px;
-    color: rgb(190, 196, 208);
+    font-size: 12px;
+    color: rgb(196, 202, 214);
     white-space: normal;
-    margin-top: 6px;
+    margin-top: 5px;
 }
 
 /* ── Popover de ataque ────────────────────────────────────────────────── */

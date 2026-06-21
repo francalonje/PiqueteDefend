@@ -301,9 +301,14 @@ namespace PiqueteDefend.Presentation
             HideInfoPopover();
             _pendingAttacker = attackerSlot;
             UnitAttack ua = _engine.ActivePlayer.unitSlots[attackerSlot].unit.attack;
+            string verb = ua.IsHeal ? "Curar" : "Atacar";
+            string icon = ua.IsHeal ? "+" : "⚔";
             _popover.text = ua.RequiresChoice
-                ? $"⚔ Atacar (elegí 1) · {ua.damagePerSlot}"
-                : $"⚔ Atacar · {ua.damagePerSlot}";
+                ? $"{icon} {verb} (elegí {ua.pickCount}) · {ua.damagePerSlot}"
+                : $"{icon} {verb} · {ua.damagePerSlot}";
+
+            // Muestra a qué slots llega ESTE ataque (preview), del lado correcto (propio si cura).
+            HighlightReach(attackerSlot, ua);
 
             // worldBound está en panel space; WorldToLocal convierte al content space del root,
             // que es el origin correcto para position:absolute en UI Toolkit.
@@ -326,7 +331,27 @@ namespace PiqueteDefend.Presentation
             }).StartingIn(0);
         }
 
-        private void HidePopover() => _popover.style.display = DisplayStyle.None;
+        private void HidePopover()
+        {
+            _popover.style.display = DisplayStyle.None;
+            ClearReachHighlights();
+        }
+
+        /// <summary>Resalta (preview) los slots que alcanza el ataque/cura de la unidad.</summary>
+        private void HighlightReach(int attackerSlot, UnitAttack ua)
+        {
+            ClearReachHighlights();
+            int side = ua.IsHeal ? _engine.ActiveIndex : 1 - _engine.ActiveIndex;
+            VisualElement[] els = side == 0 ? _p0SlotEls : _p1SlotEls;
+            foreach (int t in GameEngine.ResolveSlots(ua.reference, ua.pattern, attackerSlot))
+                els[t]?.AddToClassList("slot--reach");
+        }
+
+        private void ClearReachHighlights()
+        {
+            foreach (VisualElement el in _p0SlotEls) el?.RemoveFromClassList("slot--reach");
+            foreach (VisualElement el in _p1SlotEls) el?.RemoveFromClassList("slot--reach");
+        }
 
         private void OnPopoverClicked()
         {
@@ -334,9 +359,11 @@ namespace PiqueteDefend.Presentation
 
             if (_engine.AttackRequiresTarget(_pendingAttacker))
             {
+                UnitSlot atk = _engine.ActivePlayer.unitSlots[_pendingAttacker];
+                bool heal = atk != null && atk.unit.attack.IsHeal;
                 _mode = Mode.AwaitAttackTarget;
                 HidePopover();
-                _hint.text = "Elegí el slot enemigo a atacar";
+                _hint.text = heal ? "Elegí a qué aliado curar" : "Elegí el slot enemigo a atacar";
                 _endTurnButton.text = "Cancelar";
                 RenderSlots();
                 return;
@@ -487,10 +514,22 @@ namespace PiqueteDefend.Presentation
                     break;
 
                 case Mode.AwaitAttackTarget:
-                    if (playerIndex == 1 - activeIdx)
+                    // El lado objetivo depende del ataque: HealAllies cura el tablero PROPIO,
+                    // el resto pega al rival. Sólo se habilitan los slots realmente alcanzables.
+                    if (_pendingAttacker >= 0)
                     {
-                        el.AddToClassList("slot--target");
-                        el.RegisterCallback<ClickEvent>(_ => OnAttackTargetChosen(captured));
+                        UnitSlot atk = _engine.ActivePlayer.unitSlots[_pendingAttacker];
+                        if (atk != null)
+                        {
+                            UnitAttack ua = atk.unit.attack;
+                            int targetSide = ua.IsHeal ? activeIdx : 1 - activeIdx;
+                            if (playerIndex == targetSide
+                                && GameEngine.ResolveSlots(ua.reference, ua.pattern, _pendingAttacker).Contains(slotIndex))
+                            {
+                                el.AddToClassList("slot--target");
+                                el.RegisterCallback<ClickEvent>(_ => OnAttackTargetChosen(captured));
+                            }
+                        }
                     }
                     break;
 
@@ -741,9 +780,10 @@ namespace PiqueteDefend.Presentation
             var el = new VisualElement();
             el.AddToClassList("card");
             var name = new Label(card.cardName); name.AddToClassList("card__name");
+            var type = new Label(TypeLabel(card)); type.AddToClassList("card__type");
             var cost = new Label(CostText(card)); cost.AddToClassList("card__cost");
             var body = new Label(EffectText(card)); body.AddToClassList("card__body");
-            el.Add(name); el.Add(cost); el.Add(body);
+            el.Add(name); el.Add(type); el.Add(cost); el.Add(body);
             return el;
         }
 
@@ -1066,22 +1106,69 @@ namespace PiqueteDefend.Presentation
 
         private static string EffectText(CardData c)
         {
+            var lines = new List<string>();
+
             if (c is UnitCardData u)
             {
-                string s = $"{u.maxHp} HP · pega {u.attack.damagePerSlot}";
-                foreach (PassiveEffect p in u.passiveEffects)
-                    if (p.passiveType == PassiveType.ProduceResource)
-                        s += $"\n+{p.value}{ResSym(p.resource)}/turno";
-                return s;
+                lines.Add($"HP {u.maxHp}");
+                lines.Add(u.attack.IsHeal
+                    ? $"Cura {u.attack.damagePerSlot} · {AttackShape(u.attack)}"
+                    : $"Pega {u.attack.damagePerSlot} · {AttackShape(u.attack)}");
+                foreach (PassiveEffect p in u.passiveEffects) lines.Add(PassiveText(p));
+            }
+            else if (c is EquipmentCardData eq)
+            {
+                foreach (StatModifier m in eq.statModifiers)
+                    lines.Add($"+{m.value} {(m.stat == StatType.MaxHp ? "HP máx" : "daño")}");
+                foreach (PassiveEffect p in eq.grantedPassives) lines.Add(PassiveText(p));
+            }
+            else if (c is ActionCardData a)
+            {
+                foreach (CardEffect e in a.effects) lines.Add(EffectPart(e));
             }
 
-            if (c is ActionCardData a)
+            return string.Join("\n", lines);
+        }
+
+        /// <summary>Forma/zona del ataque o cura para previsualizar una carta (sin origen concreto).</summary>
+        private static string AttackShape(UnitAttack ua)
+        {
+            string side = ua.IsHeal ? "aliada" : "enemiga";
+
+            if (ua.reference == AttackReference.Absolute)
             {
-                var parts = new List<string>();
-                foreach (CardEffect e in a.effects) parts.Add(EffectPart(e));
-                return string.Join("\n", parts);
+                string zone = AbsZoneName(ua.pattern);
+                string where = zone != null
+                    ? $"{zone} {side} ({Slots1Based(ua.pattern)})"
+                    : (ua.pattern.Length >= 6 ? $"cualquier slot {side}" : $"slots {side} {Slots1Based(ua.pattern)}");
+                return ua.RequiresChoice ? $"elegí {ua.pickCount} · {where}" : where;
             }
-            return string.Empty;
+
+            // Relative: el alcance depende de la posición; describimos la forma.
+            var set = new HashSet<int>(ua.pattern);
+            string shape =
+                set.SetEquals(new[] { 0 }) ? "al de enfrente" :
+                set.SetEquals(new[] { -1, 0, 1 }) ? "en banda (3 de frente)" :
+                set.SetEquals(new[] { -1, 1 }) ? "a los costados" :
+                "patrón relativo";
+            return ua.RequiresChoice ? $"elegí {ua.pickCount} en banda de frente" : shape;
+        }
+
+        /// <summary>Nombre de zona si el patrón absoluto coincide con un preset (spec §6); si no, null.</summary>
+        private static string AbsZoneName(int[] pattern)
+        {
+            var set = new HashSet<int>(pattern);
+            if (set.SetEquals(new[] { 0, 1, 2 })) return "retaguardia";
+            if (set.SetEquals(new[] { 3, 4, 5 })) return "vanguardia";
+            return null;
+        }
+
+        private static string Slots1Based(int[] idxs)
+        {
+            var parts = new List<string>();
+            foreach (int i in idxs) parts.Add((i + 1).ToString());
+            parts.Sort();
+            return string.Join(", ", parts);
         }
 
         private static string EffectPart(CardEffect e)
@@ -1218,29 +1305,15 @@ namespace PiqueteDefend.Presentation
         private static string AttackInfoText(UnitAttack ua)
         {
             string verb = ua.IsHeal ? "Cura" : "Pega";
-            string pat;
-            if (ua.reference == AttackReference.Absolute)
-            {
-                var parts = new List<string>();
-                foreach (int p in ua.pattern) parts.Add((p + 1).ToString());  // 1-based
-                pat = $"slots {string.Join(", ", parts)}";
-            }
-            else
-            {
-                var parts = new List<string>();
-                foreach (int o in ua.pattern) parts.Add(o > 0 ? $"+{o}" : o.ToString());
-                pat = $"relativo [{string.Join(", ", parts)}]";
-            }
-            string pick = ua.RequiresChoice ? $", elegí {ua.pickCount}" : "";
-            return $"{verb} {ua.damagePerSlot} · {pat}{pick}";
+            return $"{verb} {ua.damagePerSlot} · {AttackShape(ua)}";
         }
 
         private static string DeployZoneText(int[] allowed)
         {
-            if (allowed == null || allowed.Length == 0) return "cualquier slot";
-            var parts = new List<string>();
-            foreach (int s in allowed) parts.Add((s + 1).ToString());  // 1-based
-            return $"slots {string.Join(", ", parts)}";
+            if (allowed == null || allowed.Length == 0) return "cualquier slot (1–6)";
+            string zone = AbsZoneName(allowed);
+            string slots = Slots1Based(allowed);
+            return zone != null ? $"{zone} ({slots})" : $"slots {slots}";
         }
 
         private static string ResSym(ResourceType r) => r switch
