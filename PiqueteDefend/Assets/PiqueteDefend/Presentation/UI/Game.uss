@@ -123,6 +123,62 @@
     left: auto;
 }
 
+/* Medidor de inflación (spec §3/§11): cartel central que aparece cuando la inflación
+   arranca; el color se intensifica por tramos (leve → medio → alto) a mayor %. */
+.inflation-meter {
+    position: absolute;
+    top: 34%;
+    left: 50%;
+    translate: -50% 0;
+    align-items: center;
+    padding: 8px 30px 10px 30px;
+    border-radius: 14px;
+    border-width: 2px;
+    border-color: rgb(245, 205, 90);
+    background-color: rgba(58, 38, 8, 0.94);
+    transition-property: background-color, border-color;
+    transition-duration: 0.3s;
+}
+
+.inflation-meter__title {
+    font-size: 13px;
+    -unity-font-style: bold;
+    letter-spacing: 2px;
+    color: rgb(245, 205, 90);
+    -unity-text-align: middle-center;
+}
+
+.inflation-meter__pct {
+    font-size: 34px;
+    -unity-font-style: bold;
+    color: rgb(255, 232, 150);
+    -unity-text-align: middle-center;
+    margin-top: -2px;
+}
+
+.inflation-meter__sub {
+    font-size: 13px;
+    color: rgb(214, 196, 150);
+    -unity-text-align: middle-center;
+}
+
+/* Tramo medio (25–59%): naranja. */
+.inflation-meter--mid {
+    border-color: rgb(255, 168, 92);
+    background-color: rgba(96, 44, 8, 0.95);
+}
+.inflation-meter--mid .inflation-meter__title { color: rgb(255, 178, 102); }
+.inflation-meter--mid .inflation-meter__pct { color: rgb(255, 214, 168); }
+
+/* Tramo alto (≥60%): rojo de alarma. */
+.inflation-meter--high {
+    border-color: rgb(255, 120, 90);
+    background-color: rgba(140, 28, 18, 0.96);
+}
+.inflation-meter--high .inflation-meter__title { color: rgb(255, 150, 130); }
+.inflation-meter--high .inflation-meter__pct { color: rgb(255, 220, 205); }
+.inflation-meter--high .inflation-meter__sub { color: rgb(255, 196, 180); }
+
 /* ── Espaciador (deja ver el fondo entre top y la banda inferior) ─────── */
 .game__spacer {
     flex-grow: 1;
@@ -434,6 +490,11 @@
     -unity-font-style: bold;
     color: rgb(228, 206, 120);
     margin-top: 4px;
+}
+
+/* Costo con inflación aplicada: se tiñe de naranja para avisar que está inflado. */
+.card__cost--inflated {
+    color: rgb(255, 168, 92);
 }
 
 .card__body {

@@ -17,7 +17,7 @@ MonoBehaviour:
   faction: 0
   costs:
   - resource: 1
-    amount: 5
+    amount: 6
   drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 

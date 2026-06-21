@@ -36,6 +36,7 @@ PiqueteDefend/                         # raíz del repo
 │   ├── rules.py  cards.py  model.py   # motor / catálogo / tipos (espejo de Core)
 │   ├── knobs.py                        # GlobalKnobs + SHIPPED (config que ship­ea) + BASELINE
 │   ├── policy.py  sweep.py  main.py    # bot heurístico / batch / CLI
+│   ├── valuation.py                     # pricing per-card por valor/costo (Fase 1 del balance per-card)
 │   └── parity_check.py                 # verifica cards.py × SHIPPED == catálogo del Core
 ├── CLAUDE.md                          # arquitectura y convenciones
 └── PiqueteDefend/                     # proyecto Unity (6000.5.0f1, URP)
@@ -86,8 +87,11 @@ Unity.exe -runTests -batchmode -projectPath PiqueteDefend \
 # Simulador de balance (Python, usar `py` en esta máquina)
 py sim/main.py run            # config que ship­ea (SHIPPED), n=500
 py sim/main.py run --n 5000   # batch grande
+py sim/main.py run --n 10000 --paired   # balance de facción: 2n partidas (first=0 y first=1
+                                        # por seed, mismos draws) + IC95 sobre las decisivas
 py sim/main.py game --seed 7  # traza de 1 partida
 py sim/parity_check.py        # sim × SHIPPED == catálogo del Core (correr si tocás cards/knobs)
+py sim/valuation.py           # ranking valor/costo per-card: detecta las cartas más fuertes a encarecer
 ```
 
 Desde el editor abierto: `Window → General → Test Runner` (EditMode) y el menú **PiqueteDefend**
@@ -173,8 +177,17 @@ Furia + Aura − Desmoralizar) lo calcula `GameEngine.EffectiveAttackDamage(...)
 Todos los parámetros viven en [`Core/GameConfig.cs`](../PiqueteDefend/Assets/PiqueteDefend/Core/GameConfig.cs):
 recursos iniciales, producción base por recurso, `maxResource`, reglas de iniciativa
 (`firstProducesTurn1`, `firstNoAttackTurn1`), `suddenDeathStart`/`suddenDeathDamage`, `maxTurns`,
-`handSize`, `maxSlots`. La condición de victoria (KO / empate / timeout) y el desempate están en
-`GameEngine.CheckVictory` / `TimeoutTiebreak`. Espejo de los knobs en `sim/knobs.py` (`SHIPPED`).
+`handSize`, `maxSlots`, e **inflación** (`inflationStartTurn`, `inflationPercentPerTurn`, §3). La
+condición de victoria (KO / empate / timeout) y el desempate están en `GameEngine.CheckVictory` /
+`TimeoutTiebreak`. Espejo de los knobs en `sim/knobs.py` (`SHIPPED`).
+
+> **Costo de cartas — dos multiplicadores (spec §3):** (1) **factor global ×1.2**, horneado al
+> generar los assets (`CardLibrary.CostScale`, espejo de `knobs.cost_mult`); los `amount` de los
+> builders son el costo **base**. (2) **Inflación** por turno: `GameEngine.InflationPercent` →
+> `PlayerState.InflatedAmount(amount, pct)` (ceil) en `CanAfford`/`Pay`; espejo en
+> `sim/rules.py` (`inflated_amount`, `GameEngine.inflation_percent`) y el bot lo respeta
+> (`policy.take_turn` pasa `engine.inflation_percent`). La UI muestra costo inflado + medidor
+> (`GameController.RenderInflationMeter`).
 
 ### 4.7 Tests
 

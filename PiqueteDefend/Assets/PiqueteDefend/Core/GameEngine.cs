@@ -59,6 +59,20 @@ namespace PiqueteDefend.Core
         /// <summary>True si el jugador activo puede atacar este turno (regla de iniciativa, spec §3/§16).</summary>
         public bool CanAttackThisTurn => !(_config.firstNoAttackTurn1 && HalfTurn == 1);
 
+        /// <summary>% de inflación vigente este medio-turno (spec §3). 0 = inflación no arrancó.</summary>
+        public int InflationPercent
+        {
+            get
+            {
+                int start = _config.inflationStartTurn;
+                if (start <= 0 || HalfTurn < start) return 0;
+                return (HalfTurn - start + 1) * _config.inflationPercentPerTurn;
+            }
+        }
+
+        /// <summary>True una vez que la inflación está activa (para que la UI muestre el medidor).</summary>
+        public bool InflationActive => InflationPercent > 0;
+
         // ── Setup ───────────────────────────────────────────────────────────────
 
         public void StartGame(Faction player0Faction, Faction player1Faction, int firstIndex = -1)
@@ -239,14 +253,15 @@ namespace PiqueteDefend.Core
 
             if (handIndex < 0 || handIndex >= active.hand.Count) return ActionResult.IndexOutOfRange;
             CardData card = active.hand[handIndex];
-            if (!active.CanAfford(card)) return ActionResult.CannotAfford;
+            int inflation = InflationPercent;
+            if (!active.CanAfford(card, inflation)) return ActionResult.CannotAfford;
 
             if (card is UnitCardData unit)
             {
                 int slot = ResolveDeploySlot(unit, active, deploySlot, out ActionResult deployResult);
                 if (deployResult != ActionResult.Success) return deployResult;
 
-                active.Pay(card);
+                active.Pay(card, inflation);
                 active.unitSlots[slot] = new UnitSlot(unit);
             }
             else if (card is EquipmentCardData equip)
@@ -256,7 +271,7 @@ namespace PiqueteDefend.Core
                 if (effectTargetSlot >= active.unitSlots.Length || active.unitSlots[effectTargetSlot] == null)
                     return ActionResult.InvalidTarget;
 
-                active.Pay(card);
+                active.Pay(card, inflation);
                 active.unitSlots[effectTargetSlot].Attach(equip);
             }
             else if (card is ActionCardData action)
@@ -264,7 +279,7 @@ namespace PiqueteDefend.Core
                 ActionResult pre = ValidateEffectTargets(action, active, opp, effectTargetSlot, effectTargetSlotB);
                 if (pre != ActionResult.Success) return pre;
 
-                active.Pay(card);
+                active.Pay(card, inflation);
                 foreach (CardEffect effect in action.effects)
                     ResolveEffect(effect, active, opp, effectTargetSlot, effectTargetSlotB);
             }
@@ -691,7 +706,7 @@ namespace PiqueteDefend.Core
         {
             if (Phase != GamePhase.AwaitingAction) return false;
             if (handIndex < 0 || handIndex >= ActivePlayer.hand.Count) return false;
-            return ActivePlayer.CanAfford(ActivePlayer.hand[handIndex]);
+            return ActivePlayer.CanAfford(ActivePlayer.hand[handIndex], InflationPercent);
         }
 
         /// <summary>

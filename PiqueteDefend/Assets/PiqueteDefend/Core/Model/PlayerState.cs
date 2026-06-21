@@ -53,17 +53,25 @@ namespace PiqueteDefend.Core
         public void AddResource(ResourceType r, int delta, int max)
             => SetResource(r, GetResource(r) + delta, max);
 
-        public bool CanAfford(CardData card)
+        public bool CanAfford(CardData card, int inflationPercent = 0)
         {
             foreach (ResourceCost c in card.costs)
-                if (GetResource(c.resource) < c.amount) return false;
+                if (GetResource(c.resource) < InflatedAmount(c.amount, inflationPercent)) return false;
             return true;
         }
 
-        public void Pay(CardData card)
+        public void Pay(CardData card, int inflationPercent = 0)
         {
             foreach (ResourceCost c in card.costs)
-                SetResource(c.resource, GetResource(c.resource) - c.amount, int.MaxValue);
+                SetResource(c.resource, GetResource(c.resource) - InflatedAmount(c.amount, inflationPercent), int.MaxValue);
+        }
+
+        /// <summary>Costo con inflación aplicada (spec §3). Redondea hacia ARRIBA para que la
+        /// inflación siempre muerda; espejo de sim.rules.inflated_amount.</summary>
+        public static int InflatedAmount(int amount, int inflationPercent)
+        {
+            if (inflationPercent <= 0) return amount;
+            return (int)System.Math.Ceiling(amount * (100 + inflationPercent) / 100.0);
         }
 
         // ── Unidades ────────────────────────────────────────────────────────────

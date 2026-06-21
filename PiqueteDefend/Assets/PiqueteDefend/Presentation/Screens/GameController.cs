@@ -50,8 +50,9 @@ namespace PiqueteDefend.Presentation
         // UI refs
         private VisualElement _root, _screen, _hand, _p0Slots, _p1Slots, _overlay, _playZone, _discardZone;
         private Button _popover;
-        private VisualElement _infoPopover, _infoBody;
+        private VisualElement _infoPopover, _infoBody, _inflationMeter;
         private Label _turnChip, _hint, _overlayTitle, _overlayMsg, _firstTurnNotice;
+        private Label _inflationPct, _inflationSub;
         private Button _overlayPrimary, _overlaySecondary, _endTurnButton;
         private readonly Label[] _faction = new Label[2];
         private readonly Label[] _res = new Label[2];
@@ -71,6 +72,7 @@ namespace PiqueteDefend.Presentation
             BuildPopover();
             BuildInfoPopover();
             BuildFirstTurnNotice();
+            BuildInflationMeter();
 
             var catalog = Resources.Load<CardCatalog>(CatalogResource);
             if (catalog == null)
@@ -152,6 +154,35 @@ namespace PiqueteDefend.Presentation
             _firstTurnNotice.style.display = DisplayStyle.None;
             _root.Add(_firstTurnNotice);
             Stylize(_firstTurnNotice);
+        }
+
+        /// <summary>Medidor de inflación: cartel central que aparece cuando la inflación arranca (spec §3/§11).
+        /// Muestra título + % grande + multiplicador efectivo (×1.X).</summary>
+        private void BuildInflationMeter()
+        {
+            _inflationMeter = new VisualElement();
+            _inflationMeter.AddToClassList("inflation-meter");
+            _inflationMeter.pickingMode = PickingMode.Ignore;
+            _inflationMeter.style.position = Position.Absolute;
+            _inflationMeter.style.display = DisplayStyle.None;
+
+            var title = new Label("▲  I N F L A C I Ó N");
+            title.AddToClassList("inflation-meter__title");
+            title.pickingMode = PickingMode.Ignore;
+
+            _inflationPct = new Label("+0%");
+            _inflationPct.AddToClassList("inflation-meter__pct");
+            _inflationPct.pickingMode = PickingMode.Ignore;
+
+            _inflationSub = new Label("las cartas cuestan ×1.0");
+            _inflationSub.AddToClassList("inflation-meter__sub");
+            _inflationSub.pickingMode = PickingMode.Ignore;
+
+            _inflationMeter.Add(title);
+            _inflationMeter.Add(_inflationPct);
+            _inflationMeter.Add(_inflationSub);
+            _root.Add(_inflationMeter);
+            Stylize(_inflationMeter);
         }
 
         /// <summary>Copia las stylesheets de la pantalla a un elemento agregado fuera de su subárbol,
@@ -429,6 +460,7 @@ namespace PiqueteDefend.Presentation
             HidePopover();
             HideInfoPopover();
             RenderTurnChip();
+            RenderInflationMeter();
             _hint.text = string.Empty;
             _endTurnButton.text = "Terminar turno";
             RenderPanel(0);
@@ -457,6 +489,26 @@ namespace PiqueteDefend.Presentation
                 _firstTurnNotice.EnableInClassList("first-turn-notice--left", p0Active);
                 _firstTurnNotice.EnableInClassList("first-turn-notice--right", !p0Active);
             }
+        }
+
+        /// <summary>Muestra el medidor de inflación cuando está activa (spec §3). El color y el
+        /// tamaño escalan por tramos a medida que crece el %.</summary>
+        private void RenderInflationMeter()
+        {
+            if (_inflationMeter == null) return;
+            int pct = _engine.InflationPercent;
+            if (pct <= 0)
+            {
+                _inflationMeter.style.display = DisplayStyle.None;
+                return;
+            }
+            _inflationMeter.style.display = DisplayStyle.Flex;
+            _inflationPct.text = $"+{pct}%";
+            // multiplicador efectivo de costo (lo que se suma a cada carta): ×1.X
+            _inflationSub.text = $"las cartas cuestan ×{(1f + pct / 100f):0.0#}";
+            // ramp de color en tres tramos: leve (<25%) → medio (25–59%) → alto (≥60%).
+            _inflationMeter.EnableInClassList("inflation-meter--mid", pct >= 25 && pct < 60);
+            _inflationMeter.EnableInClassList("inflation-meter--high", pct >= 60);
         }
 
         private void RenderPanel(int index)
@@ -693,7 +745,7 @@ namespace PiqueteDefend.Presentation
             if (handIndex < 0 || handIndex >= _engine.ActivePlayer.hand.Count) return;
             CardData card = _engine.ActivePlayer.hand[handIndex];
 
-            BeginInfoPanel(card.cardName, $"{CostText(card)}  ·  {TypeLabel(card)}");
+            BeginInfoPanel(card.cardName, $"{CostText(card, _engine.InflationPercent)}  ·  {TypeLabel(card)}");
             AddInfoDesc(!string.IsNullOrEmpty(card.flavorText) ? card.flavorText : card.descriptionText);
 
             if (card is UnitCardData u)
@@ -790,8 +842,8 @@ namespace PiqueteDefend.Presentation
             for (int i = 0; i < active.hand.Count; i++)
             {
                 CardData card = active.hand[i];
-                var el = BuildCardVisual(card);
-                if (!active.CanAfford(card)) el.AddToClassList("card--unaffordable");
+                var el = BuildCardVisual(card, _engine.InflationPercent);
+                if (!active.CanAfford(card, _engine.InflationPercent)) el.AddToClassList("card--unaffordable");
                 if (cardUsed) el.AddToClassList("card--used");
 
                 if (!cardUsed) MakeDraggable(el, i);
@@ -808,13 +860,14 @@ namespace PiqueteDefend.Presentation
         /// Construye el visual de una carta (.card con nombre/costo/cuerpo).
         /// Lo comparten la mano y el ghost que acompaña el drag.
         /// </summary>
-        private static VisualElement BuildCardVisual(CardData card)
+        private static VisualElement BuildCardVisual(CardData card, int inflationPercent = 0)
         {
             var el = new VisualElement();
             el.AddToClassList("card");
             var name = new Label(card.cardName); name.AddToClassList("card__name");
             var type = new Label(TypeLabel(card)); type.AddToClassList("card__type");
-            var cost = new Label(CostText(card)); cost.AddToClassList("card__cost");
+            var cost = new Label(CostText(card, inflationPercent)); cost.AddToClassList("card__cost");
+            if (inflationPercent > 0) cost.AddToClassList("card__cost--inflated");
             var body = new Label(EffectText(card)); body.AddToClassList("card__body");
             el.Add(name); el.Add(type); el.Add(cost); el.Add(body);
             return el;
@@ -853,7 +906,7 @@ namespace PiqueteDefend.Presentation
             HideInfoPopover();
 
             // El ghost es una copia visual de la carta (no solo el nombre) que sigue al puntero.
-            _ghost = BuildCardVisual(_engine.ActivePlayer.hand[index]);
+            _ghost = BuildCardVisual(_engine.ActivePlayer.hand[index], _engine.InflationPercent);
             _ghost.AddToClassList("drag-ghost");
             _ghost.pickingMode = PickingMode.Ignore;
             Stylize(_ghost);
@@ -1130,11 +1183,12 @@ namespace PiqueteDefend.Presentation
             return string.Join("  ", parts);
         }
 
-        private static string CostText(CardData c)
+        private static string CostText(CardData c, int inflationPercent = 0)
         {
             if (c.costs == null || c.costs.Count == 0) return "gratis";
             var parts = new List<string>();
-            foreach (ResourceCost rc in c.costs) parts.Add($"{rc.amount}{ResSym(rc.resource)}");
+            foreach (ResourceCost rc in c.costs)
+                parts.Add($"{PlayerState.InflatedAmount(rc.amount, inflationPercent)}{ResSym(rc.resource)}");
             return string.Join("  ", parts);
         }
 

@@ -177,10 +177,10 @@ def build_manifestantes(k: GlobalKnobs) -> List[CardData]:
         action("cambio_consigna", "Cambio de Consigna", M, "Especial", SOC, 1, [move_unit(TS())], k),
 
         # Equipo (4)
-        equip("pechera", "Pechera de Cartón", M, DIN, 2, [StatModifier(StatType.MAX_HP, scale(12, k.hp_mult, 1))], [], k),
+        equip("pechera", "Pechera de Cartón", M, DIN, 3, [StatModifier(StatType.MAX_HP, scale(12, k.hp_mult, 1))], [], k),
         equip("cascote", "Cascote", M, FZA, 2, [StatModifier(StatType.DAMAGE, scale(3, k.dmg_mult, 1))], [], k),
         equip("parrilla", "Parrilla Portátil", M, DIN, 3, [], [regen(2, k)], k),
-        equip("miguelitos", "Miguelitos", M, FZA, 2, [], [retaliate(3, k)], k),
+        equip("miguelitos", "Miguelitos", M, FZA, 3, [], [retaliate(3, k)], k),
     ]
 
 
@@ -193,11 +193,11 @@ def build_policias(k: GlobalKnobs) -> List[CardData]:
         # Unidades
         unit("infante", "Infante", P, "Escaramuza", FZA, 6, 26, [],
              atk(REL, [-1, 0, 1], 1, 10, k), [aura(1, k)], k),
-        unit("gendarme", "Gendarme", P, "Muro", DIN, 3, 32, FRENTE,
+        unit("gendarme", "Gendarme", P, "Muro", DIN, 4, 32, FRENTE,
              atk(ABS, [3, 4, 5], 0, 2, k), [retaliate(2, k)], k),
         unit("puntero", "Puntero", P, "Productora", DIN, 5, 14, RETAGUARDIA,
              atk(REL, [0], 0, 2, k), [produce(DIN, 1, k)], k),
-        unit("itakero", "Itakero", P, "Cleave", FZA, 3, 22, [1, 2, 3, 4],
+        unit("itakero", "Itakero", P, "Cleave", FZA, 4, 22, [1, 2, 3, 4],
              atk(REL, [-1, 0, 1], 0, 3, k), [produce(FZA, 1, k)], k),
         unit("trol", "Trol Oficial", P, "Productora", SOC, 5, 16, RETAGUARDIA,
              atk(REL, [0], 0, 1, k), [produce(SOC, 1, k)], k),
@@ -212,7 +212,7 @@ def build_policias(k: GlobalKnobs) -> List[CardData]:
              [turn_status(poison(2, 1, k), FRENTE, 1, k)], k),
 
         # Acciones (10)
-        action("partida", "Partida Presupuestaria", P, "Boost", SOC, 1, [mod_res(TS(), DIN, 7, k)], k),
+        action("partida", "Partida Presupuestaria", P, "Boost", SOC, 2, [mod_res(TS(), DIN, 7, k)], k),
         action("licitacion", "Licitación Express", P, "Boost", DIN, 3, [mod_res(TS(), FZA, 8, k)], k),
         action("cadena", "Cadena Nacional", P, "Boost", DIN, 2, [mod_res(TS(), SOC, 4, k)], k),
         action("embargo", "Embargo", P, "Sabotaje", FZA, 3, [mod_res(TO(), DIN, -7, k)], k),
@@ -225,7 +225,7 @@ def build_policias(k: GlobalKnobs) -> List[CardData]:
         action("reubicacion", "Reubicación Forzosa", P, "Especial", DIN, 2, [swap_units(TO())], k),
 
         # Equipo (4)
-        equip("chaleco", "Chaleco Antibalas", P, DIN, 2, [StatModifier(StatType.MAX_HP, scale(14, k.hp_mult, 1))], [], k),
+        equip("chaleco", "Chaleco Antibalas", P, DIN, 3, [StatModifier(StatType.MAX_HP, scale(14, k.hp_mult, 1))], [], k),
         equip("tonfa", "Tonfa", P, FZA, 2, [StatModifier(StatType.DAMAGE, scale(3, k.dmg_mult, 1))], [], k),
         equip("obra_social", "Obra Social", P, DIN, 3, [], [regen(2, k)], k),
         equip("reflectores", "Reflectores", P, SOC, 2, [], [aura(1, k)], k),
