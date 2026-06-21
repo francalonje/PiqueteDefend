@@ -35,15 +35,15 @@ Cada jugador maneja 3 recursos independientes.
 
 | Recurso | Descripción | Producción base | Máximo |
 |---------|-------------|-----------------|--------|
-| **Dinero** ($) | Plata para movilizar gente y pagar logística | 0 / turno | 100 |
-| **Fuerza** (⚡) | Capacidad física, represión o resistencia | 0 / turno | 100 |
-| **Social** (📣) | Apoyo popular, organización, narrativa | 0 / turno | 100 |
+| **Dinero** ($) | Plata para movilizar gente y pagar logística | +1 / turno | 100 |
+| **Fuerza** (⚡) | Capacidad física, represión o resistencia | +1 / turno | 100 |
+| **Social** (📣) | Apoyo popular, organización, narrativa | +1 / turno | 100 |
 
-> La producción base es 0. Los recursos solo se generan mediante unidades con efecto pasivo de producción o cartas de Acción. Los valores de producción base son configurables desde código en un único lugar para facilitar el balanceo.
+> La producción base es **+1 de cada recurso por turno**. Encima de eso, las unidades con pasiva de producción y las cartas de Acción suman extra. Los valores de producción base son configurables desde código en un único lugar (`GameConfig`) para facilitar el balanceo.
 
 **Recursos iniciales al inicio de la partida:** 5 de cada recurso (configurable para balanceo).
 
-**Primer turno:** los jugadores NO reciben producción. La producción comienza a partir del turno 2.
+**Primer turno:** el primer jugador NO recibe producción en su turno 1 (ni base ni de unidades). La producción comienza a partir del turno 2.
 
 **Recursos negativos:** los recursos nunca bajan de 0. El exceso de reducción se descarta.
 
@@ -124,8 +124,9 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
                   → Evaluar condición de victoria (Poison / TurnDamage pueden matar)
 
 2. PRODUCCIÓN   — Si NO es el turno 1 de la partida Y skipProduction no está activo:
-                    a) Producción de unidades con efecto pasivo de producción
-                    b) Multiplicar por productionMultiplier (default 1; doble si hay DoubleProduction)
+                    a) Producción base: +1 de cada recurso (GameConfig)
+                    b) Producción de unidades con efecto pasivo de producción
+                    c) Multiplicar por productionMultiplier (default 1; doble si hay DoubleProduction)
                   → Evaluar condición de victoria
 
 3. ACCIÓN       — El jugador puede hacer ambas, una, o ninguna (en cualquier orden):
@@ -623,7 +624,7 @@ Overlay con:
 | Apilamiento de unidades | No activo (punto de extensión [FUTURO], `UnitSlot.count`) |
 | Unidades iniciales por facción | Predefinidas (data por facción) |
 | Recursos iniciales | 5 de cada uno (configurable) |
-| Producción base por turno | 0 (configurable en código en un lugar) |
+| Producción base por turno | +1 de cada recurso ($/⚡/📣); en `GameConfig` (configurable) |
 | Primer turno sin producción | Sí |
 | Lados de facción | Fijos (por ahora): Manifestantes izquierda, Policías derecha |
 | Primer jugador | Lo elige la selección de facción (la que arranca); coinflip si no se especifica |
@@ -668,6 +669,7 @@ Checklist para la sesión de implementación. **El spec es la fuente de verdad: 
 - [ ] Regenerar los assets de unidad (ScriptableObjects) desde la librería.
 - [ ] Verificar la base de índices: `allowedSlots` y los `Absolute pattern` en base 0 (slot spec `k` → índice `k-1`); los offsets `Relative` no cambian.
 - [ ] (Opcional) helpers/constantes de presets de zonas y patrones (§6).
+- [ ] `GameConfig`: producción base = **1 de cada recurso** (`baseProdDinero`/`baseProdFuerza`/`baseProdSocial` = 1).
 
 ### Fase 2 — Pasivas variadas y curación
 - [ ] `PassiveType` += `Regeneration`, `AuraDamage`, `Retaliate` (§7.3).
