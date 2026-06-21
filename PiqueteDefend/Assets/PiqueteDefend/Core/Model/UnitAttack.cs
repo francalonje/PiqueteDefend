@@ -20,6 +20,12 @@ namespace PiqueteDefend.Core
         public int pickCount;
         public int damagePerSlot;
 
+        /// <summary>
+        /// Id del sonido al golpear (lo resuelve AudioManager desde Resources). Opcional:
+        /// vacío = usa el default global de ataque. Punto de extensión para sonido por ataque.
+        /// </summary>
+        public string hitSoundId;
+
         public UnitAttack() { }
 
         public UnitAttack(AttackReference reference, int[] pattern, int pickCount, int damagePerSlot)

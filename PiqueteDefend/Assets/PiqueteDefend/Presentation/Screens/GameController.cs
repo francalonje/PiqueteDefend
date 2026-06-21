@@ -42,6 +42,7 @@ namespace PiqueteDefend.Presentation
         private int _animAttackerIdx = -1;
         private int _animAttackerPlayer = -1;
         private int[] _animOpponentSnap;
+        private string _animHitSoundId;
 
         // UI refs
         private VisualElement _root, _hand, _p0Slots, _p1Slots, _overlay, _playZone, _discardZone;
@@ -187,23 +188,41 @@ namespace PiqueteDefend.Presentation
                 return;
             }
 
-            ResolveCardPlay(_engine.PlayCard(index));
+            CardData played = _engine.ActivePlayer.hand[index];
+            ResolveCardPlay(_engine.PlayCard(index), played);
         }
 
         private void DoDiscard(int index)
         {
             if (_engine.CardActionUsed) return;
-            ResolveCardPlay(_engine.DiscardCard(index));
+            ResolveCardPlay(_engine.DiscardCard(index));   // descartar no es "jugar": sin sonido de jugada
         }
 
-        private void ResolveCardPlay(ActionResult result)
+        // playedCard != null → se reproduce el sonido de jugar carta (propio de la carta o el default).
+        private void ResolveCardPlay(ActionResult result, CardData playedCard = null)
         {
             if (result != ActionResult.Success) { _hint.text = "No se pudo jugar la carta"; return; }
+            if (playedCard != null)
+                AudioManager.Instance?.PlaySfx(Sfx(playedCard.playSoundId, AudioId.CardPlay));
             AfterAction();
         }
 
-        private void OnDeploySlotChosen(int slot) => ResolveCardPlay(_engine.PlayCard(_pendingCard, deploySlot: slot));
-        private void OnEffectTargetChosen(int slot) => ResolveCardPlay(_engine.PlayCard(_pendingCard, effectTargetSlot: slot));
+        // La carta se captura ANTES de PlayCard porque jugarla repone la mano en ese índice.
+        private void OnDeploySlotChosen(int slot)
+        {
+            CardData played = _engine.ActivePlayer.hand[_pendingCard];
+            ResolveCardPlay(_engine.PlayCard(_pendingCard, deploySlot: slot), played);
+        }
+
+        private void OnEffectTargetChosen(int slot)
+        {
+            CardData played = _engine.ActivePlayer.hand[_pendingCard];
+            ResolveCardPlay(_engine.PlayCard(_pendingCard, effectTargetSlot: slot), played);
+        }
+
+        /// <summary>Id específico si está seteado; si no, el default global. Punto único de fallback de SFX.</summary>
+        private static string Sfx(string specific, string fallback) =>
+            string.IsNullOrEmpty(specific) ? fallback : specific;
 
         // ── Atacar (click unidad → popover → atacar) ────────────────────────────
 
@@ -548,6 +567,7 @@ namespace PiqueteDefend.Presentation
         {
             _animAttackerIdx = attackerSlot;
             _animAttackerPlayer = _engine.ActiveIndex;
+            _animHitSoundId = _engine.ActivePlayer.unitSlots[attackerSlot]?.unit.attack.hitSoundId;
             int opp = 1 - _engine.ActiveIndex;
             var p = _engine.PlayerAt(opp);
             _animOpponentSnap = new int[p.unitSlots.Length];
@@ -564,6 +584,7 @@ namespace PiqueteDefend.Presentation
             FlashElement(attackerEls[_animAttackerIdx], "slot--flash-attack");
 
             PlayerState opp = _engine.PlayerAt(oppIdx);
+            bool anyHit = false;
             for (int i = 0; i < _animOpponentSnap.Length; i++)
             {
                 int hpBefore = _animOpponentSnap[i];
@@ -571,14 +592,20 @@ namespace PiqueteDefend.Presentation
                 int hpNow = opp.unitSlots[i]?.currentHp ?? 0;
                 if (hpBefore <= hpNow) continue;
 
+                anyHit = true;
                 bool killed = hpNow <= 0;
                 FlashElement(defenderEls[i], killed ? "slot--flash-dead" : "slot--flash-hit");
                 ShakeElement(defenderEls[i]);
             }
 
+            // Un solo golpe por ataque cuando efectivamente impacta (un whiff a slot vacío no suena).
+            if (anyHit)
+                AudioManager.Instance?.PlaySfx(Sfx(_animHitSoundId, AudioId.AttackHit));
+
             _animAttackerIdx = -1;
             _animAttackerPlayer = -1;
             _animOpponentSnap = null;
+            _animHitSoundId = null;
         }
 
         private static void FlashElement(VisualElement el, string cls)

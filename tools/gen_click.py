@@ -29,4 +29,8 @@ base = r"D:\PiqueteDefend\PiqueteDefend\Assets\PiqueteDefend\Presentation\Resour
 print("Generando clicks:")
 write_click(base + r"\button-click.wav", freq=1200, dur=0.045, decay=0.010, amp=0.45, noise=0.15, seed=1)
 write_click(base + r"\card-click.wav",   freq=1900, dur=0.035, decay=0.007, amp=0.45, noise=0.28, seed=2)
+# Default global al JUGAR una carta: click medio, un poco más grave que el de agarrar.
+write_click(base + r"\card-play.wav",    freq=520,  dur=0.070, decay=0.018, amp=0.50, noise=0.20, seed=3)
+# Default global de golpe (ataque): thud grave y ruidoso → suena a impacto.
+write_click(base + r"\attack-hit.wav",   freq=150,  dur=0.140, decay=0.050, amp=0.70, noise=0.55, seed=4)
 print("Listo.")

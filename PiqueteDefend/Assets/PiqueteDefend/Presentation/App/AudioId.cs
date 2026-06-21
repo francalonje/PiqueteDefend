@@ -10,7 +10,9 @@ namespace PiqueteDefend.Presentation
     {
         // SFX
         public const string ButtonClick = "button-click";
-        public const string CardClick = "card-click";
+        public const string CardClick = "card-click";   // al agarrar una carta (drag) / click de unidad
+        public const string CardPlay = "card-play";      // default global al JUGAR una carta
+        public const string AttackHit = "attack-hit";    // default global al golpear con un ataque
 
         // Música — un slot por pantalla. Hoy los tres apuntan al mismo audio (audiobg),
         // pero son archivos separados en Resources/Audio para poder divergir en el futuro
