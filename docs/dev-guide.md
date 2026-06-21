@@ -5,6 +5,9 @@ más comunes (cartas, efectos, ataques, estados, condiciones de partida, sprites
 
 > **Fuentes de verdad.** Reglas y diseño: [`game-spec.md`](game-spec.md). Arquitectura y
 > convenciones: [`../CLAUDE.md`](../CLAUDE.md). Este doc es el "cómo se hace", no reemplaza a esos.
+>
+> **¿Apurado?** [`dev-cheatsheet.md`](dev-cheatsheet.md) es la versión de una página (tablas
+> "quiero X → tocá Y", comandos y reglas clave).
 
 ---
 
