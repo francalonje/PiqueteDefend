@@ -87,11 +87,12 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
 ### 5.1 Terminación garantizada (anti-stalemate)
 
 **Muerte súbita (mecanismo principal):**
-- A partir del turno `suddenDeathStart` (default: **30**), al final de cada turno todas las unidades de ambos jugadores reciben **1 punto de daño** (ignora defensas, es inevitable).
+- A partir del turno `suddenDeathStart` (default: **50**), al final de cada turno todas las unidades de ambos jugadores reciben **1 punto de daño** (ignora defensas, es inevitable).
+- Es un **backstop**, no la forma normal de ganar: se fija **bien por encima de la duración ideal** (§12) para que casi ninguna partida llegue. La duración objetivo se ajusta con HP/daño/recursos, no con este número.
 - Garantiza que las unidades mueran eventualmente si ningún jugador es eliminado antes.
 
 **Límite de turnos (backstop duro):**
-- `maxTurns` (default: **100**). Si se alcanza sin ganador, la partida termina por desempate determinista:
+- `maxTurns` (default: **120**). Si se alcanza sin ganador, la partida termina por desempate determinista:
   1. Jugador con más unidades vivas gana.
   2. Si empatan → mayor suma de HP total de unidades.
   3. Si aún empatan → gana el jugador que **no** fue primero.
@@ -628,8 +629,9 @@ Overlay con:
 | Primer turno sin producción | Sí |
 | Lados de facción | Fijos (por ahora): Manifestantes izquierda, Policías derecha |
 | Primer jugador | Lo elige la selección de facción (la que arranca); coinflip si no se especifica |
-| `suddenDeathStart` | Turno 30 (configurable) |
-| `maxTurns` | 100 (configurable) |
+| `suddenDeathStart` | Turno 50 (backstop, configurable; bien por encima de la duración ideal) |
+| `maxTurns` | 120 (backstop duro, configurable) |
+| Duración ideal de partida | ~30–40 medios-turnos (≈15–20 por jugador); a afinar por simulación |
 | Cartas por facción | 22 (8 unidades + 10 acciones + 4 equipo) |
 | Peso de robo (`drawWeight`) | 1 para todas (robo uniforme; rareza a futuro) |
 
