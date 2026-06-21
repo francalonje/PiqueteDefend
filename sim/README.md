@@ -7,12 +7,23 @@ y §12 (parámetros) y resuelve combate posicional por slots con victoria por KO
 ## Uso (Python via `py`)
 
 ```
-py main.py run                                   # batch con knobs default, verbose
-py main.py run --n 5000 --hp 0.85 --dmg 1.5 --no-attack-t1 --produces-t1   # config final
-py main.py game --seed 7                         # traza de 1 partida (debug)
-py main.py sweep --n 300                          # barrido de knobs
-py main.py dump --hp 0.85 --dmg 1.5              # catálogo con knobs aplicados (números finales)
+py main.py run                       # batch con la config ADOPTADA (la que shippea), verbose
+py main.py run --n 5000              # batch grande con la config adoptada
+py main.py run --baseline            # config "cruda" (todo 1.0, sin reglas de iniciativa)
+py main.py run --dmg 2.0             # override puntual sobre la config adoptada
+py main.py game --seed 7             # traza de 1 partida (debug)
+py main.py sweep --n 300             # barrido de knobs globales (parte de baseline)
+py main.py dump                      # catálogo con la config adoptada = números finales del spec
+py main.py parity_check.py           # (o `py parity_check.py`) verifica cards.py×SHIPPED == Core
 ```
+
+> **`run`/`game`/`dump` usan `knobs.SHIPPED` por default** (hp 0.85 / dmg 1.5 + reglas de
+> iniciativa): así reproducen el juego que shippea el Core. Los valores **base** de `cards.py`
+> NO son los que shippea — sólo coinciden con `CardLibrary.cs` bajo esta config. `--baseline`
+> vuelve a la config cruda; los `--hp/--dmg/...` y `--no-attack-t1/--produces-t1` sobreescriben.
+>
+> **`parity_check.py`** fija que `cards.py × SHIPPED` siga reproduciendo el catálogo horneado del
+> Core (spec §9/§10). Corré­lo si tocás `cards.py`, `knobs.py` o los números del juego.
 
 Conteo de turnos: **medios-turnos** (1 por turno de jugador), igual que el spec.
 
@@ -22,8 +33,9 @@ Conteo de turnos: **medios-turnos** (1 por turno de jugador), igual que el spec.
 - `cards.py` — catálogo §9/§10 (44 cartas) + unidades iniciales. **Valores base del spec**; los knobs los escalan.
 - `rules.py` — motor de reglas (`GameEngine`): loop de turno, ataques, pasivas, estados, equipo, muerte súbita.
 - `policy.py` — política de decisión greedy heurística (spec §16). Ambos jugadores la usan (espejo).
-- `knobs.py` — `GlobalKnobs`: multiplicadores globales de balance.
+- `knobs.py` — `GlobalKnobs` + `SHIPPED` (config adoptada que shippea el juego) y `BASELINE` (cruda).
 - `sweep.py` — harness de batch + métricas + score de combo.
+- `parity_check.py` — verifica que `cards.py × SHIPPED` == catálogo horneado del Core/spec.
 - `main.py` — CLI.
 
 ## Política de decisión

@@ -323,9 +323,7 @@ class GameEngine:
             if slot < 0:
                 return False
             p.pay(card)
-            if p.slots[slot] is not None:
-                self._record_death(p.slots[slot])   # reemplazo
-            p.slots[slot] = UnitSlot(card)
+            p.slots[slot] = UnitSlot(card)   # slot siempre libre (sin reemplazo, §8.3)
             self._record_deploy(card)
         elif isinstance(card, EquipmentCardData):
             if equip_slot < 0 or equip_slot >= BOARD or p.slots[equip_slot] is None:
@@ -360,12 +358,12 @@ class GameEngine:
         slot.current_hp += slot.max_hp - before
 
     def _resolve_deploy(self, unit: UnitCardData, p: PlayerState, requested: int) -> int:
+        # Sin reemplazo: sólo slot permitido y LIBRE (spec §8.3).
         if requested >= 0:
-            if requested >= BOARD or not unit.allows_slot(requested):
+            if requested >= BOARD or not unit.allows_slot(requested) or p.slots[requested] is not None:
                 return -1
             return requested
-        free = p.first_free_allowed(unit)
-        return free  # -1 si no hay (la política decide reemplazo pasando un slot explícito)
+        return p.first_free_allowed(unit)  # -1 si no hay libre → no se despliega
 
     def _resolve_effect(self, eff: CardEffect, active: PlayerState, opp: PlayerState,
                         chosen: int, chosen_b: int):

@@ -139,6 +139,8 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
                        los defensores con Retaliate devuelven daño al atacante.
                        EXCEPCIÓN: en el turno 1 de la partida el primer jugador NO puede atacar
                        con unidades (regla de iniciativa, §3/§16); sí puede jugar/desplegar carta.
+                       Esto incluye CURAR con un healer (curar usa la acción de ataque, §7.2);
+                       irrelevante en la práctica (en el turno 1 sólo están las 2 unidades iniciales).
                        [FUTURO] atacar con más de una unidad por turno o ataques con costo
                   → Evaluar condición de victoria tras cada acción
 
@@ -341,6 +343,8 @@ Un pasivo puede **producir recursos, curar/buffear aliadas o dañar/debuffear en
 
 Reglas: las auras **se suman** y no se aplican a sí mismas. `Retaliate` sólo responde a ataques de unidad (no a daño directo de cartas, pasivas ni muerte súbita) y **dispara aunque la unidad muera** (re-evaluar KO). `TurnDamage`/`TurnStatus` se resuelven al inicio del turno del dueño y respetan whiff en slots vacíos. El daño/estado de pasivas **no** dispara `Retaliate` (no es ataque de unidad).
 
+> **`pickCount` en pasivas (limitación actual):** la resolución de pasivas dirigidas **no** honra `pickCount` — siempre afecta **todos** los slots ocupados del patrón. Por convención, las pasivas del catálogo usan `pick 0`. Habilitar la elección (`pick N`) requeriría una heurística de targeting en el motor y el bot, y **re-validar balance**; es un [FUTURO]. Por eso Gas afecta toda la vanguardia enemiga, no un solo slot.
+
 ---
 
 ### 7.4 UnitSlot (unidad desplegada en el tablero)
@@ -464,7 +468,7 @@ Se juega, se resuelven todos sus `CardEffect` en orden, y se reemplaza por una c
 
 ### 8.3 Unidad (persistente)
 
-Se despliega en un slot **permitido** (`allowedSlots`; vacío = cualquiera) que esté libre. Si no hay ningún slot permitido libre, el jugador elige reemplazar una unidad existente en un slot permitido (la nueva entra con su HP máximo) o cancelar sin gastar recursos.
+Se despliega en un slot **permitido** (`allowedSlots`; vacío = cualquiera) que esté **libre**. **No hay reemplazo: no se puede desplegar sobre una unidad ya presente** (es un objetivo inválido, tanto al clickear como al soltar en drag&drop). Si no hay ningún slot permitido libre, la unidad **no se puede jugar** (la carta queda en la mano, sin gastar recursos). Si hay varios slots libres permitidos y el jugador no elige uno (p. ej. soltó en JUGAR), el motor toma el de menor índice.
 
 No hay apilamiento activo: un slot contiene una unidad. **[FUTURO]** El modelo reserva un punto de extensión para apilamiento (`UnitSlot.count`, §7.4), hoy inactivo.
 
@@ -530,7 +534,7 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 | **Trol Oficial** | 5 📣 | Productora | 14 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 2 | +1 📣/turno | *Diez cuentas, un solo sueldo del Estado. Inventa la tendencia antes del mediodía.* |
 | **Médico del SAME** | 4 $ | Healer | 15 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · cura 2 | — | *Llega en ambulancia y atiende a todos. Después hace tres guardias para llegar a fin de mes.* |
 | **Halcón** | 6 ⚡ | Sniper | 8 | {2,3,4} | `Abs {1,2,3}` pick 1 · 15 | — | *Grupo especial, mira telescópica y paciencia de cazador. Desde la terraza ve toda la plaza.* |
-| **Gasero** | 5 📣 | Emisor | 15 | {2,3,4,5} | `Rel [0]` pick 0 · 2 | Gas: Veneno (3) a 1 de vanguardia enemiga/turno | *Granada en mano, pañuelo en la cara. "Es para dispersar", dice, mientras llora hasta él.* |
+| **Gasero** | 5 📣 | Emisor | 15 | {2,3,4,5} | `Rel [0]` pick 0 · 2 | Gas: Veneno (3) a la vanguardia enemiga/turno | *Granada en mano, pañuelo en la cara. "Es para dispersar", dice, mientras llora hasta él.* |
 
 ### Acciones
 | Carta | Categoría | Costo | Efecto | Descripción |
@@ -593,13 +597,17 @@ Los slots van del **1 al 6**; las **unidades iniciales ("las del fondo") ocupan 
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Jugar / descartar carta (drag & drop):** se arrastra la carta de la mano y se suelta sobre la zona **JUGAR** o **DESCARTAR**. No hay botones de clic para esto; las dos zonas son *drop targets*. Mientras se arrastra, una **copia de la carta ("ghost")** acompaña el puntero.
+**Jugar / descartar carta (drag & drop):** se arrastra la carta de la mano y se suelta sobre la zona **DESCARTAR**, sobre **JUGAR**, **o directamente sobre un slot objetivo válido** (despliegue de unidad, equipar, o acción con objetivo de unidad). Mientras se arrastra, una **copia de la carta ("ghost")** acompaña el puntero y **los slots elegibles para esa carta se iluminan** (highlight). Si la carta se suelta en un slot **inválido** o en cualquier lugar que no sea un drop target válido, **la acción se cancela sin gastar recursos** y la carta vuelve a la mano.
 
-**Atacar con una unidad:** **click** sobre una unidad propia → aparece un **popover** sobre ella con su acción disponible; al clickearlo, actúa. Si es a elección (`pickCount > 0`), a continuación se clickea el/los slot(s) objetivo (en el tablero rival si daña, **en el propio si es un healer** que cura aliadas, §7.2). **[FUTURO]** si una unidad llega a tener varios ataques (`List<UnitAttack>`), el popover los lista.
+**Atacar con una unidad:** las unidades propias que **pueden actuar este turno** (del jugador activo, sin atacar aún, no aturdidas y permitido por la regla del turno 1) se **resaltan**. **Click** sobre una de ellas → aparece un **popover** con su acción disponible; al clickearlo, actúa. Si es a elección (`pickCount > 0`), a continuación se clickea el/los slot(s) objetivo (en el tablero rival si daña, **en el propio si es un healer** que cura aliadas, §7.2). **[FUTURO]** si una unidad llega a tener varios ataques (`List<UnitAttack>`), el popover los lista.
 
 **Equipar:** se arrastra la carta de Equipo sobre una **unidad propia** (el slot es el *drop target*, §8.4).
 
-**Efectos activos:** indicador por jugador para sus `activeStatuses` (producción) **y por unidad** para sus estados (Veneno/Aturdir/Furia/Desmoralizar) y el equipo adjunto. **[DEFINIR]** iconografía concreta por estado/equipo.
+**Mover / intercambiar (efectos de dos slots, MoveUnit/SwapUnits):** se elige el **primer** slot (arrastrando la carta a ese slot, o jugándola en JUGAR y clickeando el slot) y luego se clickea el **segundo** (Move: slot propio libre y permitido; Swap: la otra unidad enemiga). El primer slot queda marcado mientras se elige el segundo.
+
+**Efectos activos (implementado):** **badges por unidad** sobre cada slot ocupado para sus estados (Veneno/Aturdir/Furia/Desmoralizar) y el equipo adjunto, cada uno con *tooltip*; e indicador por jugador para sus `activeStatuses` de producción en el panel de stats.
+
+**Popover informativo (hover):** al pasar el mouse sobre una **unidad** del tablero o una **carta** de la mano, se despliega un panel con su nombre, descripción, alcance (a qué slots pega/cura y cuánto), pasivas, efectos activos y equipo.
 
 **Indicador de turno:** un **chip** (pill) que salta al lado del jugador activo, más la marca **▶** en su panel de stats. El botón **Terminar turno** está centrado en el tope.
 
@@ -607,11 +615,14 @@ Los slots van del **1 al 6**; las **unidades iniciales ("las del fondo") ocupan 
 
 | Acción | Mouse | Teclado |
 |--------|-------|---------|
-| Jugar carta | Arrastrar la carta sobre **JUGAR** (drag & drop) | Seleccionar (1–6) + Enter |
+| Jugar carta | Arrastrar sobre **JUGAR** **o sobre un slot válido** (los elegibles se iluminan) | Seleccionar (1–6) + Enter |
 | Descartar carta | Arrastrar la carta sobre **DESCARTAR** (drag & drop) | Seleccionar (1–6) + Backspace |
-| Atacar / curar con una unidad | Click en la unidad → click en el popover de acción | — |
-| Elegir slot objetivo (ataque/cura a elección, sabotaje, equipo) | Click en el slot | — |
-| Mover / intercambiar unidad (MoveUnit / SwapUnits) | Click en el slot origen → click en el destino | — |
+| Desplegar unidad | Arrastrar a un slot propio **libre** y permitido (no hay reemplazo, §8.3); o JUGAR = primer libre | — |
+| Equipar a una unidad | Arrastrar el equipo sobre la unidad propia | — |
+| Atacar / curar con una unidad | Click en la unidad (resaltada) → click en el popover de acción | — |
+| Elegir slot objetivo (ataque/cura a elección, sabotaje) | Click en el slot | — |
+| Mover / intercambiar unidad (MoveUnit / SwapUnits) | Arrastrar al primer slot (o JUGAR→click) → click en el segundo | — |
+| Ver info de unidad / carta | Hover sobre la unidad o la carta | — |
 
 ### 11.5 Anatomía de una carta
 
@@ -620,6 +631,8 @@ Cada carta muestra:
 - **Nombre**
 - **Costo** — ícono del recurso + cantidad
 - **Efecto** — texto corto
+
+Al hacer **hover** sobre una carta se despliega un **popover informativo** con el detalle completo: nombre, costo, tipo, descripción y, según el tipo, HP/alcance/deploy/pasivas (unidad), efectos (acción) o modificadores y pasivas otorgadas (equipo).
 
 ### 11.6 Pantalla de victoria
 
@@ -663,7 +676,7 @@ Overlay con:
 - **Balance de unidades:** ✅ **validado por simulación** (Fase 5, `sim/`). Los valores de §9/§10 son los finales del balanceo global (duración media ≈32, facción ≈48/52). Pendiente sólo el **balance fino per-card** si se quiere apretar el 48/52 (no lo mueven los knobs globales).
 - **Apilamiento:** punto de extensión reservado (`UnitSlot.count`), inactivo en v1.
 - **Unidades iniciales por facción:** definidas — Manifestantes = Piquetero + Gordo Sindical; Policías = Infante + Puntero (1 peleador + 1 productora), en slots 1–2. El peleador inicial usa deploy **Cualquiera** para poder ocupar la retaguardia inicial.
-- **Feedback visual por unidad:** si requiere config por carta en Presentation o alcanzan convenciones globales (§7.10). Incluye **iconografía de estados por unidad** (Veneno/Aturdir/Furia/Desmoralizar) y de **equipo adjunto** (§11.3/§11.4).
+- **Feedback visual por unidad:** ✅ **implementado** — badges por estado (Veneno/Aturdir/Furia/Desmoralizar) y por equipo adjunto sobre cada slot, con *tooltip*, más el popover informativo de hover (§11.3). Pendiente sólo, si se quisiera, arte/iconos por carta en lugar de los badges de texto.
 - **Tope de equipos por unidad:** hoy sin límite (§8.4); definir si conviene un máximo.
 - **EquipmentCardData:** diseñado e incluido en el catálogo (§7.1 / §8.4 / §9/§10, 4 cartas/facción); falta implementar (capa de stats efectivos, §15 Fase 4).
 - **IPlayerController:** diseño del punto de extensión para IA / online [FUTURO].
@@ -753,7 +766,7 @@ Cada carta recibe un puntaje; se juega la de mayor puntaje > umbral.
 
 | Tipo de carta | Puntaje |
 |---------------|---------|
-| **Unidad** | `valor_unidad` (§16.1). Penaliza −∞ si no hay slot permitido libre **ni** vale la pena reemplazar (el mejor reemplazo posible vale menos que la unidad ya parada). Bonus si el tablero propio tiene < 2 unidades (necesidad de presencia). |
+| **Unidad** | `valor_unidad` (§16.1). Penaliza −∞ si no hay slot permitido **libre** (no hay reemplazo, §8.3). Bonus si el tablero propio tiene < 2 unidades (necesidad de presencia). |
 | **Boost (recurso propio)** | `value` del recurso ganado, ×1.5 si ese recurso es el que más limita jugar el resto de la mano (está "corto"); ≈0 si ya está cerca del tope o no lo necesita. |
 | **Sabotaje (drenaje rival)** | `min(value, recurso_actual_rival) × 0.5` (drenar lo que el rival no tiene no vale). |
 | **Daño directo (ModifyHP−)** | Daño aplicable al **mejor objetivo enemigo** (§16.5). Bonus grande (`+valor_unidad` del objetivo) si **mata**. 0 si no hay enemigos. |
@@ -789,7 +802,7 @@ Al desplegar una unidad sin slot forzado por `allowedSlots`, el bot elige entre 
 1. Productoras / Snipers / Emisores / Healers → **retaguardia** (menor índice permitido): se quieren proteger.
 2. Muros → **frente** (mayor índice permitido): tapan la línea.
 3. Escaramuza / Cleave → slot permitido que **maximice la cobertura** de su patrón `Relative` sobre el tablero rival actual; a igualdad, el más adelantado.
-4. Si no hay slot permitido libre: reemplaza sólo si la unidad nueva vale más que la peor unidad propia parada en un slot permitido; si no, cancela (no gasta).
+4. Si no hay slot permitido **libre**: la unidad no se puede desplegar (no hay reemplazo, §8.3) → no se juega.
 
 ### 16.7 Determinismo
 

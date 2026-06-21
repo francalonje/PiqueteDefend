@@ -55,14 +55,21 @@ Las cartas aplican **efectos** al rival o a uno mismo: sobre recursos, sobre la 
 (bloquearla/duplicarla), o **estados sobre una unidad** (veneno, aturdir, furia, desmoralizar).
 También podés **mover** tus unidades o **intercambiar** las del rival para romperle la formación.
 
+Al **arrastrar** una carta, los slots elegibles se iluminan; podés soltarla en **JUGAR** o
+directamente **sobre un slot válido**. Soltar en un lugar inválido cancela sin gastar recursos.
+Hacé **hover** sobre una unidad o una carta para ver un popover con su detalle.
+
 **Controles:**
 | Acción | Mouse | Teclado |
 |--------|-------|---------|
-| Jugar carta | Arrastrar sobre zona **JUGAR** | Seleccionar (1–6) + Enter |
+| Jugar carta | Arrastrar sobre **JUGAR** o sobre un slot válido | Seleccionar (1–6) + Enter |
 | Descartar carta | Arrastrar sobre zona **DESCARTAR** | Seleccionar (1–6) + Backspace |
+| Desplegar unidad | Arrastrar a un slot propio **libre** (no hay reemplazo) | — |
 | Equipar a una unidad | Arrastrar el equipo sobre la unidad | — |
-| Atacar / curar con unidad | Clic en la unidad → clic en el popover | — |
-| Elegir slot objetivo (o mover/intercambiar) | Clic en el/los slot(s) | — |
+| Atacar / curar con unidad | Clic en la unidad (resaltada) → clic en el popover | — |
+| Elegir slot objetivo | Clic en el slot | — |
+| Mover / intercambiar unidad | Arrastrar al primer slot → clic en el segundo | — |
+| Ver detalle de unidad / carta | Hover | — |
 
 ---
 
@@ -81,9 +88,13 @@ Assets/PiqueteDefend/
 ```
 
 La **fuente de verdad de las reglas** es `docs/game-spec.md`. El núcleo C# lo implementa; los
-tests EditMode (`Tests/EditMode/GameEngineTests.cs`, 21 tests) cubren ataques posicionales, daño
+tests EditMode (`Tests/EditMode/GameEngineTests.cs`, 42 tests) cubren ataques posicionales, daño
 efectivo (furia/aura/desmoralizar/equipo), espinas, curación, estados por unidad (veneno/aturdir),
-equipo, mover/intercambiar, producción, reglas de inicio, victoria/empate y muerte súbita.
+equipo, mover/intercambiar, producción, reglas de inicio, despliegue sin reemplazo, victoria/empate
+y muerte súbita.
+
+> **¿Vas a tocar el código?** Leé primero **[`docs/dev-guide.md`](docs/dev-guide.md)**: un mapa de
+> dónde vive cada cosa y recetas para agregar cartas/efectos/estados, sprites y animaciones de unidad.
 
 El **balance** se valida en `sim/` (Python): re-implementa las reglas, corre miles de partidas con
 una política heurística (spec §16) y reporta win-rate y duración. Los valores finales se vuelcan a
@@ -129,20 +140,22 @@ así que un cambio de balance se reaplica con un clic.
 
 ## Estado
 
-**v0.1.0 — primera versión jugable.** Partida completa de punta a punta: menú →
-selección de facción → juego hotseat → victoria/revancha, con fondos en las tres
-pantallas y audio (SFX de clic + música en menú, selección y partida; hoy las tres
-comparten la misma pista placeholder, en slots separados para divergir luego).
+**v0.2.0 — versión jugable con la capa de cartas e interacción completas.** Partida de punta a
+punta: menú → selección de facción → juego hotseat → victoria/revancha, con fondos y audio en las
+tres pantallas.
 
-**Implementado:** el catálogo de cartas completo (44 cartas) con unidades diferenciadas por
-arquetipo, pasivas variadas, estados por unidad, acciones ampliadas y equipo está **en el núcleo
-C#** (Core), con balance validado por simulación y 21 tests EditMode en verde.
+**Implementado:**
+- Catálogo completo (44 cartas) con unidades por arquetipo, pasivas variadas, estados por unidad,
+  acciones y equipo, **en el núcleo C#** (Core), con balance validado por simulación y **42 tests
+  EditMode** en verde.
+- **UI de juego completa:** drag&drop de cartas a las zonas o **directo al slot** (con *highlight* de
+  slots elegibles), *highlight* de las unidades que pueden actuar, targeting de equipar y de
+  mover/intercambiar (dos clicks), **badges** de estado/equipo por unidad y **popover informativo**
+  en hover (unidades y cartas). Despliegue **sin reemplazo** (no se apila sobre otra unidad).
 
-**Próxima iteración (UI):** indicadores visuales de estados/buffs/debuffs por unidad y un
-*highlight* de las unidades que pueden atacar en el turno; targeting de equipar/mover/intercambiar
-en la pantalla de juego (el Core ya lo soporta). Otras ideas: pistas de música propias por pantalla,
-arte de cartas, animaciones de combate más ricas y elegir facción por jugador (hoy los lados son
-fijos). Fuera de scope de v1: deckbuilding, online, +2 jugadores.
+**Próximas ideas:** arte/sprites y animaciones de unidad (idle/ataque/muerte — ver
+[`docs/dev-guide.md`](docs/dev-guide.md)), pistas de música propias por pantalla, y elegir facción
+por jugador (hoy los lados son fijos). Fuera de scope de v1: deckbuilding, online, +2 jugadores.
 
 ---
 

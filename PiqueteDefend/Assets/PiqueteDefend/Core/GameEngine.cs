@@ -407,9 +407,11 @@ namespace PiqueteDefend.Core
         {
             result = ActionResult.Success;
 
+            // No hay reemplazo: una unidad sólo se despliega en un slot permitido y LIBRE (spec §8.3).
             if (requested >= 0)
             {
-                if (requested >= player.unitSlots.Length || !unit.AllowsSlot(requested))
+                if (requested >= player.unitSlots.Length || !unit.AllowsSlot(requested)
+                    || player.unitSlots[requested] != null)
                 {
                     result = ActionResult.InvalidTarget;
                     return -1;
@@ -420,13 +422,8 @@ namespace PiqueteDefend.Core
             int free = player.FirstFreeAllowedSlot(unit);
             if (free >= 0) return free;
 
-            if (!player.HasAnyAllowedSlot(unit))
-            {
-                result = ActionResult.InvalidTarget;
-                return -1;
-            }
-
-            result = ActionResult.NeedsDeploySlot;
+            // Sin slot permitido libre, la unidad no se puede jugar (la carta queda en la mano).
+            result = ActionResult.InvalidTarget;
             return -1;
         }
 
@@ -657,12 +654,12 @@ namespace PiqueteDefend.Core
             return ActivePlayer.CanAfford(ActivePlayer.hand[handIndex]);
         }
 
-        public bool RequiresDeploySlot(int handIndex)
-        {
-            if (handIndex < 0 || handIndex >= ActivePlayer.hand.Count) return false;
-            if (ActivePlayer.hand[handIndex] is not UnitCardData unit) return false;
-            return ActivePlayer.FirstFreeAllowedSlot(unit) < 0 && ActivePlayer.HasAnyAllowedSlot(unit);
-        }
+        /// <summary>
+        /// Sin reemplazo, el despliegue nunca requiere que el jugador elija slot: si hay un slot
+        /// permitido libre, el motor toma el primero (o el que indique el drag); si no, la carta no
+        /// se puede jugar. Se mantiene por compatibilidad de la presentación (siempre false).
+        /// </summary>
+        public bool RequiresDeploySlot(int handIndex) => false;
 
         /// <summary>True si la carta necesita que el jugador elija una unidad objetivo (acción sobre unidad o equipo).</summary>
         public bool RequiresEffectTarget(int handIndex)

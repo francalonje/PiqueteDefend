@@ -208,7 +208,8 @@ def build_policias(k: GlobalKnobs) -> List[CardData]:
         unit("gasero", "Gasero", P, "Emisor", SOC, 5, 18, [1, 2, 3, 4],
              atk(REL, [0], 0, 1, k),
              # Veneno re-emitido cada turno: counter 1 = 1 tick/turno, sin apilarse (roadmap).
-             [turn_status(poison(2, 1, k), FRENTE, 1, k)], k),
+             # pick 0 = toda la vanguardia enemiga ocupada (las pasivas no honran pickCount; espejo del Core).
+             [turn_status(poison(2, 1, k), FRENTE, 0, k)], k),
 
         # Acciones (10)
         action("partida", "Partida Presupuestaria", P, "Boost", SOC, 1, [mod_res(TS(), DIN, 7, k)], k),
