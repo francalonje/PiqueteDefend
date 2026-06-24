@@ -59,7 +59,7 @@ namespace PiqueteDefend.Presentation
         // UI refs
         private VisualElement _root, _screen, _hand, _p0Slots, _p1Slots, _overlay;
         private Button _popover;
-        private VisualElement _infoPopover, _infoBody, _inflationMeter;
+        private VisualElement _infoPopover, _infoHeader, _infoBody, _inflationMeter;
         private Label _turnChip, _hint, _overlayTitle, _overlayMsg, _firstTurnNotice;
         private Label _inflationPct, _inflationSub;
         private Button _overlayPrimary, _overlaySecondary, _endTurnButton;
@@ -357,9 +357,14 @@ namespace PiqueteDefend.Presentation
             ResolveCardPlay(_engine.DiscardCard(index));   // descartar no es "jugar": sin sonido de jugada
         }
 
-        /// <summary>Atajo de teclado: Ctrl + 1..6 descarta la carta n (alternativa al Ctrl+Click).</summary>
+        /// <summary>Teclado: Escape cancela la carta/ataque armado; Ctrl + 1..6 descarta la carta n.</summary>
         private void OnKeyDown(KeyDownEvent e)
         {
+            if (e.keyCode == KeyCode.Escape)
+            {
+                if (_mode != Mode.Acting && _mode != Mode.Finished) { CancelTargeting(); e.StopPropagation(); }
+                return;
+            }
             if (_mode != Mode.Acting || _engine.CardActionUsed || !e.ctrlKey) return;
             int n = DigitIndex(e.keyCode);
             if (n >= 0 && n < _engine.ActivePlayer.hand.Count) { DoDiscard(n); e.StopPropagation(); }
@@ -1076,7 +1081,10 @@ namespace PiqueteDefend.Presentation
             if (handIndex < 0 || handIndex >= _engine.ActivePlayer.hand.Count) return;
             CardData card = _engine.ActivePlayer.hand[handIndex];
 
-            BeginInfoPanel(card.cardName, $"{CostText(card, _engine.InflationPercent)}  ·  {TypeLabel(card)}");
+            BeginInfoPanel(card.cardName, null);
+            AddHeaderPills((CostText(card, _engine.InflationPercent), "info-popover__pill--cost"),
+                           (TypeLabel(card), "info-popover__pill--type"));
+            AddPopoverArt(card);
             AddInfoDesc(!string.IsNullOrEmpty(card.flavorText) ? card.flavorText : card.descriptionText);
 
             if (card is UnitCardData u)
@@ -1123,11 +1131,39 @@ namespace PiqueteDefend.Presentation
                 s.AddToClassList("info-popover__hp");
                 header.Add(s);
             }
+            _infoHeader = header;
             _infoPopover.Add(header);
 
             _infoBody = new VisualElement();
             _infoBody.AddToClassList("info-popover__body");
             _infoPopover.Add(_infoBody);
+        }
+
+        /// <summary>Pills de costo + tipo en el header del popover (en vez del subtítulo en texto).</summary>
+        private void AddHeaderPills(params (string text, string variant)[] pills)
+        {
+            var row = new VisualElement();
+            row.AddToClassList("info-popover__pills");
+            foreach ((string text, string variant) in pills)
+            {
+                var l = new Label(text);
+                l.AddToClassList("info-popover__pill");
+                if (!string.IsNullOrEmpty(variant)) l.AddToClassList(variant);
+                row.Add(l);
+            }
+            _infoHeader.Add(row);
+        }
+
+        /// <summary>Miniatura del arte de la carta arriba del cuerpo del popover.</summary>
+        private void AddPopoverArt(CardData card)
+        {
+            var art = new VisualElement();
+            art.AddToClassList("info-popover__art");
+            Texture2D tex = CardArtTexture(card);
+            if (card.sprite != null) art.style.backgroundImage = new StyleBackground(card.sprite);
+            else if (tex != null) art.style.backgroundImage = new StyleBackground(tex);
+            else return;
+            _infoBody.Add(art);
         }
 
         private void AddInfoDesc(string desc)
@@ -1268,13 +1304,99 @@ namespace PiqueteDefend.Presentation
         {
             var el = new VisualElement();
             el.AddToClassList("card");
+
+            // Header: nombre (izq) + badge de costo (arriba-derecha).
+            var header = new VisualElement(); header.AddToClassList("card__header");
             var name = new Label(card.cardName); name.AddToClassList("card__name");
-            var type = new Label(TypeLabel(card)); type.AddToClassList("card__type");
             var cost = new Label(CostText(card, inflationPercent)); cost.AddToClassList("card__cost");
             if (inflationPercent > 0) cost.AddToClassList("card__cost--inflated");
-            var body = new Label(EffectText(card)); body.AddToClassList("card__body");
-            el.Add(name); el.Add(type); el.Add(cost); el.Add(body);
+            header.Add(name); header.Add(cost);
+            el.Add(header);
+
+            // Art window (estilo Slay the Spire). Extensible: arte por-carta si el asset tiene su
+            // propio sprite (CardData.sprite); si no, placeholder por facción+tipo.
+            var art = new VisualElement(); art.AddToClassList("card__art");
+            Texture2D artTex = CardArtTexture(card);
+            if (card.sprite != null) art.style.backgroundImage = new StyleBackground(card.sprite);
+            else if (artTex != null) art.style.backgroundImage = new StyleBackground(artTex);
+            el.Add(art);
+
+            var type = new Label(FaceTypeLabel(card)); type.AddToClassList("card__type");
+            el.Add(type);
+
+            // Cuerpo compacto: pills de stats para unidad/equipo; texto corto para acción. El
+            // detalle completo (alcance, pasivas, deploy) vive en el popover de hover.
+            el.Add(BuildCardFace(card));
             return el;
+        }
+
+        /// <summary>Cara compacta de la carta: pills (unidad/equipo) o texto corto (acción).</summary>
+        private static VisualElement BuildCardFace(CardData card)
+        {
+            if (card is UnitCardData u)
+            {
+                var row = new VisualElement(); row.AddToClassList("card__pills");
+                row.Add(CardPill($"❤ {u.maxHp}", "card__pill--hp"));   // ❤ HP
+                int cnt = AttackTargetCount(u.attack);
+                string val = cnt > 1 ? $"{u.attack.damagePerSlot}×{cnt}" : u.attack.damagePerSlot.ToString();
+                row.Add(CardPill($"{(u.attack.IsHeal ? "✚" : "⚔")} {val}",
+                                 u.attack.IsHeal ? "card__pill--heal" : "card__pill--atk"));
+                return row;
+            }
+            if (card is EquipmentCardData eq)
+            {
+                var row = new VisualElement(); row.AddToClassList("card__pills");
+                foreach (StatModifier m in eq.statModifiers)
+                    row.Add(CardPill($"+{m.value} {(m.stat == StatType.MaxHp ? "❤" : "⚔")}",
+                                     m.stat == StatType.MaxHp ? "card__pill--hp" : "card__pill--atk"));
+                return row;
+            }
+            var body = new Label(EffectText(card)); body.AddToClassList("card__body");
+            return body;   // acción: texto corto (recortado por el marco)
+        }
+
+        private static Label CardPill(string text, string variant)
+        {
+            var l = new Label(text);
+            l.AddToClassList("card__pill");
+            l.AddToClassList(variant);
+            return l;
+        }
+
+        /// <summary>Etiqueta de tipo corta para la cara de la carta ("PODER" = Acción).</summary>
+        private static string FaceTypeLabel(CardData c) => c switch
+        {
+            UnitCardData => "UNIDAD",
+            EquipmentCardData => "EQUIPO",
+            ActionCardData => "PODER",
+            _ => ""
+        };
+
+        // Cache del arte placeholder por clave (también cachea el null para no recargar).
+        private static readonly Dictionary<string, Texture2D> _cardArtCache = new Dictionary<string, Texture2D>();
+
+        /// <summary>
+        /// Arte placeholder de una carta por **facción + tipo** (spec §7.1): el mismo dibujo se repite
+        /// para todas las cartas de esa combinación, vía <c>Resources/Images/card_art_{fac}_{tipo}</c>.
+        /// Es el fallback; el arte por-carta definitivo va en <see cref="CardData.sprite"/> (prioridad
+        /// en <see cref="BuildCardVisual"/>), así agregar arte propio luego es trivial y sin tocar esto.
+        /// </summary>
+        private static Texture2D CardArtTexture(CardData card)
+        {
+            string fac = card.faction == Faction.Manifestantes ? "manif" : "poli";
+            string typ = card.CardType switch
+            {
+                CardType.Unidad => "unidad",
+                CardType.Equipo => "equipo",
+                _ => "poder",   // CardType.Accion = "Poder" en la grilla de arte
+            };
+            string key = "Images/card_art_" + fac + "_" + typ;
+            if (!_cardArtCache.TryGetValue(key, out Texture2D tex))
+            {
+                tex = Resources.Load<Texture2D>(key);
+                _cardArtCache[key] = tex;
+            }
+            return tex;
         }
 
         // ── Drag & drop ─────────────────────────────────────────────────────────
@@ -1288,10 +1410,23 @@ namespace PiqueteDefend.Presentation
 
         private void OnDragStart(PointerDownEvent e, int index, VisualElement card)
         {
-            if (_mode != Mode.Acting || _engine.CardActionUsed) return;
+            if (_mode == Mode.Finished) return;
 
-            // Ctrl+Click (botón izquierdo) = descartar (sin botón DESCARTAR). No inicia drag.
-            if (e.button == 0 && e.ctrlKey) { DoDiscard(index); return; }
+            // Ctrl+Click (botón izq) = descartar (sin botón DESCARTAR). Vale SIEMPRE que quede acción
+            // de carta este turno: también con cartas que no podés pagar y aunque haya una carta armada
+            // (en ese caso, primero cancela el targeting). No inicia drag.
+            if (e.button == 0 && e.ctrlKey)
+            {
+                if (_engine.CardActionUsed) return;
+                if (_mode != Mode.Acting) CancelTargeting();
+                DoDiscard(index);
+                return;
+            }
+
+            // Si hay una carta "armada" (esperando objetivo/confirmación), un click en la mano cancela.
+            if (_mode != Mode.Acting) { CancelTargeting(); return; }
+
+            if (_engine.CardActionUsed) return;
 
             _dragging = true;
             _dragIndex = index;

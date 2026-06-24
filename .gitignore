@@ -85,3 +85,6 @@ __pycache__/
 /results.xml
 /gen.log
 PiqueteDefend/results.xml
+
+# Scratch de procesamiento de sprites (no es asset del proyecto)
+/_spritework/

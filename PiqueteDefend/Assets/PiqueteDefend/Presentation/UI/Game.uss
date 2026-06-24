@@ -513,6 +513,7 @@
     background-color: rgba(48, 52, 66, 0.98);
     align-items: stretch;
     justify-content: flex-start;
+    overflow: hidden;   /* nada se sale del marco de la carta */
     transition-property: translate, scale, rotate, bottom, left, border-color;
     transition-duration: 0.12s;
 }
@@ -529,37 +530,99 @@
     opacity: 0.3;
 }
 
+/* Header: nombre (izq, ocupa el ancho) + badge de costo arriba a la derecha. */
+.card__header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
 .card__name {
-    font-size: 16px;
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin-right: 5px;
+    font-size: 15px;
     -unity-font-style: bold;
     color: rgb(240, 242, 247);
     white-space: normal;
 }
 
-.card__type {
-    font-size: 11px;
-    -unity-font-style: bold;
-    color: rgb(150, 156, 172);
-    margin-top: 3px;
-}
-
+/* Costo = badge redondo compacto arriba-derecha (antes ocupaba una línea entera). */
 .card__cost {
-    font-size: 16px;
+    flex-shrink: 0;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: rgba(228, 206, 120, 0.55);
+    background-color: rgba(36, 33, 22, 0.96);
+    font-size: 14px;
     -unity-font-style: bold;
-    color: rgb(228, 206, 120);
-    margin-top: 5px;
+    color: rgb(232, 210, 124);
+    -unity-text-align: middle-center;
 }
 
 /* Costo con inflación aplicada: se tiñe de naranja para avisar que está inflado. */
 .card__cost--inflated {
     color: rgb(255, 168, 92);
+    border-color: rgba(255, 168, 92, 0.6);
 }
 
-.card__body {
+/* "Art window" estilo Slay the Spire: rectángulo lleno con su fondo, dentro del marco.
+   background-size: cover → la imagen llena la ventana. La puebla el código (sprite propio
+   del asset, o placeholder por facción+tipo). */
+.card__art {
+    height: 96px;
+    margin-top: 5px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.55);
+    background-color: rgba(20, 22, 28, 0.6);
+    background-size: cover;
+    background-position-x: center;
+    background-position-y: center;
+}
+
+/* Tipo: caption chiquito (menos texto en la cara). */
+.card__type {
+    font-size: 9px;
+    -unity-font-style: bold;
+    letter-spacing: 1px;
+    color: rgb(140, 147, 164);
+    margin-top: 5px;
+}
+
+/* Stats compactos como pills (en vez de prosa): ❤ HP, ⚔ daño, etc. */
+.card__pills {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.card__pill {
+    flex-shrink: 0;
+    min-height: 19px;
+    padding: 1px 7px;
+    margin: 3px 4px 0 0;
+    border-radius: 10px;
+    background-color: rgba(60, 64, 78, 0.95);
     font-size: 13px;
-    color: rgb(196, 202, 214);
+    -unity-font-style: bold;
+    color: rgb(240, 242, 247);
+    -unity-text-align: middle-center;
+}
+
+.card__pill--hp   { background-color: rgba(70, 150, 80, 0.95); }
+.card__pill--atk  { background-color: rgba(200, 60, 50, 0.95); }
+.card__pill--heal { background-color: rgba(70, 175, 110, 0.95); }
+
+/* Cuerpo (sólo acciones): texto corto; el marco lo recorta (overflow hidden). */
+.card__body {
+    font-size: 12px;
+    color: rgb(200, 206, 218);
     white-space: normal;
-    margin-top: 6px;
+    margin-top: 5px;
 }
 
 /* ── Popover de ataque ────────────────────────────────────────────────── */
@@ -612,6 +675,39 @@
     -unity-font-style: bold;
     color: rgb(150, 205, 150);
     margin-top: 2px;
+}
+
+/* Pills en el header del popover (costo / tipo) — reemplazan al subtítulo "6$ · Unidad". */
+.info-popover__pills {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+
+.info-popover__pill {
+    flex-shrink: 0;
+    min-height: 20px;
+    padding: 1px 9px;
+    margin: 0 6px 0 0;
+    border-radius: 10px;
+    background-color: rgba(70, 80, 104, 0.95);
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: rgb(232, 236, 244);
+    -unity-text-align: middle-center;
+}
+
+.info-popover__pill--cost { background-color: rgba(70, 62, 30, 0.96); color: rgb(232, 210, 124); }
+.info-popover__pill--type { background-color: rgba(48, 68, 96, 0.96); color: rgb(176, 208, 242); }
+
+/* Miniatura de arte (mismo dibujo de la carta) arriba del cuerpo del popover. */
+.info-popover__art {
+    height: 104px;
+    border-radius: 7px;
+    margin-bottom: 4px;
+    background-size: cover;
+    background-position-x: center;
+    background-position-y: center;
 }
 
 .info-popover__body {

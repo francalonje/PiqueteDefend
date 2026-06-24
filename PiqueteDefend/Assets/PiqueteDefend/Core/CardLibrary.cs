@@ -11,7 +11,7 @@ namespace PiqueteDefend.Core
     ///
     /// Los valores numéricos son <b>rough</b> (anclas de diseño, §6.1): PENDIENTES de re-balanceo por
     /// sim/playtest tras el rework de cartas. Catálogo: 9 unidades + 8 acciones + 4 equipo = 21/facción.
-    /// Roster <b>asimétrico</b> (§6.1 #10): las pasivas distintivas NO se repiten entre facciones.
+    /// Roster <b>asimétrico</b> (§6.1 #11): las pasivas distintivas NO se repiten entre facciones.
     /// allowedSlots en base 0 (slot k del spec = índice k-1); el targeting de ataque es por
     /// <see cref="TargetMode"/>, anclado a la formación (spec §6) — el frente es el extremo de índice alto.
     /// </summary>
