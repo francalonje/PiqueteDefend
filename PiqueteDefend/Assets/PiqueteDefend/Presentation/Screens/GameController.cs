@@ -212,10 +212,54 @@ namespace PiqueteDefend.Presentation
 
             if (_mode != Mode.Acting) { CancelTargeting(); return; }
 
+            // Si todavía podés atacar o jugar una carta, confirmá antes de pasar el turno.
+            if (HasUnusedActions()) { ShowEndTurnConfirm(); return; }
+            EndTurnConfirmed();
+        }
+
+        private void EndTurnConfirmed()
+        {
             _engine.EndTurn();
             if (_engine.IsFinished) { ShowOutcome(); return; }
             BeginActiveTurn();
         }
+
+        /// <summary>¿Quedan acciones sin usar este turno (atacar o jugar una carta)?</summary>
+        private bool HasUnusedActions() => CanStillAttack() || CanStillPlayCard();
+
+        private bool CanStillPlayCard()
+        {
+            if (_engine.CardActionUsed) return false;
+            for (int i = 0; i < _engine.ActivePlayer.hand.Count; i++)
+                if (_engine.CanAfford(i)) return true;
+            return false;
+        }
+
+        private bool CanStillAttack()
+        {
+            if (_engine.AttackUsed || !_engine.CanAttackThisTurn) return false;
+            foreach (UnitSlot s in _engine.ActivePlayer.unitSlots)
+                if (s != null && !s.IsStunned) return true;
+            return false;
+        }
+
+        /// <summary>Diálogo confirmar/cancelar antes de terminar el turno con acciones pendientes.</summary>
+        private void ShowEndTurnConfirm()
+        {
+            HidePopover();
+            bool canAttack = CanStillAttack();
+            bool canPlay = CanStillPlayCard();
+            string pending = canAttack && canPlay ? "atacar y jugar una carta"
+                : canAttack ? "atacar"
+                : "jugar una carta";
+            _overlayTitle.text = "¿Terminar el turno?";
+            _overlayMsg.text = $"Todavía podés {pending}.";
+            WireOverlayButton(_overlayPrimary, "Terminar turno", () => { HideOverlay(); EndTurnConfirmed(); });
+            WireOverlayButton(_overlaySecondary, "Cancelar", HideOverlay);
+            _overlay.style.display = DisplayStyle.Flex;
+        }
+
+        private void HideOverlay() => _overlay.style.display = DisplayStyle.None;
 
         /// <summary>Vuelve a Acting tras una acción (carta o ataque) sin terminar el turno.</summary>
         private void AfterAction()
@@ -554,8 +598,13 @@ namespace PiqueteDefend.Presentation
                     var art = new VisualElement();
                     art.AddToClassList("slot__art");
                     art.AddToClassList(playerIndex == 0 ? "slot__art--manif" : "slot__art--polis");
-                    if (slot.unit.sprite != null)
-                        art.style.backgroundImage = new StyleBackground(slot.unit.sprite);
+                    // Capa propia para el sprite: así el espejado (mirar al rival) no voltea el nombre.
+                    // El arte se autoría "mirando a la derecha"; el lado derecho del tablero mira a la
+                    // izquierda → se espeja (dev-guide §5.1).
+                    var sprite = new VisualElement();
+                    sprite.AddToClassList("slot__sprite");
+                    ApplyUnitArt(sprite, slot.unit, faceLeft: playerIndex == 1);
+                    art.Add(sprite);
                     var nameLabel = new Label(slot.unit.cardName);
                     nameLabel.AddToClassList("slot__name");
                     art.Add(nameLabel);
@@ -722,6 +771,51 @@ namespace PiqueteDefend.Presentation
                 _iconTexCache[key] = tex;   // cachea también el null (falta) para no recargar
             }
             return tex;
+        }
+
+        // Texturas de arte de unidad cargadas de Resources/Units (cache por key, incluye null = falta).
+        private readonly Dictionary<string, Texture2D> _unitTexCache = new Dictionary<string, Texture2D>();
+
+        private Texture2D UnitTexture(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return null;
+            if (!_unitTexCache.TryGetValue(key, out Texture2D tex))
+            {
+                tex = Resources.Load<Texture2D>("Units/" + key);
+                _unitTexCache[key] = tex;   // cachea también el null (falta) para no recargar
+            }
+            return tex;
+        }
+
+        /// <summary>Clave de arte por facción para el default de <c>Resources/Units/{faccion}-default</c>
+        /// ("manifestantes"/"policias", nombre del enum en minúscula).</summary>
+        private static string FactionArtKey(Faction faction) => faction.ToString().ToLowerInvariant();
+
+        /// <summary>
+        /// Pinta el sprite de una unidad como fondo de su capa de arte. Prioridad (listo para
+        /// "cada unidad su propio sprite", dev-guide §5.1):
+        ///   1) sprite propio asignado en el asset (<see cref="CardData.sprite"/>),
+        ///   2) textura por convención <c>Resources/Units/{id}</c> (sprite propio de esa unidad),
+        ///   3) default de facción <c>Resources/Units/{faction}-default</c> (hoy todos los polis comparten uno).
+        /// Si no hay arte, la capa queda vacía. <paramref name="faceLeft"/> espeja el sprite en
+        /// horizontal: el arte se autoría mirando a la derecha; el lado derecho del tablero mira al rival.
+        /// </summary>
+        private void ApplyUnitArt(VisualElement sprite, UnitCardData unit, bool faceLeft)
+        {
+            StyleBackground bg;
+            if (unit.sprite != null)
+            {
+                bg = new StyleBackground(unit.sprite);
+            }
+            else
+            {
+                Texture2D tex = UnitTexture(unit.id) ?? UnitTexture(FactionArtKey(unit.faction) + "-default");
+                if (tex == null) return;
+                bg = new StyleBackground(tex);
+            }
+            sprite.style.backgroundImage = bg;
+            if (faceLeft)
+                sprite.style.scale = new Scale(new Vector2(-1f, 1f));
         }
 
         private void AddSlotIcons(VisualElement slotEl, PlayerState owner, int playerIndex, int slotIndex)

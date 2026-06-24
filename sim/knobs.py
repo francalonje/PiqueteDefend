@@ -58,17 +58,16 @@ class GlobalKnobs:
 
 # ── Config ADOPTADA (la que shippea el juego) ────────────────────────────────
 #
-# El balance horneado en docs/game-spec.md §9/§10 y Core/CardLibrary.cs sale de aplicar
-# ESTOS knobs a los valores base de cards.py: durabilidad (daño ×1.5 / HP ×0.85) + las dos
-# reglas de iniciativa. Verificado por parity_check.py (cards.py × SHIPPED == catálogo del Core).
-#
-# Es el DEFAULT de los comandos run/game/dump (main.py). Los valores base de cards.py NO son
-# los que ship­ea el juego: sólo coinciden con el Core bajo esta config. Para barrer el escalado
-# global (sweep) o reproducir el juego "crudo" pre-tune, pasá --baseline o knobs explícitos.
+# REWORK de cartas: los valores base de cards.py son ahora los números FINALES del spec §9/§10
+# (= Core/CardLibrary.cs), así que hp/dmg/producer van en 1.0 (sin tune global; el balance se
+# afina carta por carta, playtest-driven). Sólo cost_mult ×1.2 (bump económico, espejo de
+# CardLibrary.CostScale) e inflación/reglas de iniciativa difieren del baseline. parity_check.py
+# verifica cards.py × SHIPPED == catálogo del Core. El sweep puede variar hp/dmg para explorar.
 SHIPPED = GlobalKnobs(
-    hp_mult=0.85,
-    dmg_mult=1.5,
-    cost_mult=1.2,                 # bump económico global uniforme (no descalibra: facción ~51/49)
+    hp_mult=1.0,
+    dmg_mult=1.0,
+    producer_mult=1.0,
+    cost_mult=1.2,                 # bump económico global uniforme (espejo de CardLibrary.CostScale)
     first_no_attack_t1=True,
     first_produces_t1=True,
     inflation_start_turn=8,        # medios-turnos; arranca temprano, se ve en casi toda partida

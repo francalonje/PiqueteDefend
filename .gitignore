@@ -83,3 +83,5 @@ __pycache__/
 /compile.log
 /tests.log
 /results.xml
+/gen.log
+PiqueteDefend/results.xml

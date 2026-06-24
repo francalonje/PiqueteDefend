@@ -62,6 +62,9 @@ class PassiveType(Enum):
     RETALIATE = "Retaliate"
     TURN_DAMAGE = "TurnDamage"
     TURN_STATUS = "TurnStatus"
+    ONDEATH = "OnDeath"      # death-rattle (spec §7.3): dispara al morir (cualquier fuente)
+    ARMOR = "Armor"          # Blindaje: reduce el daño de ataques de unidad
+    PUSHBACK = "PushBack"    # Chorro: empuja al objetivo al fondo tras atacar
 
 
 class PassiveTarget(Enum):

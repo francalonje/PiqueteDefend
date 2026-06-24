@@ -99,7 +99,7 @@ namespace PiqueteDefend.Core
 
             foreach (UnitCardData unit in _catalog.GetStartingUnits(faction))
             {
-                int slot = p.FirstFreeAllowedSlot(unit);
+                int slot = StartingSlot(p, unit);
                 if (slot >= 0) p.unitSlots[slot] = new UnitSlot(unit);
             }
 
@@ -108,6 +108,26 @@ namespace PiqueteDefend.Core
                 p.hand.Add(WeightedDraw(pool));
 
             return p;
+        }
+
+        /// <summary>
+        /// Posición de una unidad inicial (spec §11.3): un muro (restringido al frente) arranca
+        /// <b>adelante de todo</b> — el slot libre permitido de mayor índice — para que nada se
+        /// despliegue por delante y tankee siempre; el resto arranca en la retaguardia (menor
+        /// índice), protegido detrás del muro.
+        /// </summary>
+        private int StartingSlot(PlayerState p, UnitCardData unit)
+        {
+            int front = _config.maxSlots / 2;
+            bool frontLocked = unit.allowedSlots != null && unit.allowedSlots.Length > 0
+                               && Array.TrueForAll(unit.allowedSlots, s => s >= front);
+            if (frontLocked)
+            {
+                for (int i = p.unitSlots.Length - 1; i >= 0; i--)
+                    if (p.unitSlots[i] == null && unit.AllowsSlot(i)) return i;
+                return -1;
+            }
+            return p.FirstFreeAllowedSlot(unit);
         }
 
         // ── Fases 1 y 2: EFECTOS + PRODUCCIÓN ─────────────────────────────────────
@@ -357,13 +377,20 @@ namespace PiqueteDefend.Core
                 if (def == null) continue;  // whiff (spec §6)
                 foreach (PassiveEffect pe in def.AllPassives())
                     if (pe.passiveType == PassiveType.Retaliate) retaliation += pe.value;
-                def.currentHp -= dmg;
-                if (def.IsDead) opp.unitSlots[t] = null;
+                int taken = dmg - ArmorOf(def);  // Blindaje mitiga el golpe de ataque (spec §7.3)
+                if (taken < 0) taken = 0;
+                def.currentHp -= taken;
+                if (def.IsDead) KillUnit(opp, t);
             }
+
+            // Chorro (PushBack): empuja a los objetivos sobrevivientes al fondo del rival (antes del Retaliate).
+            if (active.unitSlots[attackerSlot] != null && HasPassive(attacker, PassiveType.PushBack))
+                foreach (int t in targets) PushTargetBack(opp, t);
+
             if (retaliation > 0 && active.unitSlots[attackerSlot] != null)
             {
                 attacker.currentHp -= retaliation;
-                if (attacker.IsDead) active.unitSlots[attackerSlot] = null;
+                if (attacker.IsDead) KillUnit(active, attackerSlot);
             }
 
             _attackUsed = true;
@@ -425,7 +452,7 @@ namespace PiqueteDefend.Core
                     UnitSlot s = p.unitSlots[i];
                     if (s == null) continue;
                     s.currentHp -= dmg;
-                    if (s.IsDead) p.unitSlots[i] = null;
+                    if (s.IsDead) KillUnit(p, i);
                 }
         }
 
@@ -495,7 +522,7 @@ namespace PiqueteDefend.Core
                     {
                         UnitSlot u = tgt.unitSlots[slot];
                         u.currentHp += effect.value;
-                        if (u.IsDead) tgt.unitSlots[slot] = null;
+                        if (u.IsDead) KillUnit(tgt, slot);
                         else if (u.currentHp > u.MaxHp) u.currentHp = u.MaxHp;
                     }
                     break;
@@ -644,6 +671,39 @@ namespace PiqueteDefend.Core
             return dmg < 0 ? 0 : dmg;
         }
 
+        /// <summary>Suma del Blindaje (reducción de daño de ataque) de la unidad, incl. equipo (spec §7.3).</summary>
+        public static int ArmorOf(UnitSlot u)
+        {
+            int a = 0;
+            foreach (PassiveEffect pe in u.AllPassives())
+                if (pe.passiveType == PassiveType.Armor) a += pe.value;
+            return a;
+        }
+
+        private static bool HasPassive(UnitSlot u, PassiveType type)
+        {
+            foreach (PassiveEffect pe in u.AllPassives())
+                if (pe.passiveType == type) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Chorro: empuja la unidad del slot <paramref name="t"/> al slot libre más al fondo (menor
+        /// índice) de <paramref name="board"/>. No-op si no hay un slot libre más atrás. Ignora
+        /// <c>allowedSlots</c> (empuje involuntario, como SwapUnits).
+        /// </summary>
+        private static void PushTargetBack(PlayerState board, int t)
+        {
+            if (t < 0 || t >= board.unitSlots.Length || board.unitSlots[t] == null) return;
+            for (int j = 0; j < t; j++)
+            {
+                if (board.unitSlots[j] != null) continue;
+                board.unitSlots[j] = board.unitSlots[t];
+                board.unitSlots[t] = null;
+                return;
+            }
+        }
+
         /// <summary>
         /// True si el ataque afecta al menos a un objetivo válido: para daño, un slot enemigo ocupado;
         /// para cura, un aliado por debajo de su maxHp. Si no, la acción se cancela (spec §6).
@@ -672,7 +732,43 @@ namespace PiqueteDefend.Core
             UnitSlot u = owner.unitSlots[slot];
             if (u == null) return;
             u.currentHp -= amount;
-            if (u.IsDead) owner.unitSlots[slot] = null;
+            if (u.IsDead) KillUnit(owner, slot);
+        }
+
+        /// <summary>
+        /// Punto único de "muerte" de una unidad: libera el slot y dispara sus pasivas
+        /// <see cref="PassiveType.OnDeath"/> (death-rattle, spec §7.3). Todas las fuentes de muerte
+        /// (ataque, Poison, ModifyHP, muerte súbita) pasan por acá. Libera el slot ANTES de disparar
+        /// (la unidad no se afecta a sí misma). El death-rattle puede encadenar más muertes (vía
+        /// <see cref="DirectDamage"/>); NO re-evalúa victoria: el caller lo hace tras su fase/acción.
+        /// </summary>
+        private void KillUnit(PlayerState owner, int slot)
+        {
+            UnitSlot dead = owner.unitSlots[slot];
+            if (dead == null) return;
+            owner.unitSlots[slot] = null;
+
+            PlayerState other = ReferenceEquals(owner, _players[0]) ? _players[1] : _players[0];
+            foreach (PassiveEffect pe in dead.AllPassives())
+                if (pe.passiveType == PassiveType.OnDeath)
+                    ResolveOnDeath(pe, owner, other, slot);
+        }
+
+        /// <summary>
+        /// Resuelve un death-rattle sobre los slots objetivo (mismo targeting que las pasivas
+        /// dirigidas, §7.3): con <see cref="PassiveEffect.status"/> aplica el estado (ej. el Jubilado
+        /// → Furia a aliados adyacentes); sin status, <see cref="PassiveEffect.value"/> de daño directo
+        /// (ej. explosión a enemigos). El tablero lo decide <see cref="PassiveEffect.target"/>; whiff en slot vacío.
+        /// </summary>
+        private void ResolveOnDeath(PassiveEffect pe, PlayerState owner, PlayerState other, int slot)
+        {
+            PlayerState board = pe.target == PassiveTarget.Enemies ? other : owner;
+            foreach (int t in PassiveTargets(pe, slot, board))
+            {
+                if (t < 0 || t >= board.unitSlots.Length || board.unitSlots[t] == null) continue;
+                if (pe.status != null) board.unitSlots[t].activeStatuses.Add(pe.status.Clone());
+                else if (pe.value != 0) DirectDamage(board, t, pe.value);
+            }
         }
 
         // ── Robo ponderado (spec §8.1) ────────────────────────────────────────────

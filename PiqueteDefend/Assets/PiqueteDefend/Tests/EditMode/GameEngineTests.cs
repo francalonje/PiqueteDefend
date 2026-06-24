@@ -639,6 +639,161 @@ namespace PiqueteDefend.Tests
             Assert.AreEqual(20, enemy.currentHp);  // el veneno daña en EL turno del enemigo, no ahora
         }
 
+        // ── Death-rattle (OnDeath, spec §7.3) ──────────────────────────────────
+
+        [Test]
+        public void OnDeath_Furia_BuffsAdjacentAllies_WhenKilledByAttack()
+        {
+            var e = Combat(out _);
+            // Jubilado mártir frágil en la vanguardia (slot 4 = foremost de p0): al morir, Furia a vecinos.
+            e.PlayerAt(0).unitSlots[4] = new UnitSlot(U(5, Duel(0), null, OnDeathFuria(4, 2)));
+            var adj = new UnitSlot(U(20, Duel(5))); e.PlayerAt(0).unitSlots[3] = adj;   // adyacente
+            var far = new UnitSlot(U(20, Duel(5))); e.PlayerAt(0).unitSlots[1] = far;   // no adyacente
+            e.PlayerAt(1).unitSlots[4] = new UnitSlot(U(20, Duel(50)));                 // lo mata
+
+            e.BeginTurn();                 // p0 (ht1)
+            e.EndTurn(); e.BeginTurn();    // p1 (ht2): ataca al foremost de p0 = slot 4 (Jubilado)
+            e.AttackWithUnit(4);
+
+            Assert.IsNull(e.PlayerAt(0).unitSlots[4]);       // murió
+            Assert.IsTrue(adj.HasStatus(StatusType.Furia));  // vecino: envalentonado
+            Assert.IsFalse(far.HasStatus(StatusType.Furia)); // lejano: no
+        }
+
+        [Test]
+        public void OnDeath_FiresOnPoisonDeath()
+        {
+            var e = Combat(out _);
+            var jub = new UnitSlot(U(3, Duel(0), null, OnDeathFuria(4, 2)));
+            jub.activeStatuses.Add(new StatusEffect(StatusType.Poison, 5, 2));  // lo mata en EFECTOS
+            e.PlayerAt(0).unitSlots[4] = jub;
+            var adj = new UnitSlot(U(20, Duel(5))); e.PlayerAt(0).unitSlots[3] = adj;
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(20));  // keepalive
+
+            e.BeginTurn();  // p0: veneno 3→-2 → muere → OnDeath dispara aunque la fuente no sea un ataque
+            Assert.IsNull(e.PlayerAt(0).unitSlots[4]);
+            Assert.IsTrue(adj.HasStatus(StatusType.Furia));
+        }
+
+        [Test]
+        public void OnDeath_FiresOnSuddenDeath()
+        {
+            var cfg = PlainCfg(); cfg.suddenDeathStart = 1; cfg.suddenDeathDamage = 5;
+            var e = NewEngine(cfg, out _);
+            e.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
+            e.PlayerAt(0).unitSlots[4] = new UnitSlot(U(3, Duel(0), null, OnDeathFuria(4, 2)));
+            var adj = new UnitSlot(U(20, Duel(5))); e.PlayerAt(0).unitSlots[3] = adj;
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(20));  // keepalive (sobrevive el −5)
+
+            e.BeginTurn();
+            e.EndTurn();  // muerte súbita: Jubilado 3→-2 muere; el aliado 20→15 sobrevive
+            Assert.IsNull(e.PlayerAt(0).unitSlots[4]);
+            Assert.IsTrue(adj.HasStatus(StatusType.Furia));  // el death-rattle disparó en muerte súbita
+        }
+
+        [Test]
+        public void OnDeath_Explosion_DamagesEnemyFront()
+        {
+            var e = Combat(out _);
+            var attacker = new UnitSlot(U(40, Duel(50)));  // tanque: aguanta la explosión
+            e.PlayerAt(0).unitSlots[2] = attacker;         // único de p0 → foremost de p0 = slot 2
+            // Bomba: al morir, daño Frontmost a enemigos (= al foremost de p0, el atacante).
+            var bomber = new UnitSlot(U(5, Duel(0), null, OnDeathExplosion(20, TargetMode.Frontmost, 1)));
+            e.PlayerAt(1).unitSlots[5] = bomber;
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(20));  // keepalive de p1 (no KO)
+            e.BeginTurn();
+
+            e.AttackWithUnit(2);  // mata a la bomba (5hp) → explota Frontmost sobre p0 → atacante 40−20
+            Assert.IsNull(e.PlayerAt(1).unitSlots[5]);
+            Assert.AreEqual(20, e.PlayerAt(0).unitSlots[2].currentHp);
+        }
+
+        [Test]
+        public void OnDeath_Chains_ThroughAlliedDeathrattles()
+        {
+            var e = Combat(out _);
+            e.PlayerAt(0).unitSlots[2] = new UnitSlot(U(40, Duel(50)));  // mata al foremost del rival
+            e.PlayerAt(0).unitSlots[0] = new UnitSlot(U(20));            // keepalive de p0
+            // BombaA en la vanguardia de p1: al morir daña a TODOS sus propios aliados (encadena).
+            var bombA = new UnitSlot(U(5, Duel(0), null, OnDeathDamageAllies(50, TargetMode.All, 0)));
+            e.PlayerAt(1).unitSlots[5] = bombA;
+            var bombB = new UnitSlot(U(4));  // frágil; muere por la explosión de A
+            e.PlayerAt(1).unitSlots[1] = bombB;
+            e.BeginTurn();
+
+            e.AttackWithUnit(2);  // mata a A → A daña a sus aliados (All) → B muere (encadenado) → p1 sin unidades
+            Assert.IsNull(e.PlayerAt(1).unitSlots[5]);
+            Assert.IsNull(e.PlayerAt(1).unitSlots[1]);
+            Assert.IsTrue(e.IsFinished);
+            Assert.AreEqual(Faction.Manifestantes, e.Outcome.Value.Winner);
+        }
+
+        // ── Blindaje / Chorro (mecánicas nuevas de Policías, spec §7.3) ────────
+
+        [Test]
+        public void Armor_ReducesAttackDamage()
+        {
+            var e = Combat(out _);
+            e.PlayerAt(0).unitSlots[2] = new UnitSlot(U(10, Duel(10)));
+            e.PlayerAt(1).unitSlots[2] = new UnitSlot(U(20, Duel(0), null, Armor(4)));
+            e.BeginTurn();
+            e.AttackWithUnit(2);
+            Assert.AreEqual(20 - 6, e.PlayerAt(1).unitSlots[2].currentHp);  // 10 − 4 de blindaje
+        }
+
+        [Test]
+        public void Armor_FloorsDamageAtZero()
+        {
+            var e = Combat(out _);
+            e.PlayerAt(0).unitSlots[2] = new UnitSlot(U(10, Duel(3)));
+            e.PlayerAt(1).unitSlots[2] = new UnitSlot(U(20, Duel(0), null, Armor(5)));
+            e.BeginTurn();
+            e.AttackWithUnit(2);
+            Assert.AreEqual(20, e.PlayerAt(1).unitSlots[2].currentHp);  // 3 − 5 → 0 (no cura)
+        }
+
+        [Test]
+        public void Armor_DoesNotMitigateSuddenDeath()
+        {
+            var cfg = PlainCfg(); cfg.suddenDeathStart = 1; cfg.suddenDeathDamage = 3;
+            var e = NewEngine(cfg, out _);
+            e.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
+            e.PlayerAt(0).unitSlots[0] = new UnitSlot(U(10, Duel(0), null, Armor(5)));
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));
+            e.BeginTurn();
+            e.EndTurn();  // muerte súbita ignora defensas (spec §5.1)
+            Assert.AreEqual(7, e.PlayerAt(0).unitSlots[0].currentHp);  // 10 − 3 completo
+        }
+
+        [Test]
+        public void PushBack_ShovesTargetToRearmostFreeSlot()
+        {
+            var e = Combat(out _);
+            var carro = new UnitSlot(U(10, new UnitAttack(TargetMode.Frontmost, 1, 3), null, PushBack()));
+            e.PlayerAt(0).unitSlots[2] = carro;
+            var victim = new UnitSlot(U(20));
+            e.PlayerAt(1).unitSlots[5] = victim;  // foremost del rival; 0..4 libres
+            e.BeginTurn();
+            e.AttackWithUnit(2);
+            Assert.IsNull(e.PlayerAt(1).unitSlots[5]);          // ya no está adelante
+            Assert.AreSame(victim, e.PlayerAt(1).unitSlots[0]); // empujado al fondo (slot 0)
+            Assert.AreEqual(17, victim.currentHp);              // recibió el daño igual
+        }
+
+        [Test]
+        public void PushBack_AlreadyAtBack_IsNoOp()
+        {
+            var e = Combat(out _);
+            var carro = new UnitSlot(U(10, new UnitAttack(TargetMode.Frontmost, 1, 3), null, PushBack()));
+            e.PlayerAt(0).unitSlots[2] = carro;
+            var victim = new UnitSlot(U(20));
+            e.PlayerAt(1).unitSlots[0] = victim;  // ya en el fondo; foremost = slot 0 (no hay lugar atrás)
+            e.BeginTurn();
+            e.AttackWithUnit(2);
+            Assert.AreSame(victim, e.PlayerAt(1).unitSlots[0]);  // no se mueve
+            Assert.AreEqual(17, victim.currentHp);
+        }
+
         // ── Estados: producción y combinaciones ────────────────────────────────
 
         [Test]
@@ -870,6 +1025,35 @@ namespace PiqueteDefend.Tests
             passiveType = PassiveType.TurnStatus, status = new StatusEffect(StatusType.Poison, v, 1),
             target = PassiveTarget.Enemies, mode = TargetMode.Frontmost, count = 1
         };
+
+        /// <summary>Jubilado mártir: al morir, Furia (+v daño, c turnos) a los aliados adyacentes.</summary>
+        private static PassiveEffect OnDeathFuria(int v, int c) => new PassiveEffect
+        {
+            passiveType = PassiveType.OnDeath, status = new StatusEffect(StatusType.Furia, v, c),
+            target = PassiveTarget.Allies, mode = TargetMode.Adjacent, count = 0
+        };
+
+        /// <summary>Explosión: al morir, v de daño directo a enemigos según mode/count.</summary>
+        private static PassiveEffect OnDeathExplosion(int v, TargetMode mode, int count) => new PassiveEffect
+        {
+            passiveType = PassiveType.OnDeath, value = v,
+            target = PassiveTarget.Enemies, mode = mode, count = count
+        };
+
+        /// <summary>Variante de prueba: al morir, v de daño a los propios aliados (encadena death-rattles).</summary>
+        private static PassiveEffect OnDeathDamageAllies(int v, TargetMode mode, int count) => new PassiveEffect
+        {
+            passiveType = PassiveType.OnDeath, value = v,
+            target = PassiveTarget.Allies, mode = mode, count = count
+        };
+
+        /// <summary>Blindaje: reduce en v el daño de cada ataque de unidad recibido.</summary>
+        private static PassiveEffect Armor(int v) =>
+            new PassiveEffect { passiveType = PassiveType.Armor, value = v, target = PassiveTarget.Self };
+
+        /// <summary>Chorro: al atacar, empuja al objetivo al fondo del rival.</summary>
+        private static PassiveEffect PushBack() =>
+            new PassiveEffect { passiveType = PassiveType.PushBack, target = PassiveTarget.Self };
 
         private static EquipmentCardData EquipDamage(int v)
         {

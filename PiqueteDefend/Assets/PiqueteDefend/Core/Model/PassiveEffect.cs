@@ -7,7 +7,8 @@ namespace PiqueteDefend.Core
     /// dañar/debuffear enemigas. Las pasivas dirigidas usan el <b>mismo targeting que un ataque</b>
     /// (<see cref="mode"/> + <see cref="count"/>) sobre el tablero indicado por <see cref="target"/>.
     /// Ej.: Aura → <c>Adjacent</c>; Humo (TurnDamage) → <c>Frontmost</c> enemies count N;
-    /// Gas (TurnStatus) → <c>Frontmost</c> enemies count 1; Regen/Retaliate → <c>Self</c>.
+    /// Gas (TurnStatus) → <c>Frontmost</c> enemies count 1; Regen/Retaliate → <c>Self</c>;
+    /// Jubilado (OnDeath) → Furia a <c>Adjacent</c> allies.
     /// </summary>
     [Serializable]
     public class PassiveEffect
@@ -20,7 +21,7 @@ namespace PiqueteDefend.Core
         /// <summary>Recurso afectado (sólo <see cref="PassiveType.ProduceResource"/>).</summary>
         public ResourceType resource;
 
-        /// <summary>Plantilla del status a aplicar (sólo <see cref="PassiveType.TurnStatus"/>).</summary>
+        /// <summary>Plantilla del status a aplicar (<see cref="PassiveType.TurnStatus"/> y <see cref="PassiveType.OnDeath"/> con status).</summary>
         public StatusEffect status;
 
         /// <summary>Sobre qué tablero recae (spec §7.3). Default Self.</summary>
