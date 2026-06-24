@@ -24,6 +24,18 @@ namespace PiqueteDefend.Tests
             public readonly List<UnitCardData> starting = new List<UnitCardData>();
             public IReadOnlyList<CardData> GetPool(Faction faction) => pool;
             public IReadOnlyList<UnitCardData> GetStartingUnits(Faction faction) => starting;
+
+            /// <summary>Mazo = pool expandido por drawWeight (igual que CardCatalog en producción).</summary>
+            public IReadOnlyList<CardData> GetDeckList(Faction faction)
+            {
+                var deck = new List<CardData>();
+                foreach (CardData c in pool)
+                {
+                    int copies = c.drawWeight > 0 ? c.drawWeight : 1;
+                    for (int i = 0; i < copies; i++) deck.Add(c);
+                }
+                return deck;
+            }
         }
 
         /// <summary>RNG determinista: Next siempre 0, Choice toma el primero.</summary>
@@ -67,7 +79,7 @@ namespace PiqueteDefend.Tests
         private static GameEngine NewEngine(GameConfig cfg, out TestCatalog cat, params UnitCardData[] starting)
         {
             cat = new TestCatalog();
-            cat.pool.Add(U(1));                  // carta dummy para poblar la mano
+            for (int i = 0; i < 8; i++) cat.pool.Add(U(1));   // dummies para llenar la mano (mazo finito)
             cat.starting.AddRange(starting);
             return new GameEngine(cfg, new ZeroRng(), cat);
         }
@@ -977,36 +989,72 @@ namespace PiqueteDefend.Tests
             Assert.AreEqual(5, e.PlayerAt(0).unitSlots[2].currentHp);
         }
 
-        // ── Robo ponderado (drawWeight) ─────────────────────────────────────────
+        // ── Mazo de robo (deck/discard, spec §8.1) ──────────────────────────────
 
         [Test]
-        public void WeightedDraw_RespectsDrawWeight()
+        public void Deck_DrawsWithoutReplacement_HandPlusDeckHoldsEveryCard()
         {
-            // Pool: A (peso 1) + B (peso 3) → total 4. r∈[0,1)→A, r∈[1,4)→B.
-            var catB = new TestCatalog();
-            var a = U(1); a.id = "A"; a.drawWeight = 1;
-            var b = U(1); b.id = "B"; b.drawWeight = 3;
-            catB.pool.Add(a); catB.pool.Add(b);
+            // 10 cartas distintas, 1 copia c/u; mano de 4 → mano ∪ mazo = las 10, sin repetición.
+            var cat = new TestCatalog();
+            for (int i = 0; i < 10; i++) { var c = U(1); c.id = "c" + i; cat.pool.Add(c); }
+            var cfg = PlainCfg(); cfg.handSize = 4;
+            var e = new GameEngine(cfg, new ZeroRng(), cat);
+            e.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
+            var p = e.PlayerAt(0);
 
-            var eB = new GameEngine(PlainCfg(), new FixedRng(2), catB);  // r=2 → B
-            eB.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
-            foreach (CardData c in eB.PlayerAt(0).hand) Assert.AreSame(b, c);
+            Assert.AreEqual(4, p.hand.Count);
+            Assert.AreEqual(6, p.deck.Count);
+            var all = new HashSet<CardData>(p.hand);
+            all.UnionWith(p.deck);
+            Assert.AreEqual(10, all.Count, "mano ∪ mazo = las 10 cartas, sin repetición (sniper siempre disponible)");
+        }
 
-            var eA = new GameEngine(PlainCfg(), new FixedRng(0), catB);  // r=0 → A
-            eA.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
-            foreach (CardData c in eA.PlayerAt(0).hand) Assert.AreSame(a, c);
+        [Test]
+        public void Deck_DrawWeightControlsCopies()
+        {
+            var cat = new TestCatalog();
+            var heavy = U(1); heavy.id = "H"; heavy.drawWeight = 3;
+            var light = U(1); light.id = "L"; light.drawWeight = 1;
+            cat.pool.Add(heavy); cat.pool.Add(light);
+            var cfg = PlainCfg(); cfg.handSize = 0;          // no robar: inspeccionar el mazo completo
+            var e = new GameEngine(cfg, new ZeroRng(), cat);
+            e.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
+            var p = e.PlayerAt(0);
+
+            Assert.AreEqual(4, p.deck.Count);                                  // 3 + 1
+            Assert.AreEqual(3, p.deck.FindAll(c => c.id == "H").Count);
+            Assert.AreEqual(1, p.deck.FindAll(c => c.id == "L").Count);
+        }
+
+        [Test]
+        public void Deck_ReshufflesDiscardWhenDeckEmpties()
+        {
+            var cat = new TestCatalog();
+            for (int i = 0; i < 3; i++) { var c = U(1); c.id = "d" + i; cat.pool.Add(c); }  // mazo de 3
+            var cfg = PlainCfg(); cfg.handSize = 2;
+            var e = new GameEngine(cfg, new ZeroRng(), cat);
+            e.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
+            e.PlayerAt(0).unitSlots[0] = new UnitSlot(U(10));   // keepalive: que la partida no termine
+            e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));
+            var p = e.PlayerAt(0);
+
+            // Varios turnos de p0 descartando: vacía el mazo y fuerza rebarajar el descarte.
+            for (int t = 0; t < 6; t++)
+            {
+                e.BeginTurn();
+                Assert.AreEqual(ActionResult.Success, e.DiscardCard(0));
+                Assert.AreEqual(2, p.hand.Count, "la mano se repone siempre a handSize");
+                foreach (CardData c in p.hand) Assert.IsNotNull(c, "nunca queda un hueco null en la mano");
+                e.EndTurn();
+                e.BeginTurn(); e.EndTurn();   // turno de p1
+            }
+            // Ninguna carta se perdió: las 3 distintas siguen en circulación.
+            var all = new HashSet<CardData>(p.hand);
+            all.UnionWith(p.deck); all.UnionWith(p.discard);
+            Assert.AreEqual(3, all.Count);
         }
 
         // ── Helpers adicionales ─────────────────────────────────────────────────
-
-        /// <summary>RNG determinista que devuelve siempre el mismo valor (acotado) en Next.</summary>
-        private sealed class FixedRng : IRandomProvider
-        {
-            private readonly int _val;
-            public FixedRng(int val) { _val = val; }
-            public int Next(int maxExclusive) => maxExclusive <= 0 ? 0 : _val % maxExclusive;
-            public T Choice<T>(IReadOnlyList<T> list) => list[0];
-        }
 
         private static PassiveEffect Produce(ResourceType r, int v) =>
             new PassiveEffect(PassiveType.ProduceResource, r, v);

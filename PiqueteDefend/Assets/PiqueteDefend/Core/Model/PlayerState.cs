@@ -18,6 +18,13 @@ namespace PiqueteDefend.Core
 
         public readonly List<CardData> hand = new List<CardData>();
 
+        /// <summary>Mazo de robo (spec §8.1). Se roba del tope (final de la lista, O(1)); cuando se
+        /// vacía, el descarte vuelve barajado. Las unidades iniciales también tienen su copia acá.</summary>
+        public readonly List<CardData> deck = new List<CardData>();
+
+        /// <summary>Descarte: cartas jugadas o descartadas. Se rebaraja dentro del mazo al vaciarse éste.</summary>
+        public readonly List<CardData> discard = new List<CardData>();
+
         /// <summary>Slots de unidades, indexados por posición. <c>null</c> = slot vacío.</summary>
         public readonly UnitSlot[] unitSlots;
 

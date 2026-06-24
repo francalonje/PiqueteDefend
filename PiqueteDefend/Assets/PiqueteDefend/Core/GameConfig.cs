@@ -23,7 +23,9 @@ namespace PiqueteDefend.Core
         public int baseProdFuerza = 1;
         public int baseProdSocial = 1;
 
-        public int maxResource = 100;
+        // Techo de recursos (spec §3). Bajo a propósito: el excedente se desperdicia (use-it-or-lose-it),
+        // así la economía es una decisión y no un colchón infinito. Rough, tunear por playtest (15–20).
+        public int maxResource = 18;
 
         // Reglas de iniciativa (spec §3/§16, validadas por simulación): sin ellas el primer
         // jugador gana ~59%; con ambas, ~48% (parejo).

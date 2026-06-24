@@ -103,9 +103,13 @@ namespace PiqueteDefend.Core
                 if (slot >= 0) p.unitSlots[slot] = new UnitSlot(unit);
             }
 
-            var pool = _catalog.GetPool(faction);
+            p.deck.AddRange(_catalog.GetDeckList(faction));
+            Shuffle(p.deck);
             for (int i = 0; i < _config.handSize; i++)
-                p.hand.Add(WeightedDraw(pool));
+            {
+                CardData drawn = DrawCard(p);
+                if (drawn != null) p.hand.Add(drawn);
+            }
 
             return p;
         }
@@ -297,7 +301,7 @@ namespace PiqueteDefend.Core
                     ResolveEffect(effect, active, opp, effectTargetSlot, effectTargetSlotB);
             }
 
-            ReplaceCard(active, handIndex);
+            DiscardAndDraw(active, handIndex);
             _cardActionUsed = true;
             CheckVictory();
             return ActionResult.Success;
@@ -311,7 +315,7 @@ namespace PiqueteDefend.Core
             PlayerState active = ActivePlayer;
             if (handIndex < 0 || handIndex >= active.hand.Count) return ActionResult.IndexOutOfRange;
 
-            ReplaceCard(active, handIndex);
+            DiscardAndDraw(active, handIndex);
             _cardActionUsed = true;
             return ActionResult.Success;
         }
@@ -771,27 +775,46 @@ namespace PiqueteDefend.Core
             }
         }
 
-        // ── Robo ponderado (spec §8.1) ────────────────────────────────────────────
+        // ── Mazo de robo (spec §8.1): mazo finito barajado, sin reemplazo, con rebaraje del descarte ──
 
-        private CardData WeightedDraw(IReadOnlyList<CardData> pool)
+        /// <summary>Baraja in-place con Fisher–Yates usando el RNG inyectado (determinista en tests).</summary>
+        private void Shuffle(List<CardData> list)
         {
-            int total = 0;
-            foreach (CardData c in pool) total += c.drawWeight > 0 ? c.drawWeight : 1;
-            if (total <= 0) return _rng.Choice(pool);
-
-            int r = _rng.Next(total);
-            foreach (CardData c in pool)
+            for (int i = list.Count - 1; i > 0; i--)
             {
-                int w = c.drawWeight > 0 ? c.drawWeight : 1;
-                if (r < w) return c;
-                r -= w;
+                int j = _rng.Next(i + 1);
+                (list[i], list[j]) = (list[j], list[i]);
             }
-            return pool[pool.Count - 1];
         }
 
-        private void ReplaceCard(PlayerState player, int handIndex)
+        /// <summary>
+        /// Roba del tope del mazo (final de la lista, O(1)). Si el mazo está vacío, rebaraja el descarte
+        /// dentro del mazo y roba de ahí. Devuelve null sólo si mazo y descarte están ambos vacíos.
+        /// </summary>
+        private CardData DrawCard(PlayerState player)
         {
-            player.hand[handIndex] = WeightedDraw(_catalog.GetPool(player.faction));
+            if (player.deck.Count == 0)
+            {
+                if (player.discard.Count == 0) return null;
+                player.deck.AddRange(player.discard);
+                player.discard.Clear();
+                Shuffle(player.deck);
+            }
+            int last = player.deck.Count - 1;
+            CardData card = player.deck[last];
+            player.deck.RemoveAt(last);
+            return card;
+        }
+
+        /// <summary>
+        /// Manda la carta jugada/descartada de la mano al descarte y roba una de reemplazo en el mismo
+        /// índice. Como el descarte recibe la carta antes de robar, <see cref="DrawCard"/> nunca devuelve
+        /// null acá (siempre hay al menos esa carta para rebarajar).
+        /// </summary>
+        private void DiscardAndDraw(PlayerState player, int handIndex)
+        {
+            player.discard.Add(player.hand[handIndex]);
+            player.hand[handIndex] = DrawCard(player);
         }
 
         // ── Victoria / desempate ──────────────────────────────────────────────────
