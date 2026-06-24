@@ -240,42 +240,48 @@ El tablero de cada jugador es **una única línea de 6 slots**, un **eje de prof
 1. **Presupuesto sobre una curva.** Cada unidad reparte un presupuesto entre HP, daño y utilidad.
    Más HP ⇒ menos daño. La utilidad (pasiva, cura) **se paga con stats** (principio vainilla): una
    unidad sin pasiva debe pegar/aguantar más que una con utilidad equivalente.
-2. **Stats baratos en bulk, acciones caras.** El poder numérico es **exponencialmente** más caro.
+2. **Gradiente por posición: atrás pega, adelante aguanta.** Como norma, las unidades que se
+   despliegan en **retaguardia pegan más** (carrys, snipers, morteros: frágiles que necesitan estar
+   protegidos) y las de **vanguardia aguantan más** (muros/tanques que comen el melee). El
+   presupuesto del punto 1 se inclina a **daño** cuanto más atrás puede ir la unidad y a **HP**
+   cuanto más al frente. Esto refuerza el RPS de formación: el alcance que saltea posición (punto 6)
+   es premium justamente porque rompe este gradiente (llega al carry escondido atrás).
+3. **Stats baratos en bulk, acciones caras.** El poder numérico es **exponencialmente** más caro.
    Corolario buscado: dos unidades baratas superan en stats crudos a una cara; lo que compra la cara
    es **alcance + economía de acción** (mata en 1 acción lo que dos baratas en 2). Esa tensión es
    deseada.
-3. **Las unidades son la carta central.** Acciones y equipo **orbitan** a las unidades (las
+4. **Las unidades son la carta central.** Acciones y equipo **orbitan** a las unidades (las
    habilitan, protegen, castigan); nunca son el motor del juego por sí solas.
 
 **Targeting / RPS de formación**
 
-4. **Cada modo de targeting tiene una formación que lo castiga** (triángulo del §6):
+5. **Cada modo de targeting tiene una formación que lo castiga** (triángulo del §6):
    - Melee/Penetra (`Frontmost`) ← muro gordo adelante + frágiles atrás.
    - Muro + carry escondido ← snipe (`Any`) y "pega al fondo" (`Backmost`).
    - Snipe (snipers frágiles y caros) ← agro de cuerpos baratos.
    - Ir ancho (swarm) ← AoE (`All`).
 
    El pool de **cada facción** debe cubrir **cada esquina**; ninguna formación gana contra todas.
-5. **El alcance es el recurso premium.** `Frontmost ×1` es gratis/default; `Any`/`Backmost`/`All`/
+6. **El alcance es el recurso premium.** `Frontmost ×1` es gratis/default; `Any`/`Backmost`/`All`/
    `Penetra` cuestan caro **porque saltean la posición** (única palanca defensiva, §6).
-6. **No saturar de snipe/AoE.** Posicionar es la counterplay del defensor; si medio pool ignora la
+7. **No saturar de snipe/AoE.** Posicionar es la counterplay del defensor; si medio pool ignora la
    formación, muere el eje de profundidad.
 
 **Economía / tempo**
 
-7. **La acción es la moneda real.** Con 1 carta + 1 ataque por turno, se valora por **valor-por-
+8. **La acción es la moneda real.** Con 1 carta + 1 ataque por turno, se valora por **valor-por-
    acción**, no por stats crudos. La producción es **tempo diferido** ⇒ debe ser **castigable por el
    agro**. RPS estratégico: *agro > codicia (economía) > midrange > agro*.
-8. **La inversión debe ser vulnerable.** Unidad cara/equipada/buffeada = huevos en una canasta ⇒
+9. **La inversión debe ser vulnerable.** Unidad cara/equipada/buffeada = huevos en una canasta ⇒
    snipe/remoción/desmoralizar la castigan; el AoE castiga ir ancho. Sin counters no hay meta, hay
    dominante.
 
 **Meta / builds**
 
-9. **La sinergia vive en pasivas + posición + economía, no en stats.** Sin deckbuilding (v1), el
-   "build" es la **formación + el lean de recurso** (aura sobre adyacentes, muro+carry, eco+healer).
-   El meta son *formaciones y planes económicos* emergentes, no listas.
-10. **Balance simétrico, no espejado.** Las facciones se equilibran en **poder agregado**
+10. **La sinergia vive en pasivas + posición + economía, no en stats.** Sin deckbuilding (v1), el
+    "build" es la **formación + el lean de recurso** (aura sobre adyacentes, muro+carry, eco+healer).
+    El meta son *formaciones y planes económicos* emergentes, no listas.
+11. **Balance simétrico, no espejado.** Las facciones se equilibran en **poder agregado**
     (win-rate del sim ≈ 50/50), **no clonándose**: cada una puede tener arquetipos, pasivas y
     lineups propios y divergentes. La simetría es de *fuerza*, no de *forma* — la asimetría da
     identidad y matchups más ricos. El eje recurso=build (§6.2) sí vale en ambas. (Ej.: el
@@ -283,10 +289,23 @@ El tablero de cada jugador es **una única línea de 6 slots**, un **eje de prof
 
 **Flavor / tono**
 
-11. **Tono de nombre y descripción.** Humor político y de cultura popular argentina: **negro,
+12. **Tono de nombre y descripción.** Humor político y de cultura popular argentina: **negro,
     bizarro, ácido**, en **dialecto argentino** (voseo, lunfardo). El nombre y la descripción
     reflejan los **stats/rol reales** de la carta (un tanque suena duro; un frágil de sacrificio,
     patético-épico; un sniper, frío y distante).
+
+**Excepciones (regla sobre las reglas)**
+
+13. **Toda regla tiene su excepción encarnada.** Cada máxima de esta sección debe tener **al menos
+    una unidad** del pool que sea una **excepción clara y deliberada** a ella (y, si conviene, varias
+    —incluso una por facción). Las excepciones son **contenido de diseño, no descuidos**: son las
+    cartas que generan sorpresa, counters y techo de habilidad, y que evitan que el pool se sienta
+    una plantilla. La excepción **paga su ruptura** (un costo, un downside o un nicho estrecho) para
+    no romper el balance agregado del punto 11. Ejemplos de rupturas buscadas: al gradiente de
+    posición (#2), una unidad pesada que **pega fuerte desde la vanguardia** o un frágil de
+    retaguardia **puramente defensivo**; al principio vainilla (#1), una unidad icónica
+    **sobrecargada de utilidad** a cambio de stats castigados. Al crear/rebalancear una carta,
+    anotá explícitamente **qué regla rompe** y **cómo la paga**.
 
 > **Proceso:** `docs/game-spec.md` + `Core/CardLibrary.cs` + `sim/` se mueven juntos
 > (`py sim/parity_check.py`). Valores rough validados por feel de playtest, no sobre-tune en el sim.
@@ -305,7 +324,7 @@ correlacionar con su rol**:
 | **$ Dinero** | **Durabilidad / economía** | Muro, Productora $, Healer, Control | +HP/defensa, boosts económicos |
 | **📣 Social** | **Control / momentum** | Productora 📣, Emisor, Carga | según facción (ver abajo) |
 
-> **El eje 📣 se expresa distinto por facción (§6.1 #10):** para **Manifestantes** es *momentum*
+> **El eje 📣 se expresa distinto por facción (§6.1 #11):** para **Manifestantes** es *momentum*
 > (rallying: Humo, doble producción, Escrache); para **Policías** es *supresión* (Gas, Veneno,
 > Desmoralizar, Skip-producción, Swap). Mismo recurso, expresión opuesta — buffear vs debuffear.
 
@@ -569,7 +588,7 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 
 ## 9. Cartas — Manifestantes
 
-> **Identidad (asimétrica, §6.1 #10):** los Manifestantes ganan con **cantidad, aguante popular,
+> **Identidad (asimétrica, §6.1 #11):** los Manifestantes ganan con **cantidad, aguante popular,
 > martirio y momentum** — buffean a los suyos, se sacrifican y aguantan. Sus pasivas distintivas
 > (no presentes en Policías): **Aura +daño**, **Espinas**, **OnDeath-mártir** (Furia), **Cura**,
 > **Mortero al fondo** (`Backmost`) y **Humo** (TurnDamage `All`). Su economía de ⚡ **gotea** por
@@ -622,7 +641,7 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 
 ## 10. Cartas — Policías
 
-> **Identidad (asimétrica, §6.1 #10):** los Policías ganan con **precisión, control, equipo y plata**
+> **Identidad (asimétrica, §6.1 #11):** los Policías ganan con **precisión, control, equipo y plata**
 > — cuerpos vainilla potentes, snipe quirúrgico y supresión. Sus rasgos distintivos (no presentes en
 > Manif): **Snipe preciso** (`Any`), **Blindaje** (mitiga ataques), **Chorro** (reposiciona al rival),
 > **Carga AoE** (`All` activo), **Gas** (TurnStatus `All`) y un **arsenal de control en acciones**
