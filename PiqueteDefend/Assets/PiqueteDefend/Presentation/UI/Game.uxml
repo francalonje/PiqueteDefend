@@ -32,24 +32,17 @@
         <!-- ESPACIADOR: deja ver el fondo -->
         <ui:VisualElement class="game__spacer" picking-mode="Ignore" />
 
-        <!-- BANDA INFERIOR: slots P0 (izq) | centro (dropzones + mano) | slots P1 (der) -->
-        <ui:VisualElement class="game__bottom">
+        <!-- BATALLA: unidades a todo el ancho. P0 (izq) | gap central | P1 (der), frentes al centro -->
+        <ui:VisualElement class="game__board">
             <ui:VisualElement name="p0-slots" class="slots slots--left" />
-
-            <ui:VisualElement class="game__center-col">
-                <ui:VisualElement class="dropzones">
-                    <ui:VisualElement name="play-zone" class="dropzone dropzone--play">
-                        <ui:Label text="JUGAR" class="dropzone__label" />
-                    </ui:VisualElement>
-                    <ui:VisualElement name="discard-zone" class="dropzone dropzone--discard">
-                        <ui:Label text="DESCARTAR" class="dropzone__label" />
-                    </ui:VisualElement>
-                </ui:VisualElement>
-                <ui:Label name="hint" class="game__hint" />
-                <ui:VisualElement name="hand" class="hand" />
-            </ui:VisualElement>
-
+            <ui:VisualElement class="game__board-gap" picking-mode="Ignore" />
             <ui:VisualElement name="p1-slots" class="slots slots--right" />
+        </ui:VisualElement>
+
+        <!-- MANO EN ABANICO: franja baja; las cartas (absolute) se solapan y asoman desde abajo -->
+        <ui:VisualElement class="game__handbar">
+            <ui:Label name="hint" class="game__hint" />
+            <ui:VisualElement name="hand" class="hand" />
         </ui:VisualElement>
 
         <!-- OVERLAY: victoria / empate -->

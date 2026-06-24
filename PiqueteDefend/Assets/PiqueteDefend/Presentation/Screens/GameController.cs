@@ -20,7 +20,7 @@ namespace PiqueteDefend.Presentation
         private const string PanelSettingsResource = "UIPanelSettings";
         private const string CatalogResource = "CardCatalog";
 
-        private enum Mode { Acting, AwaitDeploySlot, AwaitEffectTarget, AwaitSecondSlot, AwaitAttackTarget, Finished }
+        private enum Mode { Acting, AwaitDeploySlot, AwaitEffectTarget, AwaitConfirmGlobal, AwaitSecondSlot, AwaitAttackTarget, Finished }
 
         private GameEngine _engine;
         private Mode _mode = Mode.Acting;
@@ -34,8 +34,17 @@ namespace PiqueteDefend.Presentation
         private int _dragIndex = -1;
         private VisualElement _ghost;
         private Vector2 _dragPointerOffset;
+        private Vector2 _dragStartPos;                                 // posición del PointerDown (para distinguir click de drag)
+        private const float ClickThreshold = 8f;                       // movimiento máx (px) para tratar el gesto como click
         private int _dragTargetSide = -1;                              // lado cuyos slots aceptan la carta
+        private bool _dragGlobal;                                      // carta global: cualquier slot (ambos lados) confirma
         private readonly List<int> _dragEligibleSlots = new List<int>(); // índices de slot válidos (en _dragTargetSide)
+
+        // Mano en abanico (fan). Orden de reparto estable (no usar _hand.Children(): BringToFront lo reordena).
+        private readonly List<VisualElement> _handEls = new List<VisualElement>();
+        private float[] _handBaseRot = System.Array.Empty<float>();
+        private float[] _handBaseBottom = System.Array.Empty<float>();
+        private IVisualElementScheduledItem _cardInfoPending;   // popover de info diferido hasta terminar el hover
 
         // Slot element refs (rebuilt each Render — used for animations)
         private readonly VisualElement[] _p0SlotEls = new VisualElement[6];
@@ -48,7 +57,7 @@ namespace PiqueteDefend.Presentation
         private string _animHitSoundId;
 
         // UI refs
-        private VisualElement _root, _screen, _hand, _p0Slots, _p1Slots, _overlay, _playZone, _discardZone;
+        private VisualElement _root, _screen, _hand, _p0Slots, _p1Slots, _overlay;
         private Button _popover;
         private VisualElement _infoPopover, _infoBody, _inflationMeter;
         private Label _turnChip, _hint, _overlayTitle, _overlayMsg, _firstTurnNotice;
@@ -89,6 +98,11 @@ namespace PiqueteDefend.Presentation
 
             _endTurnButton.clicked += OnEndTurnButton;
 
+            // Teclado: Ctrl + 1..6 descarta la carta n (alternativa al Ctrl+Click del mouse).
+            _screen.focusable = true;
+            _screen.RegisterCallback<KeyDownEvent>(OnKeyDown);
+            _screen.Focus();
+
             AudioManager.Instance?.PlayMusic(AudioId.MusicGame);
             BeginActiveTurn();
         }
@@ -106,9 +120,10 @@ namespace PiqueteDefend.Presentation
             _hand = root.Q<VisualElement>("hand");
             _p0Slots = root.Q<VisualElement>("p0-slots");
             _p1Slots = root.Q<VisualElement>("p1-slots");
-            _playZone = root.Q<VisualElement>("play-zone");
-            _discardZone = root.Q<VisualElement>("discard-zone");
             _endTurnButton = root.Q<Button>("end-turn-button");
+
+            // Recolocar el abanico cuando cambia el tamaño de la franja (resolución / aspect ratio).
+            _hand.RegisterCallback<GeometryChangedEvent>(_ => LayoutHand());
 
             _overlay = root.Q<VisualElement>("overlay");
             _overlayTitle = root.Q<Label>("overlay-title");
@@ -287,11 +302,13 @@ namespace PiqueteDefend.Presentation
             if (_engine.CardActionUsed) return;
             if (!_engine.CanAfford(index)) { _hint.text = "No te alcanzan los recursos"; return; }
 
-            if (_engine.RequiresDeploySlot(index))
+            // Unidad: elegir un slot propio libre y permitido (sin reemplazo, §8.3).
+            if (_engine.ActivePlayer.hand[index] is UnitCardData unit)
             {
+                if (!HasFreeAllowedSlot(unit)) { _hint.text = "No hay slot libre para esa unidad"; return; }
                 _pendingCard = index;
                 _mode = Mode.AwaitDeploySlot;
-                _hint.text = "Elegí un slot propio para reemplazar";
+                _hint.text = "Elegí un slot libre para desplegar";
                 _endTurnButton.text = "Cancelar";
                 RenderSlots();
                 return;
@@ -310,14 +327,50 @@ namespace PiqueteDefend.Presentation
                 return;
             }
 
-            CardData played = _engine.ActivePlayer.hand[index];
-            ResolveCardPlay(_engine.PlayCard(index), played);
+            // Carta global (sin slot/target): pide un segundo click de confirmación sobre el tablero
+            // (cualquier slot, todos resaltados), para que jugarla nunca sea un click accidental.
+            _pendingCard = index;
+            _mode = Mode.AwaitConfirmGlobal;
+            _hint.text = "Click en el tablero para confirmar";
+            _endTurnButton.text = "Cancelar";
+            RenderSlots();
+        }
+
+        private void OnConfirmGlobalPlay()
+        {
+            CardData played = _engine.ActivePlayer.hand[_pendingCard];
+            ResolveCardPlay(_engine.PlayCard(_pendingCard), played);
+        }
+
+        /// <summary>¿La unidad tiene al menos un slot propio libre y permitido para desplegar?</summary>
+        private bool HasFreeAllowedSlot(UnitCardData unit)
+        {
+            UnitSlot[] slots = _engine.ActivePlayer.unitSlots;
+            for (int i = 0; i < slots.Length; i++)
+                if (unit.AllowsSlot(i) && slots[i] == null) return true;
+            return false;
         }
 
         private void DoDiscard(int index)
         {
             if (_engine.CardActionUsed) return;
             ResolveCardPlay(_engine.DiscardCard(index));   // descartar no es "jugar": sin sonido de jugada
+        }
+
+        /// <summary>Atajo de teclado: Ctrl + 1..6 descarta la carta n (alternativa al Ctrl+Click).</summary>
+        private void OnKeyDown(KeyDownEvent e)
+        {
+            if (_mode != Mode.Acting || _engine.CardActionUsed || !e.ctrlKey) return;
+            int n = DigitIndex(e.keyCode);
+            if (n >= 0 && n < _engine.ActivePlayer.hand.Count) { DoDiscard(n); e.StopPropagation(); }
+        }
+
+        /// <summary>Mapea KeyCode 1..6 (fila numérica o teclado numérico) a índice 0..5; -1 si no aplica.</summary>
+        private static int DigitIndex(KeyCode key)
+        {
+            if (key >= KeyCode.Alpha1 && key <= KeyCode.Alpha6) return key - KeyCode.Alpha1;
+            if (key >= KeyCode.Keypad1 && key <= KeyCode.Keypad6) return key - KeyCode.Keypad1;
+            return -1;
         }
 
         // playedCard != null → se reproduce el sonido de jugar carta (propio de la carta o el default).
@@ -391,9 +444,14 @@ namespace PiqueteDefend.Presentation
             UnitAttack ua = _engine.ActivePlayer.unitSlots[attackerSlot].unit.attack;
             string verb = ua.IsHeal ? "Curar" : "Atacar";
             string icon = ua.IsHeal ? "+" : "⚔";
+            // Daño EFECTIVO (base + equipo + Furia + Aura − Desmoralizar), igual que el icono del slot.
+            // La cura usa el valor base (las auras/Furia son de ataque, no de cura).
+            int amount = ua.IsHeal
+                ? ua.damagePerSlot
+                : _engine.EffectiveAttackDamage(_engine.ActivePlayer.unitSlots, attackerSlot);
             _popover.text = ua.RequiresChoice
-                ? $"{icon} {verb} (elegí {ua.count}) · {ua.damagePerSlot}"
-                : $"{icon} {verb} · {ua.damagePerSlot}";
+                ? $"{icon} {verb} (elegí {ua.count}) · {amount}"
+                : $"{icon} {verb} · {amount}";
 
             // Muestra a qué slots llega ESTE ataque (preview), del lado correcto (propio si cura).
             HighlightReach(attackerSlot, ua);
@@ -512,7 +570,6 @@ namespace PiqueteDefend.Presentation
             RenderPanel(1);
             RenderSlots();
             RenderHand();
-            UpdateZones();
             if (_animAttackerIdx >= 0) ApplyPendingAnimations();
         }
 
@@ -656,7 +713,9 @@ namespace PiqueteDefend.Presentation
                     break;
 
                 case Mode.AwaitDeploySlot:
-                    if (playerIndex == activeIdx)
+                    // Sólo slots propios LIBRES y permitidos por la unidad (sin reemplazo, §8.3).
+                    if (playerIndex == activeIdx && slot == null
+                        && _engine.ActivePlayer.hand[_pendingCard] is UnitCardData du && du.AllowsSlot(slotIndex))
                     {
                         el.AddToClassList("slot--target");
                         el.RegisterCallback<ClickEvent>(_ => OnDeploySlotChosen(captured));
@@ -670,6 +729,12 @@ namespace PiqueteDefend.Presentation
                         el.AddToClassList("slot--target");
                         el.RegisterCallback<ClickEvent>(_ => OnEffectTargetChosen(captured));
                     }
+                    break;
+
+                case Mode.AwaitConfirmGlobal:
+                    // Carta global: cualquier slot (ocupado o vacío, de cualquier lado) confirma la jugada.
+                    el.AddToClassList("slot--target");
+                    el.RegisterCallback<ClickEvent>(_ => OnConfirmGlobalPlay());
                     break;
 
                 case Mode.AwaitAttackTarget:
@@ -1102,8 +1167,11 @@ namespace PiqueteDefend.Presentation
         private void RenderHand()
         {
             _hand.Clear();
+            _handEls.Clear();
             PlayerState active = _engine.ActivePlayer;
             bool cardUsed = _engine.CardActionUsed;
+            _handBaseRot = new float[active.hand.Count];
+            _handBaseBottom = new float[active.hand.Count];
 
             for (int i = 0; i < active.hand.Count; i++)
             {
@@ -1114,12 +1182,82 @@ namespace PiqueteDefend.Presentation
 
                 if (!cardUsed) MakeDraggable(el, i);
 
-                int captured = i;  // hover → popover informativo de la carta
-                el.RegisterCallback<PointerEnterEvent>(_ => ShowCardInfo(captured, el));
-                el.RegisterCallback<PointerLeaveEvent>(_ => HideInfoPopover());
+                int captured = i;  // hover → sube/crece (abanico) + popover informativo de la carta
+                el.RegisterCallback<PointerEnterEvent>(_ => OnCardHoverEnter(captured, el));
+                el.RegisterCallback<PointerLeaveEvent>(_ => OnCardHoverLeave(captured, el));
 
                 _hand.Add(el);
+                _handEls.Add(el);
             }
+
+            LayoutHand();
+        }
+
+        // ── Mano en abanico (fan) ────────────────────────────────────────────────
+
+        /// <summary>
+        /// Coloca las cartas en arco solapado, ancladas abajo y asomando parcialmente fuera de
+        /// pantalla. Se llama al re-renderizar la mano y en cada cambio de geometría de la franja
+        /// (resolución). Itera por <see cref="_handEls"/> (orden estable): NO por los hijos de
+        /// <c>_hand</c>, que <c>BringToFront</c> reordena en el hover.
+        /// </summary>
+        private void LayoutHand()
+        {
+            int n = _handEls.Count;
+            if (n == 0) return;
+            float w = _hand.resolvedStyle.width;
+            if (w <= 1f) return;   // aún sin layout: el GeometryChangedEvent reintenta
+
+            const float cardW = 160f;       // = .card width en Game.uss
+            const float anglePer = 5f;      // grados de rotación por carta desde el centro
+            const float restBottom = -118f; // empuje hacia abajo → asoman parcialmente
+            const float arcK = 7f;          // cuánto caen las cartas hacia los bordes (arco)
+            const float maxSpacing = 116f;  // separación ideal entre centros (< cardW → solapan)
+
+            float spacing = Mathf.Min(maxSpacing, (w - cardW) / Mathf.Max(1, n - 1));
+            float c = (n - 1) / 2f;
+
+            for (int i = 0; i < n; i++)
+            {
+                float t = i - c;
+                _handBaseRot[i] = t * anglePer;
+                _handBaseBottom[i] = restBottom - t * t * arcK;
+
+                VisualElement el = _handEls[i];
+                el.style.left = w / 2f + t * spacing - cardW / 2f;
+                el.style.bottom = _handBaseBottom[i];
+                el.style.rotate = new Rotate(new Angle(_handBaseRot[i], AngleUnit.Degree));
+                el.style.scale = new Scale(Vector3.one);
+            }
+        }
+
+        /// <summary>Hover: la carta sube, se endereza, crece y se trae al frente (prominencia).</summary>
+        private void OnCardHoverEnter(int i, VisualElement el)
+        {
+            if (_dragging) return;   // durante un drag no levantamos cartas ni mostramos el popover
+            el.BringToFront();
+            el.AddToClassList("card--hovered");
+            el.style.rotate = new Rotate(new Angle(0f, AngleUnit.Degree));
+            el.style.scale = new Scale(new Vector3(1.4f, 1.4f, 1f));
+            el.style.bottom = -8f;
+
+            // El popover de info se muestra recién al terminar la animación de hover (la carta ya
+            // está enderezada y crecida), no de entrada. Se cancela si el puntero sale antes.
+            _cardInfoPending?.Pause();
+            _cardInfoPending = el.schedule.Execute(() => ShowCardInfo(i, el)).StartingIn(140);
+        }
+
+        /// <summary>Leave: la carta vuelve a su lugar/rotación en el abanico.</summary>
+        private void OnCardHoverLeave(int i, VisualElement el)
+        {
+            _cardInfoPending?.Pause();   // cancela el popover diferido si el puntero salió antes de tiempo
+            _cardInfoPending = null;
+            HideInfoPopover();
+            if (i >= _handBaseRot.Length) return;
+            el.RemoveFromClassList("card--hovered");
+            el.style.rotate = new Rotate(new Angle(_handBaseRot[i], AngleUnit.Degree));
+            el.style.scale = new Scale(Vector3.one);
+            el.style.bottom = _handBaseBottom[i];
         }
 
         /// <summary>
@@ -1139,18 +1277,6 @@ namespace PiqueteDefend.Presentation
             return el;
         }
 
-        private void UpdateZones()
-        {
-            SetZoneEnabled(_playZone, !_engine.CardActionUsed);
-            SetZoneEnabled(_discardZone, !_engine.CardActionUsed);
-        }
-
-        private static void SetZoneEnabled(VisualElement zone, bool enabled)
-        {
-            if (enabled) zone.RemoveFromClassList("dropzone--disabled");
-            else zone.AddToClassList("dropzone--disabled");
-        }
-
         // ── Drag & drop ─────────────────────────────────────────────────────────
 
         private void MakeDraggable(VisualElement card, int index)
@@ -1164,8 +1290,12 @@ namespace PiqueteDefend.Presentation
         {
             if (_mode != Mode.Acting || _engine.CardActionUsed) return;
 
+            // Ctrl+Click (botón izquierdo) = descartar (sin botón DESCARTAR). No inicia drag.
+            if (e.button == 0 && e.ctrlKey) { DoDiscard(index); return; }
+
             _dragging = true;
             _dragIndex = index;
+            _dragStartPos = e.position;
             card.CapturePointer(e.pointerId);
             AudioManager.Instance?.PlaySfx(AudioId.CardClick);
             HidePopover();
@@ -1208,14 +1338,17 @@ namespace PiqueteDefend.Presentation
             if (_ghost != null) { _ghost.RemoveFromHierarchy(); _ghost = null; }
             ClearDropHighlights();
 
-            // Orden de drop targets: slot válido → JUGAR → DESCARTAR → (cualquier otro lado: se cancela).
-            // Soltar sobre un slot inválido o fuera de toda zona NO juega la carta ni gasta recursos:
-            // OnDragEnd no llama a PlayCard, así que la carta queda intacta en la mano.
+            // Sin botones JUGAR/DESCARTAR. Resolución del gesto:
+            //   • soltada sobre un slot elegible        → DropOnSlot (jugar directo);
+            //   • carta global soltada sobre CUALQUIER slot → jugar directo;
+            //   • gesto sin desplazamiento (click)       → TryPlayCard (armar: pide confirmación/objetivo);
+            //   • soltada fuera                          → se cancela (la carta vuelve a su lugar).
             Vector2 pos = e.position;
+            float moved = (pos - _dragStartPos).magnitude;
             int slot = SlotUnderPointer(pos);
             if (slot >= 0) DropOnSlot(index, slot);
-            else if (_playZone.worldBound.Contains(pos)) TryPlayCard(index);
-            else if (_discardZone.worldBound.Contains(pos)) DoDiscard(index);
+            else if (_dragGlobal && PointerOverAnySlot(pos)) DropGlobal(index);
+            else if (moved <= ClickThreshold) TryPlayCard(index);
             // else: drop inválido → no se hace nada (la carta vuelve a su lugar al no re-renderizar).
         }
 
@@ -1226,6 +1359,7 @@ namespace PiqueteDefend.Presentation
         {
             _dragEligibleSlots.Clear();
             _dragTargetSide = -1;
+            _dragGlobal = false;
 
             int active = _engine.ActiveIndex;
 
@@ -1254,10 +1388,39 @@ namespace PiqueteDefend.Presentation
                 }
             }
 
-            if (_dragTargetSide < 0) return;
+            if (_dragTargetSide < 0)
+            {
+                // Carta global (acción sin objetivo de slot): cualquier slot, de cualquier lado,
+                // sirve para confirmar la jugada → resaltamos todos.
+                if (card is ActionCardData)
+                {
+                    _dragGlobal = true;
+                    foreach (VisualElement el in _p0SlotEls) el?.AddToClassList("slot--drop-ok");
+                    foreach (VisualElement el in _p1SlotEls) el?.AddToClassList("slot--drop-ok");
+                }
+                return;
+            }
             VisualElement[] els = _dragTargetSide == 0 ? _p0SlotEls : _p1SlotEls;
             foreach (int i in _dragEligibleSlots)
                 els[i]?.AddToClassList("slot--drop-ok");
+        }
+
+        /// <summary>True si el puntero está sobre algún slot (de cualquier lado). Para cartas globales.</summary>
+        private bool PointerOverAnySlot(Vector2 pos)
+        {
+            foreach (VisualElement el in _p0SlotEls)
+                if (el != null && el.worldBound.Contains(pos)) return true;
+            foreach (VisualElement el in _p1SlotEls)
+                if (el != null && el.worldBound.Contains(pos)) return true;
+            return false;
+        }
+
+        /// <summary>Juega una carta global directo (gesto de drag completo: no pide confirmación extra).</summary>
+        private void DropGlobal(int index)
+        {
+            if (!_engine.CanAfford(index)) { _hint.text = "No te alcanzan los recursos"; return; }
+            CardData card = _engine.ActivePlayer.hand[index];
+            ResolveCardPlay(_engine.PlayCard(index), card);
         }
 
         private void AddOccupiedSlots(int playerIndex)
@@ -1431,6 +1594,7 @@ namespace PiqueteDefend.Presentation
 
         private TargetType EffectSide(CardData card)
         {
+            if (card is EquipmentCardData) return TargetType.Self;   // el equipo va sobre una unidad propia
             if (card is ActionCardData a)
                 foreach (CardEffect e in a.effects)
                     if (e.TargetsAUnitSlot && e.targetSlot < 0)
