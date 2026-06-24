@@ -124,16 +124,17 @@ Todo se hace en [`Core/CardLibrary.cs`](../PiqueteDefend/Assets/PiqueteDefend/Co
 
 El ataque de una unidad es un `UnitAttack` (`Model/UnitAttack.cs`):
 
-- `reference`: `Absolute` (los `pattern` son slots fijos del rival 0–5) o `Relative` (offsets desde el
-  atacante; `0` = enfrentado, `+` = hacia el frente enemigo).
-- `pattern` (`int[]`): slots/offsets candidatos.
-- `pickCount`: `0` = pega todos los del patrón; `N>0` = el atacante elige N.
+- `mode` (`TargetMode`): a quién pega, **anclado a la formación rival** (no a slots fijos) — `Frontmost`
+  (la más adelantada), `Backmost` (la del fondo), `Any` (elige; snipe), `All` (AoE). Ver §6.
+- `count`: profundidad/alcance (`Frontmost`/`Backmost`: 1 = sólo la del frente, N = penetra N posiciones)
+  o cuántas elegir (`Any`). Ignorado en `All`.
 - `damagePerSlot`: daño (o curación si `effect = HealAllies`).
 - `effect`: `DamageEnemies` (default) o `HealAllies` (cura sobre el tablero propio).
 
-Presets nombrados (duelo, banda, cleave, zona fija, libre elección) en **spec §6**. La resolución de
-slots es `GameEngine.ResolveSlots(reference, pattern, origin)`. El daño **efectivo** (base + equipo +
-Furia + Aura − Desmoralizar) lo calcula `GameEngine.EffectiveAttackDamage(...)`.
+Vocabulario de modos en **spec §6**. La resolución de objetivos es
+`GameEngine.ResolveTargets(mode, count, targetBoard, origin)` (devuelve unidades ocupadas; el slot ancla
+nunca whiffea → sin deadlock). El daño **efectivo** (base + equipo + Furia + Aura − Desmoralizar) lo
+calcula `GameEngine.EffectiveAttackDamage(...)`.
 
 ### 4.3 Agregar un tipo de efecto de carta (CardEffectType)
 
@@ -152,9 +153,9 @@ Furia + Aura − Desmoralizar) lo calcula `GameEngine.EffectiveAttackDamage(...)
      `ResolveTurnStartPassives`.
    - continuo al atacar (aura) → `GameEngine.AuraBonusFor` / `EffectiveAttackDamage`.
    - reactivo al ser golpeada (espinas) → en `AttackWithUnit` (loop de `Retaliate`).
-3. Las pasivas dirigidas usan el **mismo targeting que un ataque** (`target` + `reference` + `pattern`)
-   vía `PassiveTargets(...)`. **Ojo:** hoy **no honran `pickCount`** (afectan todo el patrón); usar
-   `pick 0` (ver spec §7.3). Las pasivas de **equipo** también cuentan: `UnitSlot.AllPassives()`.
+3. Las pasivas dirigidas usan el **mismo targeting que un ataque** (`target` + `mode` + `count`)
+   vía `PassiveTargets(...)` → `ResolveTargets(...)`. `Frontmost`/`Backmost` están anclados a la
+   formación (deterministas; ver spec §7.3). Las pasivas de **equipo** también cuentan: `UnitSlot.AllPassives()`.
 4. Espejá en `sim/rules.py` + `sim/policy.py` (`_passive_value` para que el bot la valore). Test.
 
 ### 4.5 Agregar un estado / debuff (StatusType)
@@ -255,11 +256,27 @@ Para **agregar/ampliar** animaciones dentro de este modelo:
 > arquitectura de la *presentación* (no del Core) — mantené la lógica en el motor y que la capa de
 > GameObjects reaccione a eventos/estado del `GameEngine`, igual que hoy lo hace la UI.
 
-### 5.3 Indicadores de estado/equipo (badges) y popover de info
+### 5.3 Iconos de stat/estado/pasiva/equipo y popover de info
 
-- **Badges** por unidad: `GameController.AddStatusBadges(...)` + clases `badge--poison/stun/furia/
-  desmor/equip` en `Game.uss`. El texto/tooltip por estado: `StatusBadge(...)`; por equipo:
-  `EquipBadgeText(...)` / `EquipmentText(...)`. Al agregar un `StatusType` nuevo, sumá su caso acá.
+- **Anatomía del slot** (`GameController.RenderSlotColumn`): cada unidad se dibuja como "carta":
+  **área de arte** (`slot__art`, hueco del sprite — ver §5.1) → **barra de HP con valor superpuesto**
+  (`slot__hp-bar-outer` + `slot__hp-label`) → **fila de iconos** (`slot__icons`).
+- **Iconos** por unidad: un **único registro**. `BuildSlotIcons(...)` traduce el slot a una
+  `List<SlotIcon>` (stat de acción ⚔/✚, pasivas, estados, equipo) y `MakeIcon(...)` los renderiza
+  todos igual. El icono de acción muestra el **daño efectivo** (`EffectiveAttackDamage`) y, si pega a
+  más de un objetivo, `daño×objetivos` (objetivos = `AttackTargetCount(ua)`, según `mode`/`count`). Para
+  un **estado** nuevo (`StatusType`) sumá su caso en `StatusIcon(...)`; para una **pasiva** nueva
+  (`PassiveType`), en `PassiveIcon(...)` — un solo lugar cada uno. Cada `SlotIcon` lleva `title`
+  (categoría corta) + `tip` (detalle): el `tip` de estado sale de `StatusBadge(...)` (reusado), el de
+  pasiva de `PassiveText(...)`, el de equipo de `EquipmentText(...)`, el de acción de `AttackShape(...)`.
+  Clases `slot-icon--atk/heal/produce/regen/aura/thorns/turndmg/turnstatus/poison/stun/furia/desmor/
+  equip` en `Game.uss`.
+- **Hover en dos niveles:** cada icono registra `PointerEnter → ShowIconInfo(...)` (popover con el
+  detalle de ese efecto) y `PointerLeave → ShowInfoPopover(...)` (re-muestra el popover completo de la
+  unidad, porque el slot sigue hovereado). Ambos comparten el `_infoPopover` estilizado (no el tooltip
+  nativo de Unity).
+- **Sprite-ready:** cada `SlotIcon` lleva un `Sprite` opcional; si está seteado, `slot-icon__img`
+  reemplaza al glifo emoji (el glifo es el fallback). Mismo patrón que el sprite del personaje (§5.1).
 - **Popover informativo** (hover): `ShowInfoPopover` (unidad) y `ShowCardInfo` (carta), que comparten
   `BeginInfoPanel`. Textos legibles: `ReachText`, `PassiveText`, `EffectPart`/`ApplyStatusText`,
   `AttackInfoText`, `DeployZoneText`. Estilo: clases `info-popover*` en `Game.uss`.

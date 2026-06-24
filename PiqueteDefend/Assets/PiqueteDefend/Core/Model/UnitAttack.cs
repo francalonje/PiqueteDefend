@@ -3,24 +3,27 @@ using System;
 namespace PiqueteDefend.Core
 {
     /// <summary>
-    /// Patrón de ataque de una unidad (spec §7.2). Define a qué slots del oponente pega y cuánto.
+    /// Patrón de ataque de una unidad (spec §7.2). El targeting está <b>anclado a la formación
+    /// enemiga</b> (spec §6): la posición del atacante NO influye, sólo importa la formación del
+    /// objetivo.
     ///
-    /// <para><see cref="reference"/> = Absolute → <see cref="pattern"/> son slots del oponente (0–5).
-    /// Relative → son offsets respecto del slot del atacante (0 = enfrentado).</para>
+    /// <para><see cref="mode"/> decide a quién pega (ver <see cref="TargetMode"/>). <see cref="count"/>
+    /// = profundidad/alcance (Frontmost/Backmost) o cuántas elegir (Any); se ignora en All.</para>
     ///
-    /// <para><see cref="pickCount"/> = 0 → golpea TODOS los slots de <see cref="pattern"/>.
-    /// N &gt; 0 → el atacante elige N de <see cref="pattern"/> al atacar. Para un ataque a libre
-    /// elección, <see cref="pattern"/> son los 6 slots y <see cref="pickCount"/> = 1.</para>
+    /// <para>Ej.: <c>Frontmost count=1</c> = "al de adelante de todo" (nunca whiffea);
+    /// <c>Frontmost count=2</c> = penetra a los 2 primeros (el 2º whiffea si está vacío);
+    /// <c>Any count=1</c> = snipe a elección; <c>All</c> = AoE.</para>
     /// </summary>
     [Serializable]
     public class UnitAttack
     {
-        public AttackReference reference;
-        public int[] pattern = Array.Empty<int>();
-        public int pickCount;
+        public TargetMode mode = TargetMode.Frontmost;
+
+        /// <summary>Profundidad/alcance (Frontmost/Backmost) o cantidad a elegir (Any). Ignorado en All/Self/Adjacent.</summary>
+        public int count = 1;
 
         /// <summary>
-        /// Magnitud por slot: <b>daño</b> si <see cref="effect"/> es DamageEnemies,
+        /// Magnitud por golpe: <b>daño</b> si <see cref="effect"/> es DamageEnemies,
         /// <b>curación</b> (tope maxHp) si es HealAllies (spec §7.2).
         /// </summary>
         public int damagePerSlot;
@@ -36,18 +39,17 @@ namespace PiqueteDefend.Core
 
         public UnitAttack() { }
 
-        public UnitAttack(AttackReference reference, int[] pattern, int pickCount, int damagePerSlot,
+        public UnitAttack(TargetMode mode, int count, int damagePerSlot,
                           AttackEffect effect = AttackEffect.DamageEnemies)
         {
-            this.reference = reference;
-            this.pattern = pattern ?? Array.Empty<int>();
-            this.pickCount = pickCount;
+            this.mode = mode;
+            this.count = count;
             this.damagePerSlot = damagePerSlot;
             this.effect = effect;
         }
 
-        /// <summary>True si el atacante debe elegir slot(s) (ataque a elección).</summary>
-        public bool RequiresChoice => pickCount > 0;
+        /// <summary>True si el atacante debe elegir objetivo(s): sólo el modo Any (snipe).</summary>
+        public bool RequiresChoice => mode == TargetMode.Any;
 
         /// <summary>True si cura aliadas en vez de dañar al rival.</summary>
         public bool IsHeal => effect == AttackEffect.HealAllies;

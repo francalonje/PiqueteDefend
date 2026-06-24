@@ -33,8 +33,9 @@ namespace PiqueteDefend.Tests
             public T Choice<T>(IReadOnlyList<T> list) => list[0];
         }
 
+        /// <summary>Ataque melee: pega a la unidad enemiga más adelantada (Frontmost, alcance 1).</summary>
         private static UnitAttack Duel(int dmg) =>
-            new UnitAttack(AttackReference.Relative, new[] { 0 }, 0, dmg);
+            new UnitAttack(TargetMode.Frontmost, 1, dmg);
 
         private static UnitCardData U(int hp, UnitAttack atk = null, int[] allowed = null,
                                      params PassiveEffect[] passives)
@@ -50,7 +51,7 @@ namespace PiqueteDefend.Tests
         private static PassiveEffect Aura(int v) => new PassiveEffect
         {
             passiveType = PassiveType.AuraDamage, value = v, target = PassiveTarget.Allies,
-            reference = AttackReference.Relative, pattern = new[] { -1, 1 }
+            mode = TargetMode.Adjacent, count = 0
         };
 
         private static PassiveEffect Retaliate(int v) =>
@@ -82,59 +83,111 @@ namespace PiqueteDefend.Tests
         // ── Targeting ────────────────────────────────────────────────────────
 
         [Test]
-        public void ResolveSlots_Relative_OffsetsFromOrigin()
+        public void ResolveTargets_Frontmost_AnchorsAtForemostOccupied()
         {
-            CollectionAssert.AreEquivalent(new[] { 1, 2, 3 },
-                GameEngine.ResolveSlots(AttackReference.Relative, new[] { -1, 0, 1 }, 2));
-            CollectionAssert.AreEquivalent(new[] { 0, 1 },
-                GameEngine.ResolveSlots(AttackReference.Relative, new[] { -1, 0, 1 }, 0));
+            var board = new UnitSlot[6];
+            board[1] = new UnitSlot(U(10));
+            board[4] = new UnitSlot(U(10));   // foremost = índice 4 (mayor = más cerca del rival)
+            CollectionAssert.AreEqual(new[] { 4 },
+                GameEngine.ResolveTargets(TargetMode.Frontmost, 1, board, 0));
+            // count 2 incluye la posición de atrás (3) aunque esté vacía (whiff aguas abajo)
+            CollectionAssert.AreEqual(new[] { 4, 3 },
+                GameEngine.ResolveTargets(TargetMode.Frontmost, 2, board, 0));
         }
 
         [Test]
-        public void ResolveSlots_Absolute_FixedSlots()
+        public void ResolveTargets_Backmost_AnchorsAtRearmostOccupied()
         {
-            CollectionAssert.AreEquivalent(new[] { 3, 4, 5 },
-                GameEngine.ResolveSlots(AttackReference.Absolute, new[] { 3, 4, 5 }, 99));
+            var board = new UnitSlot[6];
+            board[1] = new UnitSlot(U(10));
+            board[4] = new UnitSlot(U(10));
+            CollectionAssert.AreEqual(new[] { 1 },
+                GameEngine.ResolveTargets(TargetMode.Backmost, 1, board, 0));
+        }
+
+        [Test]
+        public void ResolveTargets_All_ReturnsAllOccupied()
+        {
+            var board = new UnitSlot[6];
+            board[1] = new UnitSlot(U(10));
+            board[4] = new UnitSlot(U(10));
+            CollectionAssert.AreEquivalent(new[] { 1, 4 },
+                GameEngine.ResolveTargets(TargetMode.All, 0, board, 0));
+        }
+
+        [Test]
+        public void ResolveTargets_Adjacent_ReturnsNeighbors()
+        {
+            var board = new UnitSlot[6];
+            CollectionAssert.AreEquivalent(new[] { 1, 3 },
+                GameEngine.ResolveTargets(TargetMode.Adjacent, 0, board, 2));
+            CollectionAssert.AreEquivalent(new[] { 1 },
+                GameEngine.ResolveTargets(TargetMode.Adjacent, 0, board, 0));  // borde: sólo el vecino válido
+        }
+
+        // ── Invariante anti-deadlock (regresión del bug raíz) ────────────────────
+
+        [Test]
+        public void Frontmost_AlwaysConnects_FromAnyPosition_NoDeadlock()
+        {
+            // Antes: atacante atrás vs. defensor adelante que no se tocaban → la partida se trababa.
+            // Ahora Frontmost siempre golpea a la unidad más adelantada del rival, esté donde esté
+            // el atacante. Para cualquier combinación de posiciones, el ataque conecta.
+            for (int atkPos = 0; atkPos < 6; atkPos++)
+                for (int defPos = 0; defPos < 6; defPos++)
+                {
+                    var e = Combat(out _);
+                    e.PlayerAt(0).unitSlots[atkPos] = new UnitSlot(U(10, Duel(4)));
+                    e.PlayerAt(1).unitSlots[defPos] = new UnitSlot(U(10));
+                    e.BeginTurn();
+                    Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(atkPos),
+                        $"atk={atkPos} def={defPos}");
+                    Assert.AreEqual(6, e.PlayerAt(1).unitSlots[defPos].currentHp,
+                        $"atk={atkPos} def={defPos}");
+                }
         }
 
         // ── Ataque ───────────────────────────────────────────────────────────
 
         [Test]
-        public void Attack_Relative_HitsFacingSlot()
+        public void Attack_Frontmost_HitsForemostEnemy()
         {
             var e = Combat(out _);
-            e.PlayerAt(0).unitSlots[2] = new UnitSlot(U(10, Duel(4)));
+            e.PlayerAt(0).unitSlots[0] = new UnitSlot(U(10, Duel(4)));  // atacante al fondo
             e.PlayerAt(1).unitSlots[2] = new UnitSlot(U(10));
+            e.PlayerAt(1).unitSlots[5] = new UnitSlot(U(10));  // foremost = 5 (más cerca del rival)
             e.BeginTurn();
 
-            Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(2));
-            Assert.AreEqual(6, e.PlayerAt(1).unitSlots[2].currentHp);
+            Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(0));
+            Assert.AreEqual(6, e.PlayerAt(1).unitSlots[5].currentHp);   // pegó al más adelantado
+            Assert.AreEqual(10, e.PlayerAt(1).unitSlots[2].currentHp);  // el de atrás, intacto
         }
 
         [Test]
-        public void Attack_AllTargetsEmpty_IsCanceled_NoConsume()
+        public void Attack_Frontmost_ConnectsToForemost_NoDeadlock()
         {
             var e = Combat(out _);
             e.PlayerAt(0).unitSlots[2] = new UnitSlot(U(10, Duel(4)));
-            e.PlayerAt(1).unitSlots[5] = new UnitSlot(U(10));  // keepalive; slot enfrentado (2) vacío
+            e.PlayerAt(1).unitSlots[5] = new UnitSlot(U(10));  // enfrentado (2) vacío, pero hay foremost en 5
             e.BeginTurn();
 
-            // Sin objetivo válido (slot enfrentado vacío) → se cancela sin gastar el ataque (spec §6).
-            Assert.AreEqual(ActionResult.InvalidTarget, e.AttackWithUnit(2));
-            Assert.IsFalse(e.AttackUsed);
+            // Antes esto se trababa (whiff sin objetivo). Ahora Frontmost pega al más adelantado (5).
+            Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(2));
+            Assert.AreEqual(6, e.PlayerAt(1).unitSlots[5].currentHp);
+            Assert.IsTrue(e.AttackUsed);
         }
 
         [Test]
-        public void Attack_PartialEmpty_AllowedAndHitsOccupied()
+        public void Attack_Penetrate_HitsForemost_WhiffsEmptyDepth()
         {
             var e = Combat(out _);
-            var cleave = new UnitAttack(AttackReference.Relative, new[] { -1, 0, 1 }, 0, 5);
-            e.PlayerAt(0).unitSlots[2] = new UnitSlot(U(10, cleave));
-            e.PlayerAt(1).unitSlots[1] = new UnitSlot(U(20));  // sólo slot 1 ocupado (2 y 3 vacíos)
+            var pierce = new UnitAttack(TargetMode.Frontmost, 2, 5);  // penetra a los 2 de adelante
+            e.PlayerAt(0).unitSlots[2] = new UnitSlot(U(10, pierce));
+            e.PlayerAt(1).unitSlots[4] = new UnitSlot(U(20));  // foremost = 4; el de atrás (3) vacío → whiff
             e.BeginTurn();
 
-            Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(2));  // pega al ocupado, whiff en los vacíos
-            Assert.AreEqual(15, e.PlayerAt(1).unitSlots[1].currentHp);
+            Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(2));  // pega al foremost, whiff en el vacío
+            Assert.AreEqual(15, e.PlayerAt(1).unitSlots[4].currentHp);
             Assert.IsTrue(e.AttackUsed);
         }
 
@@ -154,18 +207,20 @@ namespace PiqueteDefend.Tests
         }
 
         [Test]
-        public void Attack_Pick_RequiresExactChoice()
+        public void Attack_Snipe_RequiresExactChoice()
         {
             var e = Combat(out _);
-            var atk = new UnitAttack(AttackReference.Absolute, new[] { 0, 1, 2 }, 1, 5);
-            e.PlayerAt(0).unitSlots[3] = new UnitSlot(U(10, atk, new[] { 3 }));
+            var snipe = new UnitAttack(TargetMode.Any, 1, 5);
+            e.PlayerAt(0).unitSlots[3] = new UnitSlot(U(10, snipe, new[] { 3 }));
             e.PlayerAt(1).unitSlots[1] = new UnitSlot(U(10));
+            e.PlayerAt(1).unitSlots[4] = new UnitSlot(U(10));
             e.BeginTurn();
 
-            Assert.AreEqual(ActionResult.NeedsAttackTarget, e.AttackWithUnit(3));
-            Assert.AreEqual(ActionResult.InvalidTarget, e.AttackWithUnit(3, new[] { 4 }));
-            Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(3, new[] { 1 }));
+            Assert.AreEqual(ActionResult.NeedsAttackTarget, e.AttackWithUnit(3));          // falta elegir
+            Assert.AreEqual(ActionResult.InvalidTarget, e.AttackWithUnit(3, new[] { 0 }));  // slot 0 vacío
+            Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(3, new[] { 1 }));        // snipe al slot 1
             Assert.AreEqual(5, e.PlayerAt(1).unitSlots[1].currentHp);
+            Assert.AreEqual(10, e.PlayerAt(1).unitSlots[4].currentHp);  // el otro, intacto
         }
 
         // ── Daño efectivo ─────────────────────────────────────────────────────
@@ -206,7 +261,7 @@ namespace PiqueteDefend.Tests
         public void Heal_RestoresAllies_CapsAtMax()
         {
             var e = Combat(out _);
-            var healAtk = new UnitAttack(AttackReference.Relative, new[] { 1 }, 0, 6, AttackEffect.HealAllies);
+            var healAtk = new UnitAttack(TargetMode.All, 0, 6, AttackEffect.HealAllies);
             e.PlayerAt(0).unitSlots[2] = new UnitSlot(U(10, healAtk));
             var ally = new UnitSlot(U(10)); ally.currentHp = 2;
             e.PlayerAt(0).unitSlots[3] = ally;
@@ -516,8 +571,8 @@ namespace PiqueteDefend.Tests
         public void Heal_NoHealableAlly_IsCanceled_NoConsume()
         {
             var e = Combat(out _);
-            var healer = new UnitSlot(U(10, new UnitAttack(AttackReference.Relative, new[] { 1 }, 0, 6, AttackEffect.HealAllies)));
-            e.PlayerAt(0).unitSlots[2] = healer;  // cura slot 3 (vacío) → nadie a quien curar
+            var healer = new UnitSlot(U(10, new UnitAttack(TargetMode.All, 0, 6, AttackEffect.HealAllies)));
+            e.PlayerAt(0).unitSlots[2] = healer;  // sólo el healer, a full HP → nadie a quien curar
             e.PlayerAt(1).unitSlots[0] = new UnitSlot(U(10));  // keepalive
             e.BeginTurn();
 
@@ -526,22 +581,22 @@ namespace PiqueteDefend.Tests
         }
 
         [Test]
-        public void Passive_TurnDamage_PickCount_HitsOnlyNOccupied()
+        public void Passive_TurnDamage_Frontmost_HitsOnlyForemost()
         {
             var e = Combat(out _);
             var emisor = new UnitSlot(U(10, Duel(0), null, new PassiveEffect
             {
                 passiveType = PassiveType.TurnDamage, value = 3, target = PassiveTarget.Enemies,
-                reference = AttackReference.Absolute, pattern = new[] { 3, 4, 5 }, pickCount = 1
+                mode = TargetMode.Frontmost, count = 1
             }));
             e.PlayerAt(0).unitSlots[0] = emisor;
             var a = new UnitSlot(U(20)); var b = new UnitSlot(U(20));
-            e.PlayerAt(1).unitSlots[3] = a;  // menor índice ocupado del patrón → es el elegido
-            e.PlayerAt(1).unitSlots[4] = b;
-            e.BeginTurn();  // turno de p0: TurnDamage pick 1 pega sólo a 1
+            e.PlayerAt(1).unitSlots[3] = a;
+            e.PlayerAt(1).unitSlots[4] = b;  // foremost = 4
+            e.BeginTurn();  // TurnDamage Frontmost count 1 pega sólo al más adelantado
 
-            Assert.AreEqual(17, a.currentHp);  // 20 − 3
-            Assert.AreEqual(20, b.currentHp);  // intacto
+            Assert.AreEqual(20, a.currentHp);  // intacto
+            Assert.AreEqual(17, b.currentHp);  // 20 − 3 (foremost)
         }
 
         // ── Pasivas de inicio de turno ─────────────────────────────────────────
@@ -563,7 +618,7 @@ namespace PiqueteDefend.Tests
         {
             var e = Combat(out _);
             // Emisor con Humo: TurnDamage a la vanguardia enemiga {3,4,5}
-            var emisor = new UnitSlot(U(10, Duel(0), null, TurnDmg(50, new[] { 3, 4, 5 })));
+            var emisor = new UnitSlot(U(10, Duel(0), null, TurnDmg(50, 3)));
             e.PlayerAt(0).unitSlots[0] = emisor;
             e.PlayerAt(1).unitSlots[4] = new UnitSlot(U(10));  // única de p1, en vanguardia
             e.BeginTurn();
@@ -804,16 +859,16 @@ namespace PiqueteDefend.Tests
         private static PassiveEffect Regen(int v) =>
             new PassiveEffect { passiveType = PassiveType.Regeneration, value = v, target = PassiveTarget.Self };
 
-        private static PassiveEffect TurnDmg(int v, int[] absPattern) => new PassiveEffect
+        private static PassiveEffect TurnDmg(int v, int count) => new PassiveEffect
         {
             passiveType = PassiveType.TurnDamage, value = v, target = PassiveTarget.Enemies,
-            reference = AttackReference.Absolute, pattern = absPattern
+            mode = TargetMode.Frontmost, count = count
         };
 
         private static PassiveEffect GasPoison(int v) => new PassiveEffect
         {
             passiveType = PassiveType.TurnStatus, status = new StatusEffect(StatusType.Poison, v, 1),
-            target = PassiveTarget.Enemies, reference = AttackReference.Absolute, pattern = new[] { 3, 4, 5 }
+            target = PassiveTarget.Enemies, mode = TargetMode.Frontmost, count = 1
         };
 
         private static EquipmentCardData EquipDamage(int v)

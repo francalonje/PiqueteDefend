@@ -14,10 +14,10 @@ from typing import Dict, List
 
 from knobs import GlobalKnobs, scale
 from model import (
-    ActionCardData, AttackEffect, AttackReference, CardData, CardEffect, CardEffectType,
+    ActionCardData, AttackEffect, CardData, CardEffect, CardEffectType,
     CardType, EquipmentCardData, Faction, PassiveEffect, PassiveTarget, PassiveType,
-    ResourceCost, ResourceType, StatModifier, StatType, StatusEffect, StatusType, TargetType,
-    UnitAttack, UnitCardData,
+    ResourceCost, ResourceType, StatModifier, StatType, StatusEffect, StatusType, TargetMode,
+    TargetType, UnitAttack, UnitCardData,
 )
 
 M = Faction.MANIFESTANTES
@@ -54,10 +54,10 @@ def unit(id, name, faction, archetype, cost_res, cost, max_hp, allowed, attack,
     )
 
 
-def atk(reference, pattern, pick, amount, k: GlobalKnobs,
+def atk(mode, count, amount, k: GlobalKnobs,
         effect=AttackEffect.DAMAGE_ENEMIES) -> UnitAttack:
     mult = k.hp_mult if effect == AttackEffect.HEAL_ALLIES else k.dmg_mult
-    return UnitAttack(reference, list(pattern), pick, scale(amount, mult, minimum=1), effect)
+    return UnitAttack(mode, count, scale(amount, mult, minimum=1), effect)
 
 
 def produce(res, value, k: GlobalKnobs) -> PassiveEffect:
@@ -66,10 +66,9 @@ def produce(res, value, k: GlobalKnobs) -> PassiveEffect:
 
 
 def aura(value, k: GlobalKnobs) -> PassiveEffect:
-    # +daño a aliadas adyacentes (Relative [-1,+1] sobre Allies)
+    # +daño a aliadas adyacentes (vecinas ±1)
     return PassiveEffect(PassiveType.AURA_DAMAGE, value=scale(value, k.dmg_mult, minimum=1),
-                         target=PassiveTarget.ALLIES, reference=AttackReference.RELATIVE,
-                         pattern=[-1, 1], pick_count=0)
+                         target=PassiveTarget.ALLIES, mode=TargetMode.ADJACENT, count=0)
 
 
 def retaliate(value, k: GlobalKnobs) -> PassiveEffect:
@@ -82,15 +81,16 @@ def regen(value, k: GlobalKnobs) -> PassiveEffect:
                          target=PassiveTarget.SELF)
 
 
-def turn_damage(value, pattern, pick, k: GlobalKnobs) -> PassiveEffect:
+def turn_damage(value, count, k: GlobalKnobs) -> PassiveEffect:
+    # Humo: daño a las `count` unidades más adelantadas del rival (vanguardia).
     return PassiveEffect(PassiveType.TURN_DAMAGE, value=scale(value, k.dmg_mult, minimum=1),
-                         target=PassiveTarget.ENEMIES, reference=AttackReference.ABSOLUTE,
-                         pattern=list(pattern), pick_count=pick)
+                         target=PassiveTarget.ENEMIES, mode=TargetMode.FRONTMOST, count=count)
 
 
-def turn_status(status, pattern, pick, k: GlobalKnobs) -> PassiveEffect:
+def turn_status(status, count, k: GlobalKnobs) -> PassiveEffect:
+    # Gas: estado a las `count` unidades más adelantadas del rival.
     return PassiveEffect(PassiveType.TURN_STATUS, status=status, target=PassiveTarget.ENEMIES,
-                         reference=AttackReference.ABSOLUTE, pattern=list(pattern), pick_count=pick)
+                         mode=TargetMode.FRONTMOST, count=count)
 
 
 def action(id, name, faction, category, cost_res, cost, effects, k: GlobalKnobs) -> ActionCardData:
@@ -146,26 +146,25 @@ def poison(value, counter, k: GlobalKnobs) -> StatusEffect:
 # ── Manifestantes (§9) ───────────────────────────────────────────────────────
 
 def build_manifestantes(k: GlobalKnobs) -> List[CardData]:
-    REL, ABS = AttackReference.RELATIVE, AttackReference.ABSOLUTE
     HEAL = AttackEffect.HEAL_ALLIES
     return [
         # Unidades
         unit("piquetero", "Piquetero", M, "Escaramuza", FZA, 4, 24, [],
-             atk(REL, [-1, 0, 1], 1, 9, k), [aura(1, k)], k),
+             atk(TargetMode.FRONTMOST, 1, 9, k), [aura(1, k)], k),
         unit("jubilado", "Jubilado", M, "Muro", DIN, 5, 38, FRENTE,
-             atk(ABS, [3, 4, 5], 0, 2, k), [retaliate(2, k)], k),
+             atk(TargetMode.FRONTMOST, 2, 2, k), [retaliate(2, k)], k),
         unit("gordo_sindical", "Gordo Sindical", M, "Productora", DIN, 3, 14, RETAGUARDIA,
-             atk(REL, [0], 0, 2, k), [produce(DIN, 1, k)], k),
+             atk(TargetMode.FRONTMOST, 1, 2, k), [produce(DIN, 1, k)], k),
         unit("fisura", "Fisura", M, "Cleave", FZA, 5, 24, [1, 2, 3, 4],
-             atk(REL, [-1, 0, 1], 0, 4, k), [produce(FZA, 1, k)], k),
+             atk(TargetMode.FRONTMOST, 3, 4, k), [produce(FZA, 1, k)], k),
         unit("tuitero", "Tuitero Militante", M, "Productora", SOC, 2, 12, RETAGUARDIA,
-             atk(REL, [0], 0, 1, k), [produce(SOC, 1, k)], k),
+             atk(TargetMode.FRONTMOST, 1, 1, k), [produce(SOC, 1, k)], k),
         unit("choripanero", "Choripanero", M, "Healer", SOC, 4, 18, [1, 2, 3, 4],
-             atk(ABS, [3, 4, 5], 1, 4, k, effect=HEAL), [], k),
+             atk(TargetMode.ANY, 1, 4, k, effect=HEAL), [], k),
         unit("mortero", "Mortero Casero", M, "Sniper", FZA, 5, 10, [1, 2, 3],
-             atk(ABS, [0, 1, 2], 1, 9, k), [], k),
+             atk(TargetMode.ANY, 1, 9, k), [], k),
         unit("quema_cubiertas", "Quema de Cubiertas", M, "Emisor", SOC, 5, 18, [1, 2, 3, 4],
-             atk(REL, [0], 0, 1, k), [turn_damage(1, FRENTE, 0, k)], k),
+             atk(TargetMode.FRONTMOST, 1, 1, k), [turn_damage(1, 3, k)], k),
 
         # Acciones (10)
         action("colecta", "Colecta", M, "Boost", SOC, 3, [mod_res(TS(), DIN, 6, k)], k),
@@ -192,29 +191,28 @@ def build_manifestantes(k: GlobalKnobs) -> List[CardData]:
 # ── Policías (§10) ───────────────────────────────────────────────────────────
 
 def build_policias(k: GlobalKnobs) -> List[CardData]:
-    REL, ABS = AttackReference.RELATIVE, AttackReference.ABSOLUTE
     HEAL = AttackEffect.HEAL_ALLIES
     return [
         # Unidades
         unit("infante", "Infante", P, "Escaramuza", FZA, 6, 26, [],
-             atk(REL, [-1, 0, 1], 1, 10, k), [aura(1, k)], k),
+             atk(TargetMode.FRONTMOST, 1, 10, k), [aura(1, k)], k),
         unit("gendarme", "Gendarme", P, "Muro", DIN, 4, 32, FRENTE,
-             atk(ABS, [3, 4, 5], 0, 3, k), [retaliate(2, k)], k),
+             atk(TargetMode.FRONTMOST, 2, 3, k), [retaliate(2, k)], k),
         unit("puntero", "Puntero", P, "Productora", DIN, 5, 14, RETAGUARDIA,
-             atk(REL, [0], 0, 2, k), [produce(DIN, 1, k)], k),
+             atk(TargetMode.FRONTMOST, 1, 2, k), [produce(DIN, 1, k)], k),
         unit("itakero", "Itakero", P, "Cleave", FZA, 4, 22, [1, 2, 3, 4],
-             atk(REL, [-1, 0, 1], 0, 3, k), [produce(FZA, 1, k)], k),
+             atk(TargetMode.FRONTMOST, 3, 3, k), [produce(FZA, 1, k)], k),
         unit("trol", "Trol Oficial", P, "Productora", SOC, 5, 16, RETAGUARDIA,
-             atk(REL, [0], 0, 1, k), [produce(SOC, 1, k)], k),
+             atk(TargetMode.FRONTMOST, 1, 1, k), [produce(SOC, 1, k)], k),
         unit("medico_same", "Médico del SAME", P, "Healer", DIN, 4, 18, [1, 2, 3, 4],
-             atk(REL, [-1, 0, 1], 0, 2, k, effect=HEAL), [], k),
+             atk(TargetMode.FRONTMOST, 3, 2, k, effect=HEAL), [], k),
         unit("halcon", "Halcón", P, "Sniper", FZA, 6, 10, [1, 2, 3],
-             atk(ABS, [0, 1, 2], 1, 10, k), [], k),
+             atk(TargetMode.ANY, 1, 10, k), [], k),
         unit("gasero", "Gasero", P, "Emisor", SOC, 5, 18, [1, 2, 3, 4],
-             atk(REL, [0], 0, 1, k),
+             atk(TargetMode.FRONTMOST, 1, 1, k),
              # Veneno re-emitido cada turno: counter 1 = 1 tick/turno, sin apilarse (roadmap).
-             # pick 1 = a 1 de la vanguardia enemiga ocupada (las pasivas honran pickCount; espejo del Core).
-             [turn_status(poison(2, 1, k), FRENTE, 1, k)], k),
+             # count 1 = a la unidad enemiga más adelantada (espejo del Core).
+             [turn_status(poison(2, 1, k), 1, k)], k),
 
         # Acciones (10)
         action("partida", "Partida Presupuestaria", P, "Boost", SOC, 2, [mod_res(TS(), DIN, 7, k)], k),

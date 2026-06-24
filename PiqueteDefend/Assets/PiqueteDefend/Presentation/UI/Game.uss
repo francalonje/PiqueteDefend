@@ -219,13 +219,13 @@
     flex-basis: 0;
     min-width: 56px;
     margin: 0 3px;
-    padding: 8px 4px;
+    padding: 6px 4px;
     border-radius: 9px;
     border-width: 2px;
     border-color: rgba(255, 255, 255, 0.1);
     background-color: rgba(40, 44, 56, 0.95);
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: stretch;
     transition-property: background-color, border-color;
     transition-duration: 0.3s;
@@ -296,62 +296,127 @@
     background-color: rgba(54, 100, 112, 0.98);
 }
 
+/* ── Área de arte (hueco del sprite de la unidad) ──────────────────────── */
+/* Sin sprite: panel tinte-facción con el nombre abajo. Con sprite (CardData.sprite):
+   se setea background-image en runtime y el tinte queda de marco (dev-guide §5.1). */
+.slot__art {
+    flex-grow: 1;
+    min-height: 64px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    justify-content: flex-end;
+    align-items: center;
+    overflow: hidden;
+    background-size: cover;
+    background-position-x: center;
+    background-position-y: center;
+}
+
+.slot__art--manif { background-color: rgba(196, 92, 92, 0.28); }
+.slot__art--polis { background-color: rgba(92, 120, 196, 0.28); }
+
 .slot__name {
+    width: 100%;
+    padding: 2px 2px;
     font-size: 12px;
-    color: rgb(235, 237, 242);
+    color: rgb(245, 246, 250);
     -unity-font-style: bold;
     white-space: normal;
     -unity-text-align: middle-center;
+    background-color: rgba(18, 20, 28, 0.55);
 }
 
-.slot__meta {
-    font-size: 12px;
-    color: rgb(160, 168, 182);
-    margin-top: 4px;
-    -unity-text-align: middle-center;
-}
-
-/* Barra de HP */
+/* Barra de HP con el número de vida superpuesto y centrado */
 .slot__hp-bar-outer {
-    height: 9px;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    height: 16px;
+    background-color: rgba(0, 0, 0, 0.45);
+    border-radius: 4px;
     overflow: hidden;
-    margin-top: 9px;
 }
 
 .slot__hp-bar-inner {
     height: 100%;
-    border-radius: 3px;
+    border-radius: 4px;
+}
+
+.slot__hp-label {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    font-size: 11px;
+    -unity-font-style: bold;
+    color: rgb(245, 246, 250);
+    -unity-text-align: middle-center;
 }
 
 .hp-bar--high { background-color: rgb(80, 195, 80); }
 .hp-bar--mid  { background-color: rgb(220, 175, 50); }
 .hp-bar--low  { background-color: rgb(210, 65, 50); }
 
-/* ── Badges de estado/equipo por unidad ───────────────────────────────── */
-.slot__badges {
+/* ── Iconos de stat/pasiva/estado/equipo por unidad ───────────────────── */
+/* Chip [glifo][valor]. Sprite-ready: si el SlotIcon trae Sprite, .slot-icon__img
+   reemplaza al glifo (asignás el icono dibujado y el emoji deja de usarse). */
+.slot__icons {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
-    margin-top: 5px;
+    margin-top: 6px;
 }
 
-.badge {
+/* La pill NO se encoge: en un slot angosto wrappea entera a otra fila en vez de
+   aplastarse y recortar el texto. La altura sale del padding (no height fijo, que
+   recorta verticalmente). */
+.slot-icon {
+    flex-direction: row;
+    flex-shrink: 0;
+    align-items: center;
+    min-height: 18px;
+    padding: 1px 5px;
+    margin: 2px;
+    border-radius: 9px;
+    background-color: rgba(60, 64, 78, 0.95);
+}
+
+/* Glifo y valor: no se encogen ni wrappean → quedan en una línea, lado a lado. */
+.slot-icon__glyph {
     font-size: 11px;
-    -unity-font-style: bold;
-    padding: 0 4px;
-    margin: 1px;
-    border-radius: 6px;
-    color: rgb(18, 18, 22);
+    flex-shrink: 0;
+    white-space: nowrap;
+    color: rgb(245, 246, 250);
     -unity-text-align: middle-center;
 }
 
-.badge--poison { background-color: rgb(126, 196, 92); }
-.badge--stun   { background-color: rgb(150, 170, 214); }
-.badge--furia  { background-color: rgb(236, 128, 66); }
-.badge--desmor { background-color: rgb(150, 138, 180); color: rgb(238, 238, 244); }
-.badge--equip  { background-color: rgb(210, 184, 96); }
+.slot-icon__value {
+    font-size: 11px;
+    -unity-font-style: bold;
+    flex-shrink: 0;
+    white-space: nowrap;
+    margin-left: 3px;
+    color: rgb(245, 246, 250);
+}
+
+.slot-icon__img {
+    width: 14px;
+    height: 14px;
+    background-size: cover;
+}
+
+.slot-icon--atk        { background-color: rgba(200, 60, 50, 0.95); }
+.slot-icon--heal       { background-color: rgba(70, 175, 90, 0.95); }
+.slot-icon--produce    { background-color: rgba(150, 120, 40, 0.95); }
+.slot-icon--regen      { background-color: rgba(70, 165, 110, 0.95); }
+.slot-icon--aura       { background-color: rgba(120, 150, 235, 0.92); }
+.slot-icon--thorns     { background-color: rgba(150, 120, 90, 0.95); }
+.slot-icon--turndmg    { background-color: rgba(210, 110, 50, 0.95); }
+.slot-icon--turnstatus { background-color: rgba(150, 120, 180, 0.95); }
+.slot-icon--passive    { background-color: rgba(90, 96, 112, 0.95); }
+.slot-icon--poison     { background-color: rgba(110, 175, 80, 0.95); }
+.slot-icon--stun       { background-color: rgba(120, 140, 190, 0.95); }
+.slot-icon--furia      { background-color: rgba(225, 120, 60, 0.95); }
+.slot-icon--desmor     { background-color: rgba(130, 120, 165, 0.95); }
+.slot-icon--equip      { background-color: rgba(140, 115, 45, 0.95); }
 
 /* Animaciones de combate */
 .slot--flash-attack {

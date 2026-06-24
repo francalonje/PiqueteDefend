@@ -22,9 +22,9 @@ from typing import Dict, List, Optional
 from cards import build_pool, starting_units
 from knobs import GlobalKnobs, scale
 from model import (
-    ActionCardData, AttackEffect, AttackReference, CardData, CardEffect, CardEffectType,
+    ActionCardData, AttackEffect, CardData, CardEffect, CardEffectType,
     EquipmentCardData, Faction, PassiveTarget, PassiveType, ResourceType, StatType, StatusEffect,
-    StatusType, TargetType, UnitCardData, ALL_RESOURCES, PLAYER_STATUSES,
+    StatusType, TargetMode, TargetType, UnitCardData, ALL_RESOURCES, PLAYER_STATUSES,
 )
 
 BOARD = 6
@@ -227,25 +227,50 @@ class GameEngine:
     def opponent(self) -> PlayerState:
         return self.players[1 - self.active]
 
-    # ── Targeting genérico (ataques, pasivas, auras) ──
+    # ── Targeting genérico (ataques, pasivas, auras), anclado a la formación (spec §6) ──
     @staticmethod
-    def resolve_slots(reference: AttackReference, pattern: List[int], origin: int) -> List[int]:
+    def resolve_targets(mode: TargetMode, count: int,
+                        board: List[Optional[UnitSlot]], src_idx: int) -> List[int]:
         out: List[int] = []
-        for p in pattern:
-            idx = p if reference == AttackReference.ABSOLUTE else origin + p
-            if 0 <= idx < BOARD and idx not in out:
-                out.append(idx)
+        n = len(board)
+        if mode == TargetMode.SELF:
+            if 0 <= src_idx < n:
+                out.append(src_idx)
+        elif mode == TargetMode.ADJACENT:
+            for idx in (src_idx - 1, src_idx + 1):
+                if 0 <= idx < n:
+                    out.append(idx)
+        elif mode in (TargetMode.ALL, TargetMode.ANY):
+            out = [i for i in range(n) if board[i] is not None]
+        elif mode == TargetMode.FRONTMOST:
+            f = next((i for i in range(n - 1, -1, -1) if board[i] is not None), -1)
+            if f >= 0:
+                reach = 1 if count <= 0 else count
+                for kk in range(reach):
+                    idx = f - kk
+                    if idx < 0:
+                        break
+                    out.append(idx)
+        elif mode == TargetMode.BACKMOST:
+            b = next((i for i in range(n) if board[i] is not None), -1)
+            if b >= 0:
+                reach = 1 if count <= 0 else count
+                for kk in range(reach):
+                    idx = b + kk
+                    if idx >= n:
+                        break
+                    out.append(idx)
         return out
 
     def aura_bonus_for(self, board: List[Optional[UnitSlot]], slot_index: int) -> int:
-        """Suma de AuraDamage de aliadas cuyo patrón cubre a la atacante en slot_index."""
+        """Suma de AuraDamage de aliadas cuyo objetivo cubre a la atacante en slot_index."""
         total = 0
         for src_i, src in enumerate(board):
             if src is None or src_i == slot_index:
                 continue
             for pe in src.all_passives():
                 if pe.passive_type == PassiveType.AURA_DAMAGE and pe.target == PassiveTarget.ALLIES:
-                    if slot_index in self.resolve_slots(pe.reference, pe.pattern, src_i):
+                    if slot_index in self.resolve_targets(pe.mode, pe.count, board, src_i):
                         total += pe.value
         return total
 
@@ -332,14 +357,11 @@ class GameEngine:
                             u.statuses.append(pe.status.clone())
 
     def _passive_targets(self, pe, src_i, board) -> List[int]:
-        """Honra pick_count: si >0, N slots OCUPADOS del patrón (orden ascendente, determinista)."""
-        if pe.target == PassiveTarget.SELF:
+        """Targeting de pasiva anclado a la formación (espejo del Core). Frontmost/Backmost son
+        deterministas; los slots vacíos que devuelva los filtran los callers."""
+        if pe.mode == TargetMode.SELF or pe.target == PassiveTarget.SELF:
             return [src_i]
-        cand = self.resolve_slots(pe.reference, pe.pattern, src_i)
-        if pe.pick_count <= 0:
-            return cand
-        occupied = sorted(t for t in cand if board[t] is not None)
-        return occupied[:pe.pick_count]
+        return self.resolve_targets(pe.mode, pe.count, board, src_i)
 
     # ── Acción: jugar carta ──
     def play_card(self, hand_index: int, deploy_slot: int = -1,
@@ -471,9 +493,11 @@ class GameEngine:
             return False
 
         ua = attacker.unit.attack
-        candidates = self.resolve_slots(ua.reference, ua.pattern, attacker_slot)
+        # Targeting anclado a la formación del objetivo (spec §6): rival si daña, propio si cura.
+        target_board = p.slots if ua.effect == AttackEffect.HEAL_ALLIES else opp.slots
+        candidates = self.resolve_targets(ua.mode, ua.count, target_board, attacker_slot)
         if ua.requires_choice:
-            if chosen_targets is None or len(chosen_targets) != ua.pick_count:
+            if chosen_targets is None or len(chosen_targets) != ua.count:
                 return False
             if any(t not in candidates for t in chosen_targets):
                 return False
