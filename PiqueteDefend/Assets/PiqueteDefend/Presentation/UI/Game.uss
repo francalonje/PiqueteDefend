@@ -206,6 +206,9 @@
     align-items: stretch;
     flex-grow: 1;
     flex-basis: 0;
+    /* Marca el alto de la banda inferior → unidades ~20% más altas que el alto que
+       imponía sólo la columna central (la mano queda abajo, el resto se estira). */
+    min-height: 430px;
 }
 
 /* Jugador derecho (Policías): el slot 1/2 ("del fondo") va pegado al borde
@@ -218,8 +221,8 @@
     flex-grow: 1;
     flex-basis: 0;
     min-width: 56px;
-    margin: 0 3px;
-    padding: 6px 4px;
+    margin: 0 1px;
+    padding: 5px 3px;
     border-radius: 9px;
     border-width: 2px;
     border-color: rgba(255, 255, 255, 0.1);
@@ -297,23 +300,35 @@
 }
 
 /* ── Área de arte (hueco del sprite de la unidad) ──────────────────────── */
-/* Sin sprite: panel tinte-facción con el nombre abajo. Con sprite (CardData.sprite):
-   se setea background-image en runtime y el tinte queda de marco (dev-guide §5.1). */
+/* Contenedor transparente (sin "caja" detrás): el sprite va en una capa propia
+   (.slot__sprite) y el nombre se superpone abajo. La capa propia permite espejar
+   el sprite (mirar al rival) sin voltear el texto del nombre (dev-guide §5.1). */
 .slot__art {
     flex-grow: 1;
     min-height: 64px;
-    border-radius: 6px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     justify-content: flex-end;
     align-items: center;
     overflow: hidden;
-    background-size: cover;
+}
+
+/* Capa del sprite: llena el área de arte y muestra la figura ENTERA (contain), sin
+   recortes. El espejado horizontal (mirar a la izquierda) lo aplica el código por slot. */
+.slot__sprite {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-size: contain;
     background-position-x: center;
     background-position-y: center;
 }
 
-.slot__art--manif { background-color: rgba(196, 92, 92, 0.28); }
-.slot__art--polis { background-color: rgba(92, 120, 196, 0.28); }
+/* Sin tinte de facción detrás del sprite (la "caja" se quitó por pedido de UX). Se
+   dejan las clases por si en el futuro se quiere un marco/halo sutil por facción. */
+.slot__art--manif { }
+.slot__art--polis { }
 
 .slot__name {
     width: 100%;
@@ -439,12 +454,12 @@
    grupos de slots se ensanchan. ~23% deja las cartas un poco más anchas que el
    mínimo, manteniendo las unidades grandes. */
 .game__center-col {
-    width: 36%;
+    width: 32%;
     flex-grow: 0;
     flex-shrink: 0;
     align-items: stretch;
     justify-content: flex-end;
-    margin: 0 16px;
+    margin: 0 8px;
 }
 
 .dropzones {
@@ -507,12 +522,12 @@
 
 .card {
     width: 90px;
-    min-width: 62px;
+    min-width: 54px;
     height: 208px;
     flex-grow: 1;
     flex-shrink: 1;
-    margin: 0 4px;
-    padding: 8px;
+    margin: 0 2px;
+    padding: 5px;
     border-radius: 8px;
     border-width: 2px;
     border-color: rgba(255, 255, 255, 0.08);

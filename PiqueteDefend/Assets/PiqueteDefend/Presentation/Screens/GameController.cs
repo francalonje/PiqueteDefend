@@ -554,8 +554,13 @@ namespace PiqueteDefend.Presentation
                     var art = new VisualElement();
                     art.AddToClassList("slot__art");
                     art.AddToClassList(playerIndex == 0 ? "slot__art--manif" : "slot__art--polis");
-                    if (slot.unit.sprite != null)
-                        art.style.backgroundImage = new StyleBackground(slot.unit.sprite);
+                    // Capa propia para el sprite: así el espejado (mirar al rival) no voltea el nombre.
+                    // El arte se autoría "mirando a la derecha"; el lado derecho del tablero mira a la
+                    // izquierda → se espeja (dev-guide §5.1).
+                    var sprite = new VisualElement();
+                    sprite.AddToClassList("slot__sprite");
+                    ApplyUnitArt(sprite, slot.unit, faceLeft: playerIndex == 1);
+                    art.Add(sprite);
                     var nameLabel = new Label(slot.unit.cardName);
                     nameLabel.AddToClassList("slot__name");
                     art.Add(nameLabel);
@@ -722,6 +727,51 @@ namespace PiqueteDefend.Presentation
                 _iconTexCache[key] = tex;   // cachea también el null (falta) para no recargar
             }
             return tex;
+        }
+
+        // Texturas de arte de unidad cargadas de Resources/Units (cache por key, incluye null = falta).
+        private readonly Dictionary<string, Texture2D> _unitTexCache = new Dictionary<string, Texture2D>();
+
+        private Texture2D UnitTexture(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return null;
+            if (!_unitTexCache.TryGetValue(key, out Texture2D tex))
+            {
+                tex = Resources.Load<Texture2D>("Units/" + key);
+                _unitTexCache[key] = tex;   // cachea también el null (falta) para no recargar
+            }
+            return tex;
+        }
+
+        /// <summary>Clave de arte por facción para el default de <c>Resources/Units/{faccion}-default</c>
+        /// ("manifestantes"/"policias", nombre del enum en minúscula).</summary>
+        private static string FactionArtKey(Faction faction) => faction.ToString().ToLowerInvariant();
+
+        /// <summary>
+        /// Pinta el sprite de una unidad como fondo de su capa de arte. Prioridad (listo para
+        /// "cada unidad su propio sprite", dev-guide §5.1):
+        ///   1) sprite propio asignado en el asset (<see cref="CardData.sprite"/>),
+        ///   2) textura por convención <c>Resources/Units/{id}</c> (sprite propio de esa unidad),
+        ///   3) default de facción <c>Resources/Units/{faction}-default</c> (hoy todos los polis comparten uno).
+        /// Si no hay arte, la capa queda vacía. <paramref name="faceLeft"/> espeja el sprite en
+        /// horizontal: el arte se autoría mirando a la derecha; el lado derecho del tablero mira al rival.
+        /// </summary>
+        private void ApplyUnitArt(VisualElement sprite, UnitCardData unit, bool faceLeft)
+        {
+            StyleBackground bg;
+            if (unit.sprite != null)
+            {
+                bg = new StyleBackground(unit.sprite);
+            }
+            else
+            {
+                Texture2D tex = UnitTexture(unit.id) ?? UnitTexture(FactionArtKey(unit.faction) + "-default");
+                if (tex == null) return;
+                bg = new StyleBackground(tex);
+            }
+            sprite.style.backgroundImage = bg;
+            if (faceLeft)
+                sprite.style.scale = new Scale(new Vector2(-1f, 1f));
         }
 
         private void AddSlotIcons(VisualElement slotEl, PlayerState owner, int playerIndex, int slotIndex)

@@ -214,21 +214,38 @@ sim**.
 
 ### 5.1 Agregar el sprite de un personaje a una unidad
 
-1. Importá la imagen a `Assets/` (queda versionada por **Git LFS**). En `CardData` ya existe el campo
-   **`sprite`** (`Model/CardData.cs`) — asignalo al asset de la carta (o seteá `card.sprite` en
-   `CardLibrary` si querés que lo haga el generador; hoy no lo hace).
-2. Mostralo en el **tablero**: en `GameController.RenderSlotColumn(...)`, donde hoy se agregan
-   `slot__name` + HP, poné el sprite como fondo del elemento del slot:
-   ```csharp
-   if (slot.unit.sprite != null)
-       el.style.backgroundImage = new StyleBackground(slot.unit.sprite);
-   ```
-   (o agregá un hijo `VisualElement` con `background-image` para no pisar el color del slot).
-3. Mostralo en la **carta**: en `BuildCardVisual(...)` agregá un `VisualElement` con
-   `style.backgroundImage = new StyleBackground(card.sprite)` y su clase en `Game.uss`
-   (la spec §11.5 ya pide "Imagen" en la carta).
-4. Para el **estilo** (tamaño, recorte) agregá clases en `Game.uss`. Usá `background-size` (cover /
-   `100% 100%`); **no** uses `-unity-background-scale-mode` (Unity 6 lo ignora).
+El **tablero** ya resuelve el arte de cada unidad solo, vía `GameController.ApplyUnitArt(...)`
+(lo llama `RenderSlotColumn`). Orden de prioridad — **listo para "cada unidad su sprite"**:
+
+1. `CardData.sprite` asignado en el asset de la carta (`Model/CardData.cs`) — si existe, manda.
+2. `Resources/Units/{id}.png` cargado por convención (sprite **propio de esa unidad**; `{id}` = `CardData.id`).
+3. `Resources/Units/{faccion}-default.png` (fallback de facción; `{faccion}` = nombre del enum
+   `Faction` en minúscula. Hoy cada facción comparte su default).
+
+Entonces, para arte de unidad **no se toca código**:
+
+- **Sprite propio de una unidad** → dejá un PNG llamado como su `id` en
+  `Presentation/Resources/Units/` (ej. `cana_montada.png`).
+- **Default de facción** → `policias-default.png` / `manifestantes-default.png` en esa misma carpeta.
+
+**Cómo autorar el PNG:**
+
+- **Fondo transparente** y **recortado al personaje** (sin márgenes). El sprite se pinta con
+  `background-size: contain` en su capa (`.slot__sprite`), centrado: márgenes vacíos = figura chica.
+- **Mirando a la derecha.** El motor **espeja en horizontal** a las unidades del lado derecho del
+  tablero (player 1) para que miren al rival; las de la izquierda quedan como están. El flip lo hace
+  `ApplyUnitArt(..., faceLeft: playerIndex == 1)` aplicando `scale: -1 1` **sólo a la capa del sprite**
+  (no al nombre). Por eso conviene una única convención de orientación (derecha) para todo el arte.
+- Importá como **Texture2D** (default). Versionados por **Git LFS** (`*.png lfs`).
+
+El sprite vive en su **propia capa** (`.slot__sprite`, absolute) dentro de `.slot__art` (contenedor
+transparente, sin "caja"); el nombre se superpone abajo (`.slot__name`). El registro y el fallback
+están en `ApplyUnitArt`/`UnitTexture` (`GameController`), espejo del patrón de iconos (§5.3).
+
+Para mostrarlo también en la **carta** (aún pendiente): en `BuildCardVisual(...)` agregá un `VisualElement` con
+`style.backgroundImage = new StyleBackground(card.sprite)` y su clase en `Game.uss`
+(la spec §11.5 ya pide "Imagen" en la carta). Para el **estilo** usá `background-size` (`contain`/`cover`/
+`100% 100%`); **no** uses `-unity-background-scale-mode` (Unity 6 lo ignora).
 
 ### 5.2 Animaciones de unidad (idle / ataque / golpe / muerte)
 
