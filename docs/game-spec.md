@@ -35,13 +35,15 @@ Cada jugador maneja 3 recursos independientes.
 
 | Recurso | Descripción | Producción base | Máximo |
 |---------|-------------|-----------------|--------|
-| **Dinero** ($) | Plata para movilizar gente y pagar logística | +1 / turno | 100 |
-| **Fuerza** (⚡) | Capacidad física, represión o resistencia | +1 / turno | 100 |
-| **Social** (📣) | Apoyo popular, organización, narrativa | +1 / turno | 100 |
+| **Dinero** ($) | Plata para movilizar gente y pagar logística | +1 / turno | 18 |
+| **Fuerza** (⚡) | Capacidad física, represión o resistencia | +1 / turno | 18 |
+| **Social** (📣) | Apoyo popular, organización, narrativa | +1 / turno | 18 |
 
 > La producción base es **+1 de cada recurso por turno**. Encima de eso, las unidades con pasiva de producción y las cartas de Acción suman extra. Los valores de producción base son configurables desde código en un único lugar (`GameConfig`) para facilitar el balanceo.
 
 **Recursos iniciales al inicio de la partida:** 5 de cada recurso (configurable para balanceo).
+
+**Techo de recursos (anti-atesoramiento):** el máximo es **bajo (18, configurable)** a propósito. Producís +1 de cada recurso por turno (más productoras/boosts) pero gastás un solo tipo por acción; sin un techo bajo, el excedente se atesora sin límite y la economía deja de ser una decisión. Con el techo bajo, el excedente se **desperdicia** (use-it-or-lose-it): empuja a gastar o a convertir (p. ej. Dinero sobrante → Fuerza), y vuelve cada turno una decisión. Complementa a la inflación (abajo). Rough, tunear por playtest (15–20).
 
 **Primer turno (regla de iniciativa, validada por simulación, §16):** el primer jugador **sí produce** en su turno 1, pero **no puede atacar con unidades** en ese turno (sí puede desplegar/jugar carta). Esto compensa la ventaja de la iniciativa: sin ninguna regla el primer jugador ganaba ~59%; con esta combinación queda ~48% (parejo). El segundo jugador juega normal desde su turno 1.
 
@@ -158,9 +160,8 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
                        [FUTURO] atacar con más de una unidad por turno o ataques con costo
                   → Evaluar condición de victoria tras cada acción
 
-4. REPONER MANO — La carta jugada o descartada se reemplaza por una aleatoria del pool,
-                  con probabilidad proporcional a drawWeight (§8.1)
-                  [FUTURO] todas las cartas podrían cambiar entre turnos
+4. REPONER MANO — La carta jugada o descartada va al descarte; se roba la del tope del
+                  mazo barajado (sin reemplazo; rebaraja el descarte si el mazo se vacía) (§8.1)
 
 5. FIN DE TURNO — a) Decrementar el counter de los estados por UNIDAD del jugador activo
                      (Poison/Stun/Furia/Desmoralizar); los que llegan a 0 se eliminan.
@@ -267,6 +268,15 @@ El tablero de cada jugador es **una única línea de 6 slots**, un **eje de prof
 7. **No saturar de snipe/AoE.** Posicionar es la counterplay del defensor; si medio pool ignora la
    formación, muere el eje de profundidad.
 
+   > **Excepciones de alcance — la máxima (operacionaliza #6/#7/#13):** pegar al frente es la regla;
+   > la **excepción** es pegar *más allá* del frente, y viene en **sabores**: **penetrar** (`Frontmost ×N`,
+   > atraviesa al muro), **saltar al fondo** (`Backmost`), **elegir blanco** (`Any`) y **caer sobre todos**
+   > (`All`). Que haya **varias por facción, repartidas en posición / arquetipo / recurso, con punch
+   > mixto**: algunas llegan por **daño** (sniper), otras por **utilidad** (chip / estado / AoE a la línea
+   > de atrás, sin pegar fuerte — una excepción NO tiene que ser punzante). **Pocas en total (~4 de 9):
+   > el muro sigue tapando a los cuerpos** (#7) — ni tan poco que siempre pegues al muro sin decidir, ni
+   > tanto que el muro deje de importar. **Sets concretos en §9/§10.**
+
 **Economía / tempo**
 
 8. **La acción es la moneda real.** Con 1 carta + 1 ataque por turno, se valora por **valor-por-
@@ -313,7 +323,7 @@ El tablero de cada jugador es **una única línea de 6 slots**, un **eje de prof
 ### 6.2 Eje de build: recurso → arquetipo
 
 La palanca central de la "sensación de builds". **Clave (v1 sin deckbuilding):** la mano se roba del
-pool completo al azar; *leanear un recurso* no es elegir cartas, es **en qué recurso invertís
+mazo barajado de la facción (sin reemplazo, §8.1); *leanear un recurso* no es elegir cartas, es **en qué recurso invertís
 producción** (productoras + boosts) y, por lo tanto, **qué cartas podés pagar de forma fiable**. El
 build es **emergente de la economía**. Para que funcione, el **recurso de costo de cada carta debe
 correlacionar con su rol**:
@@ -562,17 +572,15 @@ Todo lo visual/audio vive en `PiqueteDefend.Presentation`:
 
 ### 8.1 Pool y mano
 
-- No existe mazo ni descarte persistente.
-- Cada jugador tiene un pool de cartas de su facción (Unidades, Acciones, Equipo).
-- Al inicio: 6 cartas aleatorias en mano.
-- Al jugar o descartar una carta, se reemplaza por una aleatoria del pool.
-- **[FUTURO]** todas las cartas podrían cambiar entre turnos.
-- El pool puede repetir cartas.
-- **Frecuencia de robo:** cada carta tiene un `drawWeight` (int) en `CardData`; el robo es proporcional al peso (equivale a tener N copias, pero se tunea con un solo número y es trivial de simular). **Pesos actuales** (protagonismo de producción sin tapar la mano de unidades que no se pueden bajar): **productoras y cartas de producción (boost de recurso propio) = 2**, todo lo demás (unidades comunes, acciones, equipo) = **1**. Se derivan en el builder (`CardLibrary`/`cards.py`) por tipo, no carta por carta. *Nota: con 3 unidades iniciales el tablero se llena rápido; subir el peso de unidades comunes tapa la mano (unidades sin slot libre), así que se dejan en 1.* Más afinado por simulación/playtest.
+- Cada jugador tiene un **mazo barajado** de su facción (Unidades, Acciones, Equipo) del que roba **sin reemplazo**.
+- Al inicio: el mazo se baraja y se roban 6 cartas en mano.
+- Al jugar o descartar una carta, va al **descarte** y se roba la del tope del mazo para reponer la mano.
+- Cuando el mazo se vacía, el **descarte se baraja y vuelve a ser el mazo** (las cartas circulan; nada se pierde). Las 3 unidades iniciales se despliegan gratis **y** su copia también está en el mazo.
+- **Composición del mazo:** cada carta aparece `drawWeight` (int en `CardData`) veces (= **nº de copias**). **Copias actuales** (protagonismo de producción sin tapar la mano de unidades que no se pueden bajar): **productoras y cartas de producción (boost de recurso propio) = 2**, todo lo demás (unidades comunes, acciones, equipo) = **1** → ~27 cartas/facción. Se derivan por tipo en el catálogo (`CardCatalog.GetDeckList` / `cards.build_deck`), no carta por carta. El mazo finito **garantiza el acceso** (las cartas de 1 copia salen seguro en partidas largas — el sniper deja de "no salir nunca") y **auto-corrige el clumping** (lo robado sale del mazo). *Nota: con 3 unidades iniciales el tablero se llena rápido; subir copias de unidades comunes tapa la mano, así que se dejan en 1.* **[FUTURO]** deckbuilding: decklist explícita por jugador. Más afinado por simulación/playtest.
 
 ### 8.2 Acción (un solo uso)
 
-Se juega, se resuelven todos sus `CardEffect` en orden, y se reemplaza por una carta nueva.
+Se juega, se resuelven todos sus `CardEffect` en orden, va al descarte y se roba una del mazo para reponer.
 
 ### 8.3 Unidad (persistente)
 
@@ -594,6 +602,11 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 > **Mortero al fondo** (`Backmost`) y **Humo** (TurnDamage `All`). Su economía de ⚡ **gotea** por
 > combate (Fisura +1⚡). Su único control duro es el **Escrache** (Stun); el resto es buff/economía/daño.
 >
+> **Excepciones de alcance (§6.1, pegan más allá del frente):** Fisura (penetra ×3), **Mortero** (al
+> fondo, fuerte), Quema (snipe, utilidad + Humo `All`), **Jubilado** (snipe mártir, débil) + Choripanero
+> (cura `Any` a aliadas). Repartidas en posición/arquetipo, punch mixto. El resto pega al frente (el muro
+> tapa a los cuerpos). Manif salta al fondo con el mortero; su AoE es el Humo pasivo, no un ataque `All`.
+>
 > **Valores rough** (anclas de diseño, §6.1): pendientes de validar por sim/playtest — el sim/`valuation.py`
 > afina los **costos** (curva super-lineal) y el balance afina HP/daño/pasivas. Encima, el juego aplica
 > el factor económico global y la inflación (§3). Notación (targeting anclado a la formación, §6):
@@ -606,13 +619,13 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 |-------|-------|-----------|-------|--------|---------------|--------|-------------|
 | **Piquetero** | 4 ⚡ | Escaramuza | 20 | Cualquiera | Adelante · 14 | Aura +2 daño (adyac.) | *Bombo, bandera y aguante para parar el país. El camionero lo putea en seis idiomas y él ni se inmuta.* |
 | **Fisura** | 5 ⚡ | Cleave | 18 | {2,3,4,5} | Penetra ×3 · 7 | +1 ⚡/turno | *Arranca la baldosa con las manos y la parte en cuatro. Cada cascote ya tiene nombre y apellido.* |
-| **Jubilado** | 2 ⚡ | Mártir | 6 | Cualquiera | Adelante · 2 | OnDeath: Furia (+4, 2t) a aliados adyacentes | *Mil miércoles de marcha en el lomo y cero miedo a esta altura del partido. Cuando cae, la columna redobla el bombo y sale con todo.* |
+| **Jubilado** | 2 ⚡ | Mártir | 6 | Cualquiera | Snipe · 2 | OnDeath: Furia (+4, 2t) a aliados adyacentes | *Mil miércoles de marcha en el lomo y cero miedo a esta altura del partido. Cuando cae, la columna redobla el bombo y sale con todo.* |
 | **Mortero Casero** | 5 ⚡ | Morterista | 8 | {2,3,4} | Al fondo · 14 | — | *Un caño, pólvora trucha y fe. No le apunta a nadie, pero siempre le encaja al de la oficina del fondo.* |
 | **Encadenado** | 5 $ | Muro | 32 | Frente {4,5,6} | Penetra ×2 · 3 | Espinas 3 (Retaliate) | *Se candó al obelisco a las seis de la mañana y tiró la llave. De ahí no lo saca nadie, y el que lo intenta se lleva los candados de recuerdo.* |
 | **Gordo Sindical** | 3 $ | Productora | 12 | Retaguardia {1,2,3} | Adelante · 3 | +2 $/turno | *Maneja la caja, la lista y el micro. Aparece en el palco, jamás en la primera fila.* |
 | **Choripanero** | 4 $ | Healer | 15 | {2,3,4,5} | Cura (snipe) · 3 | — | *Pan, chori y un chimi que resucita muertos. El que morfa, vuelve a la marcha como si nada.* |
 | **Tuitero Militante** | 2 📣 | Productora | 10 | Retaguardia {1,2,3} | Adelante · 2 | +2 📣/turno | *2.300 seguidores y la certeza absoluta de que cambió la historia con un hilo de Twitter.* |
-| **Quema de Cubiertas** | 5 📣 | Emisor | 15 | {2,3,4,5} | Adelante · 2 | Humo: 2 daño/turno a **todo** el rival (`All`) | *Diez gomas viejas, un fósforo y el viento a favor. El humo negro no discrimina: te entra a todos.* |
+| **Quema de Cubiertas** | 5 📣 | Emisor | 15 | {2,3,4,5} | Snipe · 2 | Humo: 2 daño/turno a **todo** el rival (`All`) | *Diez gomas viejas, un fósforo y el viento a favor. El humo negro no discrimina: te entra a todos.* |
 
 ### Acciones (8)
 | Carta | Categoría | Costo | Efecto | Descripción |
@@ -651,6 +664,11 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 > **Valores rough** (anclas de diseño, §6.1): pendientes de validar por sim/playtest (ver notación e
 > intro en §9). **Watch-point de balance:** Pol acumula dos fuentes de AoE (Carga + Gas) → es fuerte
 > vs swarm por diseño (dispersa multitudes), pero validar que no sea opresivo.
+>
+> **Excepciones de alcance (§6.1, pegan más allá del frente):** Itakero (penetra ×3), **Halcón** (snipe,
+> fuerte), **Caballería** (AoE `All`), Carro (snipe, utilidad + Chorro). Repartidas en posición/arquetipo,
+> punch mixto. El resto pega al frente (el muro tapa a los cuerpos). Pol cae sobre todos con la carga; no
+> tiene mortero al fondo (su precisión es el snipe del Halcón).
 
 ### Unidades (9)
 | Carta | Costo | Arquetipo | maxHp | Deploy | Ataque · daño | Pasiva | Descripción |
@@ -659,7 +677,7 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 | **Itakero** | 4 ⚡ | Cleave | 20 | {2,3,4,5} | Penetra ×3 · 4 | — (vainilla) | *Escopeta Itaka y postas de goma para todos. Apunta al montón y reza, total alguno cae.* |
 | **Halcón** | 6 ⚡ | Sniper | 8 | {2,3,4} | Snipe · 15 | — | *Mira telescópica desde la terraza. Te tiene en la cruz desde antes de que llegaras a la esquina.* |
 | **Gendarme** | 5 $ | Muro | 26 | Frente {4,5,6} | Penetra ×2 · 4 | Blindaje 2 (−2 al daño de ataques) | *Lo trajeron de la frontera a cuidar una baldosa, y la cuida con la vida. No se mueve, no se cansa, no afloja.* |
-| **Carro Hidrante** | 4 $ | Control | 18 | {2,3,4,5} | Adelante · 3 | Chorro: empuja al objetivo al fondo | *Diez mil litros a presión. Te despega del asfalto y te deja en la otra cuadra antes de que termines el cántico.* |
+| **Carro Hidrante** | 4 $ | Control | 18 | {2,3,4,5} | Snipe · 3 | Chorro: empuja al objetivo al fondo | *Diez mil litros a presión. Te despega del asfalto y te deja en la otra cuadra antes de que termines el cántico.* |
 | **Recaudador** | 3 $ | Productora | 12 | Retaguardia {1,2,3} | Adelante · 3 | +2 $/turno | *La plata sale de algún lado y mejor no preguntes. Reparte sobres y se queda con el vuelto.* |
 | **Caballería** | 6 📣 | Carga | 16 | {2,3,4,5} | Carga a **todos** (`All`) · 2 | — | *Entran al galope y a lo que venga. El comunicado oficial lo tituló "reordenamiento dinámico del espacio público".* |
 | **Trol Oficial** | 3 📣 | Productora | 14 | Retaguardia {1,2,3} | Adelante · 2 | +2 📣/turno | *Diez cuentas, un solo sueldo del Estado y cero ortografía. Inventa la tendencia antes del café.* |
@@ -802,7 +820,9 @@ Overlay con:
 | `maxTurns` | 120 (backstop duro, configurable) |
 | Duración ideal de partida | ~30–40 medios-turnos (objetivo; re-validar tras el rework de cartas) |
 | Cartas por facción | 21 (9 unidades + 8 acciones + 4 equipo) |
-| Peso de robo (`drawWeight`) | Productoras y boosts de producción 2 · resto (incl. unidades) 1 (§8.1) |
+| Mazo de robo | Barajado, **sin reemplazo**; descarte que se rebaraja al vaciarse (§8.1) |
+| Copias en el mazo (`drawWeight`) | Productoras y boosts de producción 2 · resto (incl. unidades) 1 → ~27/facción (§8.1) |
+| Techo de recursos (`maxResource`) | **18** (bajo, anti-atesoramiento; rough, tunear 15–20) (§3) |
 | Unidades iniciales por facción | **3**: Escaramuza (retag) + Productora (retag) + Muro (frente) |
 
 > **Balance por simulación (`sim/`) — PENDIENTE de re-validar tras el rework de cartas (§9/§10).** El

@@ -19,7 +19,7 @@ import math
 import random
 from typing import Dict, List, Optional
 
-from cards import build_pool, starting_units
+from cards import build_deck, starting_units
 from knobs import GlobalKnobs, scale
 from model import (
     ActionCardData, AttackEffect, CardData, CardEffect, CardEffectType,
@@ -39,7 +39,7 @@ def inflated_amount(amount: int, inflation_pct: int) -> int:
 
 
 class Rng:
-    """RNG seedeable con la misma superficie que IRandomProvider (next, choice ponderada)."""
+    """RNG seedeable con la misma superficie que IRandomProvider (next, shuffle)."""
 
     def __init__(self, seed: int):
         self._r = random.Random(seed)
@@ -47,9 +47,8 @@ class Rng:
     def next(self, n: int) -> int:
         return self._r.randrange(n)
 
-    def weighted_choice(self, pool: List[CardData]) -> CardData:
-        weights = [max(1, c.draw_weight) for c in pool]
-        return self._r.choices(pool, weights=weights, k=1)[0]
+    def shuffle(self, lst: list) -> None:
+        self._r.shuffle(lst)
 
 
 class UnitSlot:
@@ -100,6 +99,8 @@ class PlayerState:
         self.fuerza = scale(5, k.initial_mult)
         self.social = scale(5, k.initial_mult)
         self.hand: List[CardData] = []
+        self.deck: List[CardData] = []       # mazo de robo (se roba del final, pop())
+        self.discard: List[CardData] = []    # descarte; vuelve barajado al mazo cuando éste se vacía
         self.slots: List[Optional[UnitSlot]] = [None] * BOARD
         self.statuses: List[StatusEffect] = []   # estados de jugador (producción)
 
@@ -161,8 +162,7 @@ class GameEngine:
                  faction0: Faction, faction1: Faction):
         self.k = config
         self.rng = rng
-        self.max_resource = 100
-        self.pools = {f: build_pool(f, config) for f in (faction0, faction1)}
+        self.max_resource = 18   # espejo de GameConfig.maxResource (techo bajo anti-atesoramiento)
         self.players = [PlayerState(faction0, config), PlayerState(faction1, config)]
         self.half_turn = 0
         self.active = 0
@@ -192,9 +192,12 @@ class GameEngine:
                 if slot >= 0:
                     p.slots[slot] = UnitSlot(unit)
                     self._record_deploy(unit)
-            pool = self.pools[p.faction]
+            p.deck = list(build_deck(p.faction, self.k))
+            self.rng.shuffle(p.deck)
             for _ in range(6):
-                p.hand.append(self.rng.weighted_choice(pool))
+                card = self._draw_card(p)
+                if card is not None:
+                    p.hand.append(card)
         self.first = first_index if first_index >= 0 else self.rng.next(2)
         self.active = self.first
 
@@ -650,8 +653,22 @@ class GameEngine:
         a = slot.unit.archetype
         self.deaths_by_arch[a] = self.deaths_by_arch.get(a, 0) + 1
 
+    def _draw_card(self, p: PlayerState) -> Optional[CardData]:
+        """Roba del tope del mazo (pop). Si está vacío, rebaraja el descarte dentro del mazo.
+        Devuelve None sólo si mazo y descarte están ambos vacíos."""
+        if not p.deck:
+            if not p.discard:
+                return None
+            p.deck = p.discard
+            p.discard = []
+            self.rng.shuffle(p.deck)
+        return p.deck.pop()
+
     def _replace_card(self, p: PlayerState, hand_index: int):
-        p.hand[hand_index] = self.rng.weighted_choice(self.pools[p.faction])
+        """Manda la carta jugada/descartada al descarte y roba reemplazo. Como el descarte recibe la
+        carta antes de robar, _draw_card nunca devuelve None acá."""
+        p.discard.append(p.hand[hand_index])
+        p.hand[hand_index] = self._draw_card(p)
 
     # ── Victoria ──
     def _check_victory(self):

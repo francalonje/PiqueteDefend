@@ -326,7 +326,10 @@
 }
 
 /* Capa del sprite: llena el área de arte y muestra la figura ENTERA (contain), sin
-   recortes. El espejado horizontal (mirar a la izquierda) lo aplica el código por slot. */
+   recortes. Las texturas vienen normalizadas a un canvas uniforme (256x384, figura
+   alineada al piso) para que todas las unidades se vean a la MISMA altura; acá las
+   anclamos abajo (position-y: bottom) para que queden "paradas en el suelo" en vez de
+   flotando al centro. El espejado horizontal (mirar a la izquierda) lo aplica el código. */
 .slot__sprite {
     position: absolute;
     left: 0;
@@ -335,7 +338,7 @@
     bottom: 0;
     background-size: contain;
     background-position-x: center;
-    background-position-y: center;
+    background-position-y: bottom;
 }
 
 /* Sin tinte de facción detrás del sprite (la "caja" se quitó por pedido de UX). Se

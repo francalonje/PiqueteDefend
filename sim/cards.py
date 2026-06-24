@@ -171,7 +171,7 @@ def build_manifestantes(k: GlobalKnobs) -> List[CardData]:
         unit("fisura", "Fisura", M, "Cleave", FZA, 5, 18, [1, 2, 3, 4],
              atk(TargetMode.FRONTMOST, 3, 7, k), [produce(FZA, 1, k)], k),
         unit("jubilado", "Jubilado", M, "Martir", FZA, 2, 6, [],
-             atk(TargetMode.FRONTMOST, 1, 2, k), [on_death_furia(4, 2, k)], k),
+             atk(TargetMode.ANY, 1, 2, k), [on_death_furia(4, 2, k)], k),
         unit("mortero", "Mortero Casero", M, "Morterista", FZA, 5, 8, [1, 2, 3],
              atk(TargetMode.BACKMOST, 1, 14, k), [], k),
         unit("encadenado", "Encadenado", M, "Muro", DIN, 5, 32, FRENTE,
@@ -183,7 +183,7 @@ def build_manifestantes(k: GlobalKnobs) -> List[CardData]:
         unit("tuitero", "Tuitero Militante", M, "Productora", SOC, 2, 10, RETAGUARDIA,
              atk(TargetMode.FRONTMOST, 1, 2, k), [produce(SOC, 2, k)], k),
         unit("quema_cubiertas", "Quema de Cubiertas", M, "Emisor", SOC, 5, 15, [1, 2, 3, 4],
-             atk(TargetMode.FRONTMOST, 1, 2, k), [turn_damage(2, k)], k),
+             atk(TargetMode.ANY, 1, 2, k), [turn_damage(2, k)], k),
 
         # Acciones (8)
         action("colecta", "Colecta", M, "Boost", SOC, 3, [mod_res(TS(), DIN, 6, k)], k),
@@ -220,7 +220,7 @@ def build_policias(k: GlobalKnobs) -> List[CardData]:
         unit("gendarme", "Gendarme", P, "Muro", DIN, 5, 26, FRENTE,
              atk(TargetMode.FRONTMOST, 2, 4, k), [blindaje(2, k)], k),
         unit("carro_hidrante", "Carro Hidrante", P, "Control", DIN, 4, 18, [1, 2, 3, 4],
-             atk(TargetMode.FRONTMOST, 1, 3, k), [chorro(k)], k),
+             atk(TargetMode.ANY, 1, 3, k), [chorro(k)], k),
         unit("recaudador", "Recaudador", P, "Productora", DIN, 3, 12, RETAGUARDIA,
              atk(TargetMode.FRONTMOST, 1, 3, k), [produce(DIN, 2, k)], k),
         unit("caballeria", "Caballería", P, "Carga", SOC, 6, 16, [1, 2, 3, 4],
@@ -261,6 +261,16 @@ STARTING_IDS: Dict[Faction, List[str]] = {
 
 def build_pool(faction: Faction, k: GlobalKnobs) -> List[CardData]:
     return build_manifestantes(k) if faction == M else build_policias(k)
+
+
+def build_deck(faction: Faction, k: GlobalKnobs) -> List[CardData]:
+    """Mazo de robo = pool expandido por draw_weight (cada carta aparece draw_weight veces, mín. 1).
+    Espejo de CardCatalog.GetDeckList (drawWeight = nº de copias)."""
+    deck: List[CardData] = []
+    for c in build_pool(faction, k):
+        copies = c.draw_weight if c.draw_weight > 0 else 1
+        deck.extend([c] * copies)
+    return deck
 
 
 def starting_units(faction: Faction, k: GlobalKnobs) -> List[UnitCardData]:
