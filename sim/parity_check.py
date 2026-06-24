@@ -31,7 +31,7 @@ UNITS = {
     "choripanero":     (15, 3,  {}),
     "tuitero":         (10, 2,  {PassiveType.PRODUCE_RESOURCE: 2}),
     "quema_cubiertas": (15, 2,  {PassiveType.TURN_DAMAGE: 2}),
-    "infante":         (24, 13, {}),  # vainilla
+    "infante":         (24, 14, {}),  # vainilla
     "itakero":         (20, 4,  {}),  # vainilla
     "halcon":          (8,  15, {}),
     "gendarme":        (26, 4,  {PassiveType.ARMOR: 2}),

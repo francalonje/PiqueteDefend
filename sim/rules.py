@@ -188,7 +188,7 @@ class GameEngine:
     def start(self, first_index: int = -1):
         for idx, p in enumerate(self.players):
             for unit in starting_units(p.faction, self.k):
-                slot = p.first_free_allowed(unit)
+                slot = self._starting_slot(p, unit)
                 if slot >= 0:
                     p.slots[slot] = UnitSlot(unit)
                     self._record_deploy(unit)
@@ -197,6 +197,17 @@ class GameEngine:
                 p.hand.append(self.rng.weighted_choice(pool))
         self.first = first_index if first_index >= 0 else self.rng.next(2)
         self.active = self.first
+
+    def _starting_slot(self, p: PlayerState, unit: UnitCardData) -> int:
+        """Posición inicial (spec §11.3): un muro (restringido al frente) arranca ADELANTE DE TODO
+        (slot libre permitido de mayor índice); el resto, en la retaguardia (menor índice)."""
+        front = BOARD // 2
+        if unit.allowed_slots and all(s >= front for s in unit.allowed_slots):
+            for i in range(BOARD - 1, -1, -1):
+                if p.slots[i] is None and unit.allows_slot(i):
+                    return i
+            return -1
+        return p.first_free_allowed(unit)
 
     @property
     def is_finished(self) -> bool:

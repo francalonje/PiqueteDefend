@@ -217,6 +217,9 @@
     flex-direction: row-reverse;
 }
 
+/* Slot ocupado: SIN caja (fondo y borde transparentes) → el sprite se para sobre la
+   escena. Los estados (puede-actuar/objetivo/drop/flash) reponen fondo+borde al activarse;
+   por eso se mantiene border-width. Los slots vacíos sí muestran panel (.slot--empty). */
 .slot {
     flex-grow: 1;
     flex-basis: 0;
@@ -225,8 +228,8 @@
     padding: 5px 3px;
     border-radius: 9px;
     border-width: 2px;
-    border-color: rgba(255, 255, 255, 0.1);
-    background-color: rgba(40, 44, 56, 0.95);
+    border-color: rgba(0, 0, 0, 0);
+    background-color: rgba(0, 0, 0, 0);
     flex-direction: column;
     justify-content: flex-start;
     align-items: stretch;

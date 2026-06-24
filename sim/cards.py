@@ -212,7 +212,7 @@ def build_policias(k: GlobalKnobs) -> List[CardData]:
     return [
         # Unidades (9)
         unit("infante", "Infante", P, "Escaramuza", FZA, 5, 24, [],
-             atk(TargetMode.FRONTMOST, 1, 13, k), [], k),
+             atk(TargetMode.FRONTMOST, 1, 14, k), [], k),
         unit("itakero", "Itakero", P, "Cleave", FZA, 4, 20, [1, 2, 3, 4],
              atk(TargetMode.FRONTMOST, 3, 4, k), [], k),
         unit("halcon", "Halcón", P, "Sniper", FZA, 6, 8, [1, 2, 3],
@@ -254,8 +254,8 @@ def build_policias(k: GlobalKnobs) -> List[CardData]:
 # ── Pools y unidades iniciales ───────────────────────────────────────────────
 
 STARTING_IDS: Dict[Faction, List[str]] = {
-    M: ["piquetero", "gordo_sindical", "encadenado"],   # Escaramuza + Productora + Muro(frente)
-    P: ["infante", "recaudador", "gendarme"],
+    M: ["encadenado", "gordo_sindical", "piquetero"],   # Muro(adelante) + Productora + Escaramuza
+    P: ["gendarme", "recaudador", "infante"],
 }
 
 

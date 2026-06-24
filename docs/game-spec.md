@@ -205,7 +205,7 @@ El tablero de cada jugador es **una única línea de 6 slots**, un **eje de prof
 > **Numeración:** slots **1–6 cara al usuario**, **0–5 en código** (slot `k` del spec = índice `k-1`). Frente = índices altos `{3,4,5}`; fondo/retaguardia = `{0,1,2}`.
 
 - **"El de adelante de todo"** = la primera unidad ocupada contando desde el frente (saltea huecos). Es a quien pega el melee (`Frontmost count=1`).
-- **`allowedSlots`** sigue siendo data por unidad (`int[]`): "esta unidad requiere tal espacio" (un muro obligado al frente para tankear, una productora al fondo para esconderse). La Escaramuza y la Productora iniciales arrancan en el fondo; el Muro inicial, en el frente (§11.3).
+- **`allowedSlots`** sigue siendo data por unidad (`int[]`): "esta unidad requiere tal espacio" (un muro obligado al frente para tankear, una productora al fondo para esconderse). La Escaramuza y la Productora iniciales arrancan en la retaguardia; el Muro inicial, **adelante de todo** (slot 6, §11.3).
 - La posición del atacante **no** cambia a quién pega (el targeting mira la formación enemiga). Posicionar es **100% defensivo**: a quién exponés adelante y a quién protegés atrás.
 
 ### Catálogo de modos de targeting
@@ -687,7 +687,7 @@ Por ahora los **lados son fijos**: **Manifestantes** siempre a la izquierda, **P
 
 Pantalla única, **lados fijos**: Manifestantes a la izquierda, Policías a la derecha. 6 slots de unidades por jugador siempre visibles, pegados al borde externo de cada lado. La mano y las zonas de acción pertenecen solo al jugador activo.
 
-Los slots van del **1 al 6**. De las **3 unidades iniciales**, la Escaramuza y la Productora arrancan en la **retaguardia** (slots 1 y 2, los más externos de cada lado), y el **Muro** arranca en la **vanguardia** (slot 4, hacia el centro) — así hay presencia en el frente desde el arranque. La fila derecha (Policías) se dibuja invertida.
+Los slots van del **1 al 6**. De las **3 unidades iniciales**, el **Muro** arranca **adelante de todo** (slot 6, hacia el centro) — tankea el melee desde el turno 1 y nada se despliega por delante de él —, y la Escaramuza y la Productora arrancan en la **retaguardia** (slots 1 y 2, los más externos de cada lado), protegidas detrás del muro. La fila derecha (Policías) se dibuja invertida.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
@@ -793,7 +793,7 @@ Overlay con:
 
 - **Balance de unidades:** ⏳ **pendiente de re-balanceo tras el rework de cartas** (§9/§10 son valores rough). Validar en `sim/` (facción ≈ 50/50 en agregado, duración objetivo) y apretar carta por carta.
 - **Apilamiento:** punto de extensión reservado (`UnitSlot.count`), inactivo en v1.
-- **Unidades iniciales por facción:** **3** — Manifestantes = Piquetero + Gordo Sindical + Encadenado; Policías = Infante + Recaudador + Gendarme (1 peleador *Escaramuza* + 1 *Productora* + 1 *Muro*). El peleador (deploy **Cualquiera**) y la productora (retaguardia) arrancan en slots 1–2; el Muro (deploy **Frente**) arranca en la vanguardia (slot 4) → presencia en el frente desde el turno 1. Da más cuerpos en juego y combates más largos.
+- **Unidades iniciales por facción:** **3** — los tres pilares de apertura: **Muro** (defensa) + **Productora** (economía) + **Escaramuza** (ataque). Manifestantes = Encadenado + Gordo Sindical + Piquetero; Policías = Gendarme + Recaudador + Infante. El **Muro** arranca **adelante de todo** (slot de mayor índice libre, §11.3) para tankear el melee desde el turno 1 y que nada se despliegue por delante; la Productora y la Escaramuza arrancan en la retaguardia (slots 1–2), protegidas detrás. Da presencia en el frente desde el arranque y combates más largos. La colocación la hace `GameEngine.StartingSlot`.
 - **Feedback visual por unidad:** ✅ **implementado** — slot tipo "carta de unidad" (área de arte sprite-ready + barra de HP con valor + fila de iconos para stat de acción/pasivas/estados/equipo, con *tooltip*), más el popover informativo de hover (§11.3). Pendiente sólo, si se quisiera, reemplazar los glifos emoji de los iconos por **iconos dibujados** (asignando el `Sprite` de cada `SlotIcon`) y el **sprite del personaje** en el área de arte.
 - **Tope de equipos por unidad:** hoy sin límite (§8.4); definir si conviene un máximo.
 - **EquipmentCardData:** diseñado e incluido en el catálogo (§7.1 / §8.4 / §9/§10, 4 cartas/facción); falta implementar (capa de stats efectivos, §15 Fase 4).

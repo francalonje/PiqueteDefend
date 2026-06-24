@@ -99,7 +99,7 @@ namespace PiqueteDefend.Core
 
             foreach (UnitCardData unit in _catalog.GetStartingUnits(faction))
             {
-                int slot = p.FirstFreeAllowedSlot(unit);
+                int slot = StartingSlot(p, unit);
                 if (slot >= 0) p.unitSlots[slot] = new UnitSlot(unit);
             }
 
@@ -108,6 +108,26 @@ namespace PiqueteDefend.Core
                 p.hand.Add(WeightedDraw(pool));
 
             return p;
+        }
+
+        /// <summary>
+        /// Posición de una unidad inicial (spec §11.3): un muro (restringido al frente) arranca
+        /// <b>adelante de todo</b> — el slot libre permitido de mayor índice — para que nada se
+        /// despliegue por delante y tankee siempre; el resto arranca en la retaguardia (menor
+        /// índice), protegido detrás del muro.
+        /// </summary>
+        private int StartingSlot(PlayerState p, UnitCardData unit)
+        {
+            int front = _config.maxSlots / 2;
+            bool frontLocked = unit.allowedSlots != null && unit.allowedSlots.Length > 0
+                               && Array.TrueForAll(unit.allowedSlots, s => s >= front);
+            if (frontLocked)
+            {
+                for (int i = p.unitSlots.Length - 1; i >= 0; i--)
+                    if (p.unitSlots[i] == null && unit.AllowsSlot(i)) return i;
+                return -1;
+            }
+            return p.FirstFreeAllowedSlot(unit);
         }
 
         // ── Fases 1 y 2: EFECTOS + PRODUCCIÓN ─────────────────────────────────────

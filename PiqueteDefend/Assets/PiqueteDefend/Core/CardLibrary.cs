@@ -111,7 +111,7 @@ namespace PiqueteDefend.Core
             {
                 // ── Unidades (9) ──
                 Unit("infante", "Infante", P, UnitSubtype.Atacante, ResourceType.Fuerza, 5,
-                     24, NoSlots, Atk(TargetMode.Frontmost, 1, 13),
+                     24, NoSlots, Atk(TargetMode.Frontmost, 1, 14),
                      "Casco, escudo y cara de pocas pulgas. Va al frente porque es lo que mejor hace: plantarse y no moverse ni con grúa."),
                 Unit("itakero", "Itakero", P, UnitSubtype.Atacante, ResourceType.Fuerza, 4,
                      20, Medio, Atk(TargetMode.Frontmost, 3, 4),
@@ -185,11 +185,16 @@ namespace PiqueteDefend.Core
             };
         }
 
-        /// <summary>Ids de las unidades iniciales de cada facción (spec §6/§11.3). 1 peleadora + 1 productora.</summary>
+        /// <summary>
+        /// Unidades iniciales de cada facción (spec §6/§11.3): los tres pilares de apertura —
+        /// <b>Muro</b> (tanque, arranca adelante de todo), <b>Productora</b> (economía desde el turno 1)
+        /// y <b>Escaramuza</b> (cuerpo ofensivo, protegido detrás del muro). El motor coloca al muro
+        /// en el slot de mayor índice y a los otros dos en la retaguardia (ver <c>GameEngine.StartingSlot</c>).
+        /// </summary>
         public static string[] StartingUnitIds(Faction faction) =>
             faction == Faction.Manifestantes
-                ? new[] { "piquetero", "gordo_sindical", "encadenado" }   // Escaramuza + Productora + Muro(frente)
-                : new[] { "infante", "recaudador", "gendarme" };
+                ? new[] { "encadenado", "gordo_sindical", "piquetero" }   // Muro(frente) + Productora + Escaramuza
+                : new[] { "gendarme", "recaudador", "infante" };
 
         // ── Builders ──────────────────────────────────────────────────────────
 

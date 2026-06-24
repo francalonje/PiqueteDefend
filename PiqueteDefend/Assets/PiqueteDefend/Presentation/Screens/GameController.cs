@@ -212,10 +212,54 @@ namespace PiqueteDefend.Presentation
 
             if (_mode != Mode.Acting) { CancelTargeting(); return; }
 
+            // Si todavía podés atacar o jugar una carta, confirmá antes de pasar el turno.
+            if (HasUnusedActions()) { ShowEndTurnConfirm(); return; }
+            EndTurnConfirmed();
+        }
+
+        private void EndTurnConfirmed()
+        {
             _engine.EndTurn();
             if (_engine.IsFinished) { ShowOutcome(); return; }
             BeginActiveTurn();
         }
+
+        /// <summary>¿Quedan acciones sin usar este turno (atacar o jugar una carta)?</summary>
+        private bool HasUnusedActions() => CanStillAttack() || CanStillPlayCard();
+
+        private bool CanStillPlayCard()
+        {
+            if (_engine.CardActionUsed) return false;
+            for (int i = 0; i < _engine.ActivePlayer.hand.Count; i++)
+                if (_engine.CanAfford(i)) return true;
+            return false;
+        }
+
+        private bool CanStillAttack()
+        {
+            if (_engine.AttackUsed || !_engine.CanAttackThisTurn) return false;
+            foreach (UnitSlot s in _engine.ActivePlayer.unitSlots)
+                if (s != null && !s.IsStunned) return true;
+            return false;
+        }
+
+        /// <summary>Diálogo confirmar/cancelar antes de terminar el turno con acciones pendientes.</summary>
+        private void ShowEndTurnConfirm()
+        {
+            HidePopover();
+            bool canAttack = CanStillAttack();
+            bool canPlay = CanStillPlayCard();
+            string pending = canAttack && canPlay ? "atacar y jugar una carta"
+                : canAttack ? "atacar"
+                : "jugar una carta";
+            _overlayTitle.text = "¿Terminar el turno?";
+            _overlayMsg.text = $"Todavía podés {pending}.";
+            WireOverlayButton(_overlayPrimary, "Terminar turno", () => { HideOverlay(); EndTurnConfirmed(); });
+            WireOverlayButton(_overlaySecondary, "Cancelar", HideOverlay);
+            _overlay.style.display = DisplayStyle.Flex;
+        }
+
+        private void HideOverlay() => _overlay.style.display = DisplayStyle.None;
 
         /// <summary>Vuelve a Acting tras una acción (carta o ataque) sin terminar el turno.</summary>
         private void AfterAction()
