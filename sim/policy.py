@@ -11,8 +11,18 @@ from typing import List, Optional, Tuple
 
 from model import (
     ActionCardData, AttackEffect, CardEffectType, EquipmentCardData, PassiveType,
-    ResourceType, StatType, StatusType, TargetType, UnitCardData, ALL_RESOURCES, PLAYER_STATUSES,
+    ResourceType, StatType, StatusType, TargetMode, TargetType, UnitCardData,
+    ALL_RESOURCES, PLAYER_STATUSES,
 )
+
+
+def _attack_n(a) -> int:
+    """Cantidad aproximada de golpes de un ataque, para estimar su valor (heurística)."""
+    if a.mode in (TargetMode.FRONTMOST, TargetMode.BACKMOST, TargetMode.ANY):
+        return max(1, a.count)
+    if a.mode == TargetMode.ALL:
+        return 3   # AoE: aprox. tablero típico
+    return 1
 from rules import BOARD, GameEngine, PlayerState, UnitSlot
 
 THRESHOLD = 0.0   # umbral de juego: si nada supera esto, se descarta para ciclar
@@ -39,7 +49,7 @@ def base_unit_value(u: UnitCardData) -> float:
         dmg_total = 0.0
         pv = _passive_value(u.passive_effects) + 3 * a.amount_per_slot
     else:
-        n = a.pick_count if a.pick_count > 0 else len(a.pattern)
+        n = _attack_n(a)
         dmg_total = a.amount_per_slot * n
         pv = _passive_value(u.passive_effects)
     return u.max_hp / 4 + dmg_total / 2 + pv
@@ -51,7 +61,7 @@ def slot_value(s: UnitSlot) -> float:
         dmg_total = 0.0
         pv = _passive_value(list(s.all_passives())) + 3 * a.amount_per_slot
     else:
-        n = a.pick_count if a.pick_count > 0 else len(a.pattern)
+        n = _attack_n(a)
         dmg_total = (a.amount_per_slot + s.equip_damage) * n
         pv = _passive_value(list(s.all_passives()))
     return s.max_hp / 4 + dmg_total / 2 + pv
@@ -105,16 +115,10 @@ def choose_deploy_slot(engine: GameEngine, p: PlayerState, unit: UnitCardData) -
         if arch in ("Productora", "Sniper", "Emisor", "Healer"):
             return min(free)          # retaguardia: protegerlas
         if arch == "Muro":
-            return max(free)          # frente: tapar la línea
-        # Escaramuza/Cleave: máxima cobertura del patrón sobre enemigos ocupados; empate → más adelante
-        opp = engine.opponent
-        a = unit.attack
-        best, best_cov = free[0], -1
-        for i in free:
-            cov = sum(1 for t in engine.resolve_slots(a.reference, a.pattern, i) if opp.slots[t])
-            if cov > best_cov or (cov == best_cov and i > best):
-                best, best_cov = i, cov
-        return best
+            return max(free)          # frente: tapar la línea (será el más adelantado = tankea)
+        # Escaramuza/Cleave: la posición ya no cambia el targeting (anclado al rival); van adelante,
+        # así son la unidad más adelantada y absorben el melee enemigo.
+        return max(free)
     return -1  # sin slot libre permitido: no se despliega (no hay reemplazo, §8.3)
 
 
@@ -285,7 +289,8 @@ def best_attack(engine: GameEngine, p: PlayerState, opp: PlayerState):
         if s is None or s.is_stunned:
             continue
         a = s.unit.attack
-        candidates = engine.resolve_slots(a.reference, a.pattern, i)
+        target_board = p.slots if a.effect == AttackEffect.HEAL_ALLIES else opp.slots
+        candidates = engine.resolve_targets(a.mode, a.count, target_board, i)
 
         if a.effect == AttackEffect.HEAL_ALLIES:
             heals = [(t, min(a.amount_per_slot, p.slots[t].max_hp - p.slots[t].current_hp))
@@ -295,9 +300,9 @@ def best_attack(engine: GameEngine, p: PlayerState, opp: PlayerState):
                 continue
             if a.requires_choice:
                 heals.sort(key=lambda x: (-x[1], x[0]))
-                chosen = [t for t, _ in heals[:a.pick_count]]
-                value = sum(h for _, h in heals[:a.pick_count])
-                chosen = _pad_targets(chosen, candidates, a.pick_count)
+                chosen = [t for t, _ in heals[:a.count]]
+                value = sum(h for _, h in heals[:a.count])
+                chosen = _pad_targets(chosen, candidates, a.count)
             else:
                 chosen, value = None, sum(h for _, h in heals)
             if value > 0 and (best is None or value > best[2]):
@@ -309,9 +314,9 @@ def best_attack(engine: GameEngine, p: PlayerState, opp: PlayerState):
             continue
         if a.requires_choice:
             ranked = sorted(candidates, key=lambda t: (-_target_contribution(engine, opp, dmg, t), t))
-            chosen = ranked[:a.pick_count]
+            chosen = ranked[:a.count]
             value = sum(_target_contribution(engine, opp, dmg, t) for t in chosen)
-            chosen = _pad_targets(chosen, candidates, a.pick_count)
+            chosen = _pad_targets(chosen, candidates, a.count)
         else:
             chosen = None
             value = sum(_target_contribution(engine, opp, dmg, t) for t in candidates)

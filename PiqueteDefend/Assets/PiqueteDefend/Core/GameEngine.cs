@@ -221,23 +221,16 @@ namespace PiqueteDefend.Core
         }
 
         /// <summary>
-        /// Slots objetivo de una pasiva dirigida (Self = sí misma; resto = patrón sobre <paramref name="board"/>).
-        /// Honra <see cref="PassiveEffect.pickCount"/>: si es &gt; 0, elige N slots OCUPADOS del patrón
-        /// (orden ascendente de índice, determinista — espejo en el sim).
+        /// Slots objetivo de una pasiva dirigida sobre <paramref name="board"/>, según su
+        /// <see cref="PassiveEffect.mode"/>/<see cref="PassiveEffect.count"/> (espejo del targeting de
+        /// ataque, §6). Frontmost/Backmost están anclados a la formación (deterministas); los slots
+        /// vacíos que devuelva los filtran los callers (TurnDamage/TurnStatus/Regeneration).
         /// </summary>
         private List<int> PassiveTargets(PassiveEffect pe, int srcIdx, PlayerState board)
         {
-            if (pe.target == PassiveTarget.Self) return new List<int> { srcIdx };
-
-            List<int> candidates = ResolveSlots(pe.reference, pe.pattern, srcIdx);
-            if (pe.pickCount <= 0) return candidates;
-
-            var occupied = new List<int>();
-            foreach (int t in candidates)
-                if (board.unitSlots[t] != null) occupied.Add(t);
-            occupied.Sort();
-            if (occupied.Count > pe.pickCount) occupied.RemoveRange(pe.pickCount, occupied.Count - pe.pickCount);
-            return occupied;
+            if (pe.mode == TargetMode.Self || pe.target == PassiveTarget.Self)
+                return new List<int> { srcIdx };
+            return ResolveTargets(pe.mode, pe.count, board.unitSlots, srcIdx);
         }
 
         // ── Fase 3: ACCIÓN ────────────────────────────────────────────────────────
@@ -318,7 +311,9 @@ namespace PiqueteDefend.Core
             if (attacker.IsStunned) return ActionResult.UnitStunned;
 
             UnitAttack ua = attacker.unit.attack;
-            List<int> candidates = ResolveSlots(ua.reference, ua.pattern, attackerSlot);
+            // Targeting anclado a la formación del objetivo (spec §6): rival si daña, propio si cura.
+            PlayerState targetBoard = ua.IsHeal ? active : opp;
+            List<int> candidates = ResolveTargets(ua.mode, ua.count, targetBoard.unitSlots, attackerSlot);
 
             int[] targets;
             if (!ua.RequiresChoice)
@@ -327,7 +322,8 @@ namespace PiqueteDefend.Core
             }
             else
             {
-                if (chosenTargets == null || chosenTargets.Length != ua.pickCount)
+                // Snipe (Any): el jugador elige exactamente `count` unidades de entre las ocupadas.
+                if (chosenTargets == null || chosenTargets.Length != ua.count)
                     return ActionResult.NeedsAttackTarget;
                 foreach (int t in chosenTargets)
                     if (!candidates.Contains(t)) return ActionResult.InvalidTarget;
@@ -559,20 +555,70 @@ namespace PiqueteDefend.Core
 
         // ── Cálculo de combate ────────────────────────────────────────────────────
 
-        /// <summary>Resuelve los slots objetivo (0–5) de un patrón. Absolute = slots fijos; Relative = offsets desde origin.</summary>
-        public static List<int> ResolveSlots(AttackReference reference, int[] pattern, int origin)
+        /// <summary>
+        /// Resuelve las posiciones objetivo (0–5) sobre <paramref name="board"/> según el
+        /// <see cref="TargetMode"/>, anclado a la formación (spec §6). El frente es el extremo de
+        /// índice alto (cerca del rival); Frontmost cuenta desde ahí hacia el fondo. Puede devolver
+        /// slots vacíos en los alcances profundos de Frontmost/Backmost (whiff), pero el slot ancla
+        /// siempre está ocupado si el tablero no está vacío (invariante anti-deadlock).
+        /// </summary>
+        public static List<int> ResolveTargets(TargetMode mode, int count, UnitSlot[] board, int srcIdx)
         {
             var list = new List<int>();
-            if (pattern == null) return list;
-            foreach (int p in pattern)
+            if (board == null) return list;
+            int n = board.Length;
+            switch (mode)
             {
-                int idx = reference == AttackReference.Absolute ? p : origin + p;
-                if (idx >= 0 && idx < BoardSize && !list.Contains(idx)) list.Add(idx);
+                case TargetMode.Self:
+                    if (srcIdx >= 0 && srcIdx < n) list.Add(srcIdx);
+                    break;
+
+                case TargetMode.Adjacent:
+                    if (srcIdx - 1 >= 0 && srcIdx - 1 < n) list.Add(srcIdx - 1);
+                    if (srcIdx + 1 >= 0 && srcIdx + 1 < n) list.Add(srcIdx + 1);
+                    break;
+
+                case TargetMode.All:
+                case TargetMode.Any:   // candidatos: todas las ocupadas (la elección/auto-pick ocurre fuera)
+                    for (int i = 0; i < n; i++) if (board[i] != null) list.Add(i);
+                    break;
+
+                case TargetMode.Frontmost:
+                {
+                    int f = ForemostOccupied(board);
+                    if (f < 0) break;
+                    int reach = count <= 0 ? 1 : count;
+                    for (int k = 0; k < reach; k++) { int idx = f - k; if (idx < 0) break; list.Add(idx); }
+                    break;
+                }
+
+                case TargetMode.Backmost:
+                {
+                    int b = BackmostOccupied(board);
+                    if (b < 0) break;
+                    int reach = count <= 0 ? 1 : count;
+                    for (int k = 0; k < reach; k++) { int idx = b + k; if (idx >= n) break; list.Add(idx); }
+                    break;
+                }
             }
             return list;
         }
 
-        /// <summary>Suma de AuraDamage de aliadas cuyo patrón cubre al atacante en <paramref name="slotIndex"/>.</summary>
+        /// <summary>Unidad más adelantada ocupada (mayor índice = más cerca del rival); -1 si vacío.</summary>
+        private static int ForemostOccupied(UnitSlot[] board)
+        {
+            for (int i = board.Length - 1; i >= 0; i--) if (board[i] != null) return i;
+            return -1;
+        }
+
+        /// <summary>Unidad más atrasada ocupada (menor índice = fondo); -1 si vacío.</summary>
+        private static int BackmostOccupied(UnitSlot[] board)
+        {
+            for (int i = 0; i < board.Length; i++) if (board[i] != null) return i;
+            return -1;
+        }
+
+        /// <summary>Suma de AuraDamage de aliadas cuyo objetivo cubre al atacante en <paramref name="slotIndex"/>.</summary>
         public int AuraBonusFor(UnitSlot[] board, int slotIndex)
         {
             int total = 0;
@@ -582,7 +628,7 @@ namespace PiqueteDefend.Core
                 if (src == null || srcIdx == slotIndex) continue;
                 foreach (PassiveEffect pe in src.AllPassives())
                     if (pe.passiveType == PassiveType.AuraDamage && pe.target == PassiveTarget.Allies
-                        && ResolveSlots(pe.reference, pe.pattern, srcIdx).Contains(slotIndex))
+                        && ResolveTargets(pe.mode, pe.count, board, srcIdx).Contains(slotIndex))
                         total += pe.value;
             }
             return total;
@@ -744,8 +790,6 @@ namespace PiqueteDefend.Core
         }
 
         // ── Utilidades internas ─────────────────────────────────────────────────
-
-        private const int BoardSize = 6;
 
         private static readonly ResourceType[] ResourceTypes =
             { ResourceType.Dinero, ResourceType.Fuerza, ResourceType.Social };

@@ -67,14 +67,34 @@ namespace PiqueteDefend.Core
     }
 
     /// <summary>
-    /// Marco de referencia de un <see cref="UnitAttack"/> / pasiva dirigida (spec §7.2/§7.3).
-    /// Absolute: el patrón son slots del tablero objetivo (0–5). Relative: offsets desde el slot
-    /// de origen (0 = enfrentado / sí mismo).
+    /// Cómo un <see cref="UnitAttack"/> / pasiva dirigida elige sus objetivos sobre el tablero
+    /// indicado (spec §6/§7.2/§7.3). El targeting está <b>anclado a la formación</b> (a la unidad
+    /// ocupada, nunca a un slot fijo): el frente del tablero objetivo es el extremo cercano al rival
+    /// (índices altos), el fondo el lejano (índices bajos).
+    /// <list type="bullet">
+    /// <item><b>Frontmost</b>: la unidad más adelantada ocupada + (count−1) espacios consecutivos
+    /// hacia el fondo. count=1 = "al de adelante de todo" (nunca whiffea). count&gt;1 = penetrante
+    /// (los espacios profundos vacíos whiffean).</item>
+    /// <item><b>Backmost</b>: la unidad más atrasada ocupada + (count−1) espacios hacia el frente
+    /// (excepción "pega al fondo").</item>
+    /// <item><b>Any</b>: el jugador elige <c>count</c> unidades cualesquiera (snipe; en pasivas el
+    /// motor resuelve determinista).</item>
+    /// <item><b>All</b>: todas las unidades del objetivo (AoE).</item>
+    /// <item><b>Adjacent</b>: las vecinas (±1) de la unidad fuente (auras).</item>
+    /// <item><b>Self</b>: la propia unidad fuente.</item>
+    /// </list>
+    /// <b>Invariante anti-deadlock:</b> Frontmost/Backmost/Any/All siempre resuelven a ≥1 unidad
+    /// ocupada si el tablero objetivo no está vacío, así que un ataque de daño nunca se cancela
+    /// contra un tablero con unidades.
     /// </summary>
-    public enum AttackReference
+    public enum TargetMode
     {
-        Absolute,
-        Relative
+        Frontmost,
+        Backmost,
+        Any,
+        All,
+        Adjacent,
+        Self
     }
 
     /// <summary>

@@ -348,7 +348,7 @@ namespace PiqueteDefend.Presentation
             string verb = ua.IsHeal ? "Curar" : "Atacar";
             string icon = ua.IsHeal ? "+" : "⚔";
             _popover.text = ua.RequiresChoice
-                ? $"{icon} {verb} (elegí {ua.pickCount}) · {ua.damagePerSlot}"
+                ? $"{icon} {verb} (elegí {ua.count}) · {ua.damagePerSlot}"
                 : $"{icon} {verb} · {ua.damagePerSlot}";
 
             // Muestra a qué slots llega ESTE ataque (preview), del lado correcto (propio si cura).
@@ -401,7 +401,8 @@ namespace PiqueteDefend.Presentation
             ClearReachHighlights();
             int side = ua.IsHeal ? _engine.ActiveIndex : 1 - _engine.ActiveIndex;
             VisualElement[] els = side == 0 ? _p0SlotEls : _p1SlotEls;
-            foreach (int t in GameEngine.ResolveSlots(ua.reference, ua.pattern, attackerSlot))
+            UnitSlot[] targetBoard = _engine.PlayerAt(side).unitSlots;
+            foreach (int t in GameEngine.ResolveTargets(ua.mode, ua.count, targetBoard, attackerSlot))
                 els[t]?.AddToClassList("slot--reach");
         }
 
@@ -547,13 +548,20 @@ namespace PiqueteDefend.Presentation
                 }
                 else
                 {
+                    // Anatomía tipo "carta de unidad" (spec §11.3): arte → barra de HP con número → iconos.
+                    // El área de arte deja el hueco del sprite preparado: hoy es un panel tinte-facción con
+                    // el nombre; cuando exista el sprite (CardData.sprite) se pinta de fondo (dev-guide §5.1).
+                    var art = new VisualElement();
+                    art.AddToClassList("slot__art");
+                    art.AddToClassList(playerIndex == 0 ? "slot__art--manif" : "slot__art--polis");
+                    if (slot.unit.sprite != null)
+                        art.style.backgroundImage = new StyleBackground(slot.unit.sprite);
                     var nameLabel = new Label(slot.unit.cardName);
                     nameLabel.AddToClassList("slot__name");
-                    var hpLabel = new Label($"HP {slot.currentHp}/{slot.MaxHp}");
-                    hpLabel.AddToClassList("slot__meta");
-                    el.Add(nameLabel);
-                    el.Add(hpLabel);
+                    art.Add(nameLabel);
+                    el.Add(art);
 
+                    // Barra de HP con el valor de vida superpuesto y centrado (como la referencia).
                     float ratio = Mathf.Clamp01((float)slot.currentHp / slot.MaxHp);
                     var barOuter = new VisualElement();
                     barOuter.AddToClassList("slot__hp-bar-outer");
@@ -562,9 +570,13 @@ namespace PiqueteDefend.Presentation
                     barInner.AddToClassList(ratio > 0.5f ? "hp-bar--high" : ratio > 0.25f ? "hp-bar--mid" : "hp-bar--low");
                     barInner.style.width = Length.Percent(ratio * 100f);
                     barOuter.Add(barInner);
+                    var hpLabel = new Label($"{slot.currentHp}/{slot.MaxHp}");
+                    hpLabel.AddToClassList("slot__hp-label");
+                    barOuter.Add(hpLabel);
                     el.Add(barOuter);
 
-                    AddStatusBadges(el, slot);
+                    // Fila de iconos: stats + producción + pasivas + estados + equipo (un único registro).
+                    AddSlotIcons(el, p, playerIndex, i);
 
                     // Hover → popover informativo (alcance, pasivas, estados, descripción).
                     int capturedHover = i;
@@ -621,11 +633,12 @@ namespace PiqueteDefend.Presentation
                         {
                             UnitAttack ua = atk.unit.attack;
                             int targetSide = ua.IsHeal ? activeIdx : 1 - activeIdx;
-                            // Sólo slots alcanzables Y con objetivo válido (enemigo ocupado / aliado herido):
-                            // no se puede elegir un slot que whiffearía (spec §6).
+                            UnitSlot[] targetBoard = _engine.PlayerAt(targetSide).unitSlots;
+                            // Sólo slots con objetivo válido (enemigo ocupado / aliado herido) dentro
+                            // del modo de targeting: no se puede elegir un slot que whiffearía (spec §6).
                             bool valid = slot != null && (!ua.IsHeal || slot.currentHp < slot.MaxHp);
                             if (playerIndex == targetSide && valid
-                                && GameEngine.ResolveSlots(ua.reference, ua.pattern, _pendingAttacker).Contains(slotIndex))
+                                && GameEngine.ResolveTargets(ua.mode, ua.count, targetBoard, _pendingAttacker).Contains(slotIndex))
                             {
                                 el.AddToClassList("slot--target");
                                 el.RegisterCallback<ClickEvent>(_ => OnAttackTargetChosen(captured));
@@ -665,35 +678,194 @@ namespace PiqueteDefend.Presentation
             return playerIndex == side && slotIndex != _pendingFirstSlot;
         }
 
-        // ── Badges de estado/equipo por unidad (spec §11.3) ─────────────────────
+        // ── Iconos de stats/estado/pasiva/equipo por unidad (spec §11.3) ─────────
+        //
+        // Un único registro: el slot se traduce a una List<SlotIcon> (stat de ataque,
+        // pasivas, estados, equipo) y se renderiza todo igual. Agregar un StatusType /
+        // PassiveType nuevo = un caso en PassiveIcon/StatusIcon (un solo lugar).
 
-        private static void AddStatusBadges(VisualElement slotEl, UnitSlot slot)
+        /// <summary>
+        /// Descriptor de un icono de slot. La imagen se carga de <c>Resources/Icons/&lt;iconKey&gt;</c>;
+        /// si <see cref="iconKey"/> es null se deriva del sufijo de <see cref="cls"/> (slot-icon--atk →
+        /// "atk"). Si no hay textura, cae al <see cref="glyph"/> (texto). <see cref="value"/> puede ser
+        /// null. <see cref="title"/> = categoría corta para el popover de hover; <see cref="tip"/> = detalle.
+        /// </summary>
+        private readonly struct SlotIcon
         {
-            if (slot.activeStatuses.Count == 0 && slot.attachedEquipment.Count == 0) return;
+            public readonly string glyph;
+            public readonly string value;
+            public readonly string cls;
+            public readonly string title;
+            public readonly string tip;
+            public readonly string iconKey;
 
-            var badges = new VisualElement();
-            badges.AddToClassList("slot__badges");
-
-            foreach (StatusEffect s in slot.activeStatuses)
+            public SlotIcon(string glyph, string value, string cls, string title, string tip, string iconKey = null)
             {
-                (string text, string cls, string tip) = StatusBadge(s);
-                if (text == null) continue;  // estado de jugador: no debería vivir en una unidad
-                badges.Add(MakeBadge(text, cls, tip));
+                this.glyph = glyph;
+                this.value = value;
+                this.cls = cls;
+                this.title = title;
+                this.tip = tip;
+                this.iconKey = iconKey;
             }
-
-            foreach (EquipmentCardData eq in slot.attachedEquipment)
-                badges.Add(MakeBadge(EquipBadgeText(eq), "badge--equip", EquipmentText(eq)));
-
-            slotEl.Add(badges);
         }
 
-        private static VisualElement MakeBadge(string text, string cls, string tooltip)
+        // Texturas de iconos cargadas de Resources/Icons (cache por key). Las genera tools/gen_icons.py.
+        private readonly Dictionary<string, Texture2D> _iconTexCache = new Dictionary<string, Texture2D>();
+
+        private Texture2D IconTexture(string key)
         {
-            var b = new Label(text);
-            b.AddToClassList("badge");
-            b.AddToClassList(cls);
-            b.tooltip = tooltip;
-            return b;
+            if (string.IsNullOrEmpty(key)) return null;
+            if (!_iconTexCache.TryGetValue(key, out Texture2D tex))
+            {
+                tex = Resources.Load<Texture2D>("Icons/" + key);
+                _iconTexCache[key] = tex;   // cachea también el null (falta) para no recargar
+            }
+            return tex;
+        }
+
+        private void AddSlotIcons(VisualElement slotEl, PlayerState owner, int playerIndex, int slotIndex)
+        {
+            List<SlotIcon> icons = BuildSlotIcons(owner, slotIndex);
+            if (icons.Count == 0) return;
+
+            var row = new VisualElement();
+            row.AddToClassList("slot__icons");
+            foreach (SlotIcon ic in icons)
+            {
+                VisualElement iconEl = MakeIcon(ic);
+                // Hover por icono: muestra el detalle de ESE efecto; al salir, vuelve el popover
+                // completo de la unidad (el slot sigue "hovereado"). StopPropagation evita el flash.
+                SlotIcon captured = ic;
+                iconEl.RegisterCallback<PointerEnterEvent>(ev => { ev.StopPropagation(); ShowIconInfo(captured, iconEl); });
+                iconEl.RegisterCallback<PointerLeaveEvent>(ev => { ev.StopPropagation(); ShowInfoPopover(slotIndex, playerIndex, slotEl); });
+                row.Add(iconEl);
+            }
+            slotEl.Add(row);
+        }
+
+        /// <summary>Popover estilizado con el detalle de un solo icono (estado/pasiva/stat/equipo).</summary>
+        private void ShowIconInfo(SlotIcon ic, VisualElement anchorEl)
+        {
+            if (_dragging) return;
+            BeginInfoPanel(ic.title, ic.value);
+            AddInfoLine(ic.tip);
+            PositionInfoPopover(anchorEl);
+        }
+
+        /// <summary>Traduce un slot a sus iconos: stat de acción + pasivas + estados + equipo.</summary>
+        private List<SlotIcon> BuildSlotIcons(PlayerState owner, int slotIndex)
+        {
+            UnitSlot slot = owner.unitSlots[slotIndex];
+            var icons = new List<SlotIcon>();
+
+            // 1) Stat principal: daño (o cura) efectivo + cuántos objetivos.
+            // AoE (mode == All) usa un icono propio (estallido / cruz-en-anillo): la cantidad de
+            // objetivos depende de la formación, así que no se muestra ×N — el icono ya dice "a todas".
+            UnitAttack ua = slot.unit.attack;
+            if (ua != null && ua.damagePerSlot != 0)
+            {
+                bool aoe = ua.mode == TargetMode.All;
+                int targets = AttackTargetCount(ua);  // golpes potenciales (Frontmost/Backmost/Any)
+                bool multi = aoe || targets > 1;
+                if (ua.IsHeal)
+                {
+                    string val = (!aoe && targets > 1) ? $"{ua.damagePerSlot}×{targets}" : ua.damagePerSlot.ToString();
+                    string tip = multi
+                        ? $"Cura {ua.damagePerSlot} a cada una · {AttackShape(ua)}"
+                        : $"Cura {ua.damagePerSlot} · {AttackShape(ua)}";
+                    icons.Add(new SlotIcon("✚", val, "slot-icon--heal", "Curación", tip, aoe ? "heal-aoe" : null));
+                }
+                else
+                {
+                    int dmg = _engine.EffectiveAttackDamage(owner.unitSlots, slotIndex);
+                    string val = (!aoe && targets > 1) ? $"{dmg}×{targets}" : dmg.ToString();
+                    string tip = multi
+                        ? $"Pega {dmg} a cada uno · {AttackShape(ua)}"
+                        : $"Pega {dmg} · {AttackShape(ua)}";
+                    icons.Add(new SlotIcon("⚔", val, "slot-icon--atk", "Ataque", tip, aoe ? "atk-aoe" : null));
+                }
+            }
+
+            // 2) Pasivas efectivas (propias + de equipo): producción, regen, aura, espinas, daño/estado por turno.
+            foreach (PassiveEffect pe in slot.AllPassives())
+                icons.Add(PassiveIcon(pe));
+
+            // 3) Estados activos por unidad (Veneno/Aturdir/Furia/Desmoralizar).
+            foreach (StatusEffect s in slot.activeStatuses)
+            {
+                SlotIcon? ic = StatusIcon(s);
+                if (ic.HasValue) icons.Add(ic.Value);
+            }
+
+            // 4) Equipo adjunto: señala su presencia (los stats que aporta ya van en HP/ATK; detalle en hover).
+            foreach (EquipmentCardData eq in slot.attachedEquipment)
+                icons.Add(new SlotIcon("⚙", null, "slot-icon--equip", "Equipo", EquipmentText(eq)));
+
+            return icons;
+        }
+
+        private VisualElement MakeIcon(SlotIcon ic)
+        {
+            var box = new VisualElement();
+            box.AddToClassList("slot-icon");
+            if (ic.cls != null) box.AddToClassList(ic.cls);
+
+            // Key explícita o derivada del sufijo de la clase (slot-icon--atk → "atk").
+            string key = ic.iconKey;
+            if (key == null && ic.cls != null && ic.cls.StartsWith("slot-icon--"))
+                key = ic.cls.Substring("slot-icon--".Length);
+            Texture2D tex = IconTexture(key);
+
+            if (tex != null)
+            {
+                var img = new VisualElement();
+                img.AddToClassList("slot-icon__img");
+                img.style.backgroundImage = new StyleBackground(tex);
+                box.Add(img);
+            }
+            else if (!string.IsNullOrEmpty(ic.glyph))   // fallback si falta la textura
+            {
+                var g = new Label(ic.glyph);
+                g.AddToClassList("slot-icon__glyph");
+                box.Add(g);
+            }
+
+            if (!string.IsNullOrEmpty(ic.value))
+            {
+                var v = new Label(ic.value);
+                v.AddToClassList("slot-icon__value");
+                box.Add(v);
+            }
+            return box;
+        }
+
+        /// <summary>Icono de una pasiva (un caso por <see cref="PassiveType"/>).</summary>
+        private static SlotIcon PassiveIcon(PassiveEffect pe) => pe.passiveType switch
+        {
+            PassiveType.ProduceResource => new SlotIcon(ResSym(pe.resource), $"+{pe.value}", "slot-icon--produce", "Producción", PassiveText(pe), $"res-{pe.resource.ToString().ToLowerInvariant()}"),
+            PassiveType.Regeneration    => new SlotIcon("♥", $"+{pe.value}", "slot-icon--regen", "Regeneración", PassiveText(pe)),
+            PassiveType.AuraDamage      => new SlotIcon("✦", $"+{pe.value}", "slot-icon--aura", "Aura", PassiveText(pe)),
+            PassiveType.Retaliate       => new SlotIcon("🛡", pe.value.ToString(), "slot-icon--thorns", "Espinas", PassiveText(pe)),
+            PassiveType.TurnDamage      => new SlotIcon("🔥", pe.value.ToString(), "slot-icon--turndmg", "Daño por turno", PassiveText(pe)),
+            PassiveType.TurnStatus      => new SlotIcon("☣", null, "slot-icon--turnstatus", "Estado por turno", PassiveText(pe)),
+            _                           => new SlotIcon("•", pe.value.ToString(), "slot-icon--passive", "Pasiva", PassiveText(pe)),
+        };
+
+        /// <summary>Icono de un estado por unidad. null = estado de jugador (no vive en un slot).</summary>
+        private static SlotIcon? StatusIcon(StatusEffect s)
+        {
+            (string glyph, string value, string cls, string title) = s.statusType switch
+            {
+                StatusType.Poison       => ("☠", s.value.ToString(), "slot-icon--poison", "Veneno"),
+                StatusType.Stun         => ("✸", (string)null, "slot-icon--stun", "Aturdido"),
+                StatusType.Furia        => ("↑", $"+{s.value}", "slot-icon--furia", "Furia"),
+                StatusType.Desmoralizar => ("↓", $"-{s.value}", "slot-icon--desmor", "Desmoralizado"),
+                _                       => ((string)null, (string)null, (string)null, (string)null),
+            };
+            if (glyph == null) return null;
+            (_, _, string tip) = StatusBadge(s);
+            return new SlotIcon(glyph, value, cls, title, tip);
         }
 
         // ── Popover informativo (hover) ─────────────────────────────────────────
@@ -1218,28 +1390,41 @@ namespace PiqueteDefend.Presentation
             return string.Join("\n", lines);
         }
 
-        /// <summary>Forma/zona del ataque o cura para previsualizar una carta (sin origen concreto).</summary>
+        /// <summary>Forma del ataque/cura según su <see cref="TargetMode"/> (preview, sin formación concreta).</summary>
         private static string AttackShape(UnitAttack ua)
         {
             string side = ua.IsHeal ? "aliada" : "enemiga";
-
-            if (ua.reference == AttackReference.Absolute)
+            switch (ua.mode)
             {
-                string zone = AbsZoneName(ua.pattern);
-                string where = zone != null
-                    ? $"{zone} {side} ({Slots1Based(ua.pattern)})"
-                    : (ua.pattern.Length >= 6 ? $"cualquier slot {side}" : $"slots {side} {Slots1Based(ua.pattern)}");
-                return ua.RequiresChoice ? $"elegí {ua.pickCount} · {where}" : where;
+                case TargetMode.Frontmost:
+                    return ua.count <= 1 ? $"a la {side} de adelante" : $"penetra a las {ua.count} de adelante";
+                case TargetMode.Backmost:
+                    return ua.count <= 1 ? $"a la {side} del fondo" : $"a las {ua.count} del fondo";
+                case TargetMode.Any:
+                    return ua.count <= 1 ? $"a una {side} a elección" : $"a {ua.count} {side}s a elección";
+                case TargetMode.All:
+                    return $"a todas las {side}s";
+                case TargetMode.Adjacent:
+                    return $"a las {side}s adyacentes";
+                case TargetMode.Self:
+                    return "a sí misma";
+                default:
+                    return "";
             }
+        }
 
-            // Relative: el alcance depende de la posición; describimos la forma.
-            var set = new HashSet<int>(ua.pattern);
-            string shape =
-                set.SetEquals(new[] { 0 }) ? "al de enfrente" :
-                set.SetEquals(new[] { -1, 0, 1 }) ? "en banda (3 de frente)" :
-                set.SetEquals(new[] { -1, 1 }) ? "a los costados" :
-                "patrón relativo";
-            return ua.RequiresChoice ? $"elegí {ua.pickCount} en banda de frente" : shape;
+        /// <summary>Cantidad de golpes potenciales del ataque (para el "×N" de AoE en los iconos).</summary>
+        private static int AttackTargetCount(UnitAttack ua)
+        {
+            switch (ua.mode)
+            {
+                case TargetMode.Frontmost:
+                case TargetMode.Backmost:
+                case TargetMode.Any:
+                    return ua.count <= 0 ? 1 : ua.count;
+                default:
+                    return 1;   // All/Adjacent/Self: cantidad variable → sin ×N
+            }
         }
 
         /// <summary>Nombre de zona si el patrón absoluto coincide con un preset (spec §6); si no, null.</summary>
@@ -1304,24 +1489,25 @@ namespace PiqueteDefend.Presentation
         {
             UnitSlot slot = owner.unitSlots[slotIndex];
             UnitAttack ua = slot.unit.attack;
-            List<int> idxs = GameEngine.ResolveSlots(ua.reference, ua.pattern, slotIndex);
+            PlayerState opp = _engine.PlayerAt(0) == owner ? _engine.PlayerAt(1) : _engine.PlayerAt(0);
+            PlayerState targetBoard = ua.IsHeal ? owner : opp;
+            List<int> idxs = GameEngine.ResolveTargets(ua.mode, ua.count, targetBoard.unitSlots, slotIndex);
             idxs.Sort();
 
             string nums;
-            if (idxs.Count == 0) nums = "ninguno";
+            if (idxs.Count == 0) nums = "ninguno ahora";
             else
             {
                 var parts = new List<string>();
                 foreach (int idx in idxs) parts.Add((idx + 1).ToString());  // 1-based para el usuario
-                nums = string.Join(", ", parts);
+                nums = "slots " + string.Join(", ", parts);
             }
 
-            string pick = ua.RequiresChoice ? $"elegí {ua.pickCount} de slots " : "slots ";
             if (ua.IsHeal)
-                return $"Cura {ua.damagePerSlot} HP · {pick}propios {nums}";
+                return $"Cura {ua.damagePerSlot} HP · {AttackShape(ua)} ({nums})";
 
             int dmg = _engine.EffectiveAttackDamage(owner.unitSlots, slotIndex);
-            return $"Pega {dmg} · {pick}enemigos {nums}";
+            return $"Pega {dmg} · {AttackShape(ua)} ({nums})";
         }
 
         /// <summary>Descripción legible de una pasiva (para el popover de info).</summary>
@@ -1357,16 +1543,6 @@ namespace PiqueteDefend.Presentation
                 StatusType.Desmoralizar => $"Desmoralizar (-{s.value})",
                 _ => "estado"
             };
-        }
-
-        /// <summary>Texto corto del badge de un equipo (qué aporta principalmente).</summary>
-        private static string EquipBadgeText(EquipmentCardData eq)
-        {
-            foreach (StatModifier m in eq.statModifiers)
-                if (m.stat == StatType.MaxHp) return "+HP";
-            foreach (StatModifier m in eq.statModifiers)
-                if (m.stat == StatType.Damage) return "+ATK";
-            return eq.grantedPassives.Count > 0 ? "+P" : "EQ";
         }
 
         /// <summary>Descripción legible de un equipo: nombre + lo que suma/otorga.</summary>

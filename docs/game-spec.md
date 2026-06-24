@@ -179,79 +179,50 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
 
 ### Resolución de ataque de unidad
 
-El jugador selecciona una unidad propia que tenga un ataque disponible. El ataque (`UnitAttack`, §7.2) define **a qué slots del oponente pega** y **cuánto daño** a cada uno.
+El jugador selecciona una unidad propia con ataque disponible. El ataque (`UnitAttack`, §7.2) define **a quién pega** y **cuánto**. El targeting está **anclado a la formación del objetivo** (no a slots fijos): la posición del **atacante NO influye**, sólo la formación enemiga.
 
-El conjunto de slots objetivo se resuelve según el ataque:
+El conjunto de objetivos se resuelve según `mode` (`TargetMode`) y `count`:
 
-- **Marco de referencia (`reference`):**
-  - `Absolute` — el `pattern` son números de slot del tablero del oponente (1–6). La posición de la unidad atacante no influye; solo importa dónde está parado el defensor.
-  - `Relative` — el `pattern` son **offsets** respecto del slot de la unidad atacante. `0` = el slot enfrentado (mismo número en el tablero rival), `-1`/`+1` = los adyacentes, etc. Los offsets que caen fuera de 1–6 se descartan.
+- **`Frontmost`** — la unidad **más adelantada** ocupada del rival (la más cercana, índice mayor) más los `count-1` espacios consecutivos hacia el fondo. `count=1` = "al de adelante de todo" (**nunca whiffea**); `count>1` = **penetrante** (los espacios profundos vacíos whiffean).
+- **`Backmost`** — la unidad **más atrasada** ocupada más los `count-1` hacia el frente (excepción "pega al fondo").
+- **`Any`** — el jugador **elige `count`** unidades cualesquiera (snipe; reservado a cartas de acción y unidades premium).
+- **`All`** — todas las unidades del objetivo (AoE).
 
-- **Selección (`pickCount`):**
-  - `0` → el ataque golpea **todos** los slots de `pattern` (patrón obligatorio).
-  - `N > 0` → el atacante **elige N** slots de entre los de `pattern` al momento de atacar. Para un ataque "a libre elección", el `pattern` incluye los 6 slots y el jugador elige cuáles.
+El daño/cura (`damagePerSlot`) se aplica a la unidad de cada objetivo. **Si un objetivo profundo está vacío, ese golpe se desperdicia (whiff)** — no se redirige. Si el HP llega a 0, la unidad muere y el slot queda libre.
 
-El daño (`damagePerSlot`) se aplica al HP de la unidad que ocupe cada slot objetivo. **Si un slot objetivo está vacío, ese golpe se desperdicia (whiff)** — no se redirige. Si el HP de una unidad llega a 0, muere y el slot queda libre.
+> **Garantía anti-deadlock (§5.1):** `Frontmost`/`Backmost`/`All`/`Any` siempre resuelven a ≥1 unidad **ocupada** si el tablero objetivo no está vacío. Por eso **un ataque de daño nunca se cancela** contra un rival con unidades: siempre conecta al menos en una. El whiff sólo existe en los alcances profundos (`count>1`).
 
-> **Objetivo válido obligatorio:** la acción **se cancela** (no consume el ataque ni gasta nada) si **no afecta a ningún objetivo válido** — para daño, al menos un slot enemigo **ocupado**; para cura, al menos un aliado **por debajo de su maxHp**. Si afecta a **uno o más**, se permite **aunque parte del patrón whiffee** en slots vacíos.
+> **Objetivo válido obligatorio:** la acción se cancela (sin gastar) si no afecta a ningún objetivo válido. Para **daño** esto sólo pasa si el rival no tiene unidades (la partida ya terminó); para **cura**, si no hay ningún aliado por debajo de su maxHp.
 
-> **La posición es decisión defensiva:** colocar (o estar obligado a colocar, §8.3) unidades fuera de los patrones de ataque enemigos las protege; los ataques `Relative` y los obligatorios crean el juego de posicionamiento.
+> **La posición es decisión defensiva:** quién pongas más adelante es quien **tankea** (se come el melee/penetrante); las frágiles atrás quedan protegidas hasta que caiga el frente, salvo del snipe (`Any`) y del "pega al fondo" (`Backmost`).
 
-**[FUTURO]** Cada unidad podría tener múltiples poderes (`List<UnitAttack>`) con distintos patrones, o habilidades que recuperen HP.
+**[FUTURO]** Cada unidad podría tener múltiples poderes (`List<UnitAttack>`) con distintos modos.
 
-### Geometría de combate (frente / retaguardia)
+### Geometría de combate (frente / fondo)
 
-El tablero de cada jugador es **una línea de 6 slots**.
+El tablero de cada jugador es **una única línea de 6 slots**, un **eje de profundidad**: el **frente** (cerca del rival) es el extremo de índice alto; el **fondo** (lejos del rival), el de índice bajo.
 
-> **Numeración:** los slots se cuentan **1–6 cara al usuario** y **0–5 en código** (slot `k` del spec = índice `k-1`). Los **offsets `Relative` son idénticos** en ambas bases (un offset `+1` es `+1`); sólo los slots `Absolute` y los `allowedSlots` cambian de base.
+> **Numeración:** slots **1–6 cara al usuario**, **0–5 en código** (slot `k` del spec = índice `k-1`). Frente = índices altos `{3,4,5}`; fondo/retaguardia = `{0,1,2}`.
 
-- **Retaguardia = slots 1–3** (borde externo, lejos del rival; se dibujan al fondo). La Escaramuza y la Productora iniciales arrancan acá (slots 1 y 2); el Muro inicial arranca en el frente (§11.3).
-- **Frente = slots 4–6** (cerca del rival).
-- Los slots **se enfrentan por número**: mi slot `N` mira el slot `N` del rival (offset `Relative` `0`). `+` = hacia el frente enemigo (índice mayor); `−` = hacia su retaguardia.
+- **"El de adelante de todo"** = la primera unidad ocupada contando desde el frente (saltea huecos). Es a quien pega el melee (`Frontmost count=1`).
+- **`allowedSlots`** sigue siendo data por unidad (`int[]`): "esta unidad requiere tal espacio" (un muro obligado al frente para tankear, una productora al fondo para esconderse). La Escaramuza y la Productora iniciales arrancan en el fondo; el Muro inicial, en el frente (§11.3).
+- La posición del atacante **no** cambia a quién pega (el targeting mira la formación enemiga). Posicionar es **100% defensivo**: a quién exponés adelante y a quién protegés atrás.
 
-La posición pesa por **dos palancas**:
+### Catálogo de modos de targeting
 
-1. **`allowedSlots`** encierra a cada unidad en una zona de deploy. Una productora frágil obligada a la retaguardia es difícil de alcanzar; un muro obligado al frente tapa la línea.
-2. **El patrón del ataque** decide a qué slots enemigos llega:
-   - `Absolute` con patrón fijo → pega siempre los mismos slots (ej. `{1,2,3}` = bombardeo de retaguardia); la posición del atacante no influye.
-   - `Relative` → el índice donde parás al atacante decide su cobertura; adelantarlo o atrasarlo cambia a qué slots enemigos amenaza.
-   - `Absolute {1..6}` `pick 1` (**libre elección**) → snipea cualquier slot. **Reservado a cartas de acción** (y, a lo sumo, alguna unidad premium), para no anular la posición.
+`UnitAttack` y las pasivas dirigidas usan un enum **cerrado** (`TargetMode`) + `count`. El mismo vocabulario aplica a ataques, **curas** (sobre el tablero propio), **pasivas dirigidas** (§7.3) y se reusa el concepto en **efectos de carta** (§7.6).
 
-### Catálogo de zonas y patrones (presets)
+| `TargetMode` | `count` | Efecto | Keyword |
+|--------------|---------|--------|---------|
+| `Frontmost` | 1 | la unidad más adelantada ocupada | Melee |
+| `Frontmost` | N>1 | las N más adelantadas (penetra; whiff en profundidad vacía) | Penetrante / Cleave |
+| `Backmost` | 1 / N | la(s) más atrasada(s) ocupada(s) | Pega al fondo (excepción) |
+| `Any` | N | N unidades a elección | Snipe (premium) |
+| `All` | — | todas las unidades del objetivo | AoE |
+| `Adjacent` | — | las vecinas (±1) de la unidad fuente | Aura (pasiva) |
+| `Self` | — | la propia unidad fuente | Regen / Espinas (pasiva) |
 
-`allowedSlots` y `UnitAttack.pattern` son **data libre** (`int[]`): cualquier combinación es expresable sin tocar el motor. Estos son los **presets nombrados** recomendados — el vocabulario disponible; no todas las unidades del catálogo usan todos.
-
-**Zonas de deploy (`allowedSlots`)** — *dónde se puede **colocar** una unidad. Independiente del
-patrón de **targeting** (abajo): una zona de deploy puede ser más amplia que las zonas de ataque.*
-
-| Preset | Slots |
-|--------|-------|
-| Cualquiera | `{}` (vacío) |
-| Retaguardia (deploy) | {1,2,3} |
-| Frente (deploy) | {4,5,6} |
-| Pares | {1,2} · {3,4} · {5,6} |
-| Mitades | {1,2,3} · {4,5,6} |
-
-**Patrones de targeting (`UnitAttack` / pasivas dirigidas / efectos de carta)**
-
-Vocabulario **cerrado** de patrones para "decidir objetivos". Las **zonas son absolutas** (slots fijos del tablero objetivo, 1–6); `pickCount` es **ortogonal**: `0` = afecta todos los del patrón, `N>0` = elige/elige-auto N. El mismo vocabulario aplica a **curas** (sobre el tablero propio), **pasivas dirigidas** (§7.3) y **efectos de carta** (§7.6).
-
-| Preset | reference | pattern | pickCount | Efecto |
-|--------|-----------|---------|-----------|--------|
-| **Enfrentado** (duelo) | Relative | `[0]` | 0 | el slot enfrentado |
-| **Banda** (elige) | Relative | `[-1,0,+1]` | 1 | 1 de los 3 alrededor del enfrentado |
-| **Banda** (cleave) | Relative | `[-1,0,+1]` | 0 | los 3 alrededor del enfrentado |
-| **A distancia** (X adelante) | Relative | `[+1..+X]` | 0 | X slots hacia el frente enemigo |
-| **Posición fija** | Absolute | `{n}` | 0 | un slot fijo del tablero objetivo |
-| **Retaguardia** | Absolute | `{1,2}` | 0/N | los 2 del fondo (lejos del rival) |
-| **Medio** | Absolute | `{3,4}` | 0/N | los 2 del medio |
-| **Vanguardia** | Absolute | `{5,6}` | 0/N | los 2 del frente (cerca del rival) |
-| **Mitades** | Absolute | `{1,2,3}` **o** `{4,5,6}` | 0/N | una mitad **predefinida** (atrás o adelante; no se elige cuál) |
-| **Todos** (AoE) | Absolute | `{1..6}` | 0 | todo el tablero |
-| **Libre** | Absolute | `{1..6}` | 1 | snipea cualquiera |
-| **Doble** (libre ×2) | Absolute | `{1..6}` | 2 | dos slots a elección (o A→B con roles, ej. MoveUnit/SwapUnits) |
-
-> En **ataques de unidad** con `pickCount>0` lo elige el jugador (click). En **pasivas** (automáticas) el motor elige N de forma determinista (§7.3). "Mitades" es una zona fija de 3 (la carta define cuál mitad), **no** una elección entre las dos mitades.
+> En **ataques** con `mode=Any` el jugador elige (`count` clicks). En **pasivas** (automáticas) el motor resuelve de forma determinista. **Zonas de deploy** (`allowedSlots`): `{}`=cualquiera, fondo `{1,2,3}`, frente `{4,5,6}`, o cualquier subconjunto de slots.
 
 > **Heurística de balance** (se valida por simulación, Fase 5): `daño_total = damagePerSlot × slots_que_pega`. A más slots golpeados o más HP, menos daño por golpe; a menos HP, más daño. Guía: `valor ≈ HP/4 + daño_total/2 + flexibilidad_de_deploy + valor_pasiva`; el costo de la carta sigue a ese valor.
 >
@@ -325,24 +296,23 @@ Modela la **acción** de una unidad. Por defecto pega daño a los enemigos; con 
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `reference` | AttackReference | `Absolute` (slots fijos 1–6 del tablero objetivo) / `Relative` (offsets desde el slot del atacante; `0` = enfrentado, o sí misma si el objetivo es aliado) |
-| `pattern` | int[] | Slots/offsets candidatos |
-| `pickCount` | int | `0` = afecta todos los de `pattern`; `N>0` = el atacante elige N de `pattern` |
-| `damagePerSlot` | int | Magnitud por slot: **daño** si `effect=DamageEnemies`, **curación** si `effect=HealAllies` (tope = maxHp) |
+| `mode` | TargetMode | A quién pega, anclado a la formación (§6): `Frontmost` / `Backmost` / `Any` / `All` (default `Frontmost`) |
+| `count` | int | Profundidad/alcance (`Frontmost`/`Backmost`) o cuántas elegir (`Any`); ignorado en `All` |
+| `damagePerSlot` | int | Magnitud por golpe: **daño** si `effect=DamageEnemies`, **curación** si `effect=HealAllies` (tope = maxHp) |
 | `effect` | AttackEffect | `DamageEnemies` (default) = afecta el tablero rival / `HealAllies` = afecta el tablero propio curando |
 
-**AttackReference** enum: `Absolute`, `Relative`
+**TargetMode** enum: `Frontmost`, `Backmost`, `Any`, `All`, `Adjacent`, `Self` (§6).
 **AttackEffect** enum: `DamageEnemies`, `HealAllies` *(extensible: p. ej. `BuffAllies` a futuro)*
 
-El tablero objetivo lo decide `effect` (rival para daño, propio para cura). El **catálogo de zonas/patrones del §6 aplica igual a curaciones** (vanguardia, medio, mitades, etc.). Un slot objetivo vacío = whiff; curar a una unidad ya en maxHp se desperdicia.
+El tablero objetivo lo decide `effect` (rival para daño, propio para cura). El **vocabulario de modos del §6 aplica igual a curaciones** (`Frontmost`/`Any` sobre el tablero propio). Un objetivo profundo vacío = whiff; curar a una unidad ya en maxHp se desperdicia. `requires_choice` ⟺ `mode = Any`.
 
-**[FUTURO]** → `List<UnitAttack>` para múltiples poderes por unidad con distintos patrones.
+**[FUTURO]** → `List<UnitAttack>` para múltiples poderes por unidad con distintos modos.
 
 ---
 
 ### 7.3 PassiveEffect
 
-Un pasivo puede **producir recursos, curar/buffear aliadas o dañar/debuffear enemigas**. Las pasivas que afectan a un conjunto de slots usan **el mismo targeting que un ataque** (§6): `reference` + `pattern` + `pickCount` sobre el tablero indicado por `target` (vanguardia, mitades, etc.).
+Un pasivo puede **producir recursos, curar/buffear aliadas o dañar/debuffear enemigas**. Las pasivas dirigidas usan **el mismo targeting que un ataque** (§6): `mode` + `count` sobre el tablero indicado por `target`.
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
@@ -351,9 +321,8 @@ Un pasivo puede **producir recursos, curar/buffear aliadas o dañar/debuffear en
 | `resource` | ResourceType | Recurso afectado (sólo `ProduceResource`) |
 | `status` | StatusEffect | Plantilla a aplicar (sólo `TurnStatus`) |
 | `target` | PassiveTarget | `Self` / `Allies` / `Enemies` — sobre qué tablero recae |
-| `reference` | AttackReference | Targeting igual que `UnitAttack` (`Self` lo ignora) |
-| `pattern` | int[] | idem |
-| `pickCount` | int | idem (`0` = todos los del patrón) |
+| `mode` | TargetMode | Targeting igual que `UnitAttack` (`Self` lo ignora) |
+| `count` | int | Profundidad/alcance o cantidad (según `mode`) |
 
 **PassiveType** enum:
 
@@ -361,16 +330,16 @@ Un pasivo puede **producir recursos, curar/buffear aliadas o dañar/debuffear en
 |------|--------|--------|
 | `ProduceResource` | Inicio de turno (PRODUCCIÓN) | +`value` de `resource` al dueño |
 | `Regeneration` | Inicio de turno del dueño | Cura `value` HP (target `Self` por default; puede curar aliadas con patrón) |
-| `AuraDamage` | Continuo (al resolver el ataque de la aliada) | +`value` daño a las aliadas del `target`/patrón (adyacentes = `Relative [-1,+1]`) |
+| `AuraDamage` | Continuo (al resolver el ataque de la aliada) | +`value` daño a las aliadas del `target`/`mode` (adyacentes = `Adjacent`) |
 | `Retaliate` | Reactivo, al ser golpeada por un **ataque de unidad** | El atacante recibe `value` de daño |
-| `TurnDamage` | Inicio de turno del dueño | `value` daño a los slots objetivo (típico `Enemies`, patrón vanguardia/mitad) |
+| `TurnDamage` | Inicio de turno del dueño | `value` daño a los objetivos (típico `Enemies`, `mode=Frontmost` = vanguardia) |
 | `TurnStatus` | Inicio de turno del dueño | Aplica `status` a los slots objetivo (`Enemies` o `Allies`) |
 
-**PassiveTarget** enum: `Self`, `Allies`, `Enemies`. *(Reemplaza al `PassiveScope` de la Fase 2: la adyacencia se expresa con `Relative [-1,+1]` sobre `Allies`.)*
+**PassiveTarget** enum: `Self`, `Allies`, `Enemies`. *(La adyacencia se expresa con `mode = Adjacent` sobre `Allies`.)*
 
 Reglas: las auras **se suman** y no se aplican a sí mismas. `Retaliate` sólo responde a ataques de unidad (no a daño directo de cartas, pasivas ni muerte súbita) y **dispara aunque la unidad muera** (re-evaluar KO). `TurnDamage`/`TurnStatus` se resuelven al inicio del turno del dueño y respetan whiff en slots vacíos. El daño/estado de pasivas **no** dispara `Retaliate` (no es ataque de unidad).
 
-> **`pickCount` en pasivas:** `0` = afecta **todos** los slots del patrón; `N>0` = afecta **N slots ocupados** del patrón. Como la pasiva es **automática** (no hay elección humana), el motor elige de forma **determinista**: índice ascendente entre los slots ocupados del patrón (espejo exacto en el sim). Ej.: el **Gas** del Gasero (`Abs {4,5,6}` pick 1) envenena **a 1** de la vanguardia enemiga ocupada.
+> **Targeting de pasivas:** como la pasiva es **automática** (no hay elección humana), `mode=Frontmost`/`Backmost` resuelven anclados a la formación (deterministas; espejo exacto en el sim). Ej.: el **Gas** del Gasero (`Frontmost count=1`) envenena **a la unidad más adelantada** del rival; el **Humo** (`Frontmost count=3`) daña a las 3 de vanguardia.
 
 ---
 
@@ -507,19 +476,19 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 
 ## 9. Cartas — Manifestantes
 
-> **Unidades diferenciadas por arquetipo** (geometría de combate y zonas de deploy en §6). Los **costos** mostrados son el **base de diseño**, balanceado **per-card por valor/costo** (`sim/valuation.py`, encareciendo las cartas más eficientes para alinearlas con su rol espejo); encima, el juego aplica el **factor económico global ×1.2** y la **inflación** por turno (§3). **HP, daño, posición y la magnitud de las pasivas** quedaron **validados por simulación** (Fase 5, `sim/`): los valores de abajo ya incorporan el tune global de durabilidad (daño ×1.5 / HP ×0.85 horneados) y los ajustes per-card de balance. El **rol** de cada pasiva no cambió; sí su número. Notación: `Rel` = ataque `Relative` (offsets desde el slot del atacante; `+` = hacia el frente enemigo); `Abs` = `Absolute` (slots fijos del oponente, 1–6); `pick 0` = afecta todos los del patrón, `pick N` = el atacante elige N; `cura X` = la acción cura X HP a aliadas (`effect=HealAllies`, mismo catálogo de patrones del §6) en vez de dañar. Pasivas: §7.3.
+> **Unidades diferenciadas por arquetipo** (geometría de combate y zonas de deploy en §6). Los **costos** mostrados son el **base de diseño**, balanceado **per-card por valor/costo** (`sim/valuation.py`, encareciendo las cartas más eficientes para alinearlas con su rol espejo); encima, el juego aplica el **factor económico global ×1.2** y la **inflación** por turno (§3). **HP, daño, posición y la magnitud de las pasivas** quedaron **validados por simulación** (Fase 5, `sim/`): los valores de abajo ya incorporan el tune global de durabilidad (daño ×1.5 / HP ×0.85 horneados) y los ajustes per-card de balance. El **rol** de cada pasiva no cambió; sí su número. Notación (targeting anclado a la formación, §6): `Adelante` = pega a la unidad más adelantada del rival (`Frontmost ×1`); `Penetra ×N` = a las N más adelantadas (whiff en profundidad vacía); `Snipe` = elige cualquiera (`Any`); `cura X` = cura X HP a aliadas (`effect=HealAllies`). Pasivas: §7.3.
 
 ### Unidades
 | Carta | Costo | Arquetipo | maxHp | Deploy | Ataque · daño | Pasiva | Descripción |
 |-------|-------|-----------|-------|--------|---------------|--------|-------------|
-| **Piquetero** | 4 ⚡ | Escaramuza | 20 | Cualquiera | `Rel [-1,0,+1]` pick 1 · 14 | Aura +2 daño (adyac.) | *Bombo, bandera y aguante para parar todo. El GPS del camionero lo putea de memoria.* |
-| **Jubilado** | 5 $ | Muro | 32 | Frente {4,5,6} | `Abs {4,5,6}` pick 0 · 3 | Espinas 3 | *83 pirulos, bastón y primera fila. La cana le tiene cagazo a lo que largue en la tele.* |
-| **Gordo Sindical** | 3 $ | Productora | 12 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 3 | +1 $/turno | *El que arregla la paritaria y maneja la caja. Aparece en el palco, jamás en la primera fila.* |
-| **Fisura** | 5 ⚡ | Cleave | 20 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · 6 | +1 ⚡/turno | *Arranca la baldosa de la plaza con las manos y la parte en cuatro. Cada cascote tiene destinatario.* |
-| **Tuitero Militante** | 2 📣 | Productora | 10 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 2 | +1 📣/turno | *2.300 seguidores y la certeza de que cambió la historia con un hilo.* |
-| **Choripanero** | 4 📣 | Healer | 15 | {2,3,4,5} | `Abs {4,5,6}` pick 1 · cura 3 | — | *Pan, chori y chimi para aguantar la jornada. El que morfa, vuelve a la marcha.* |
-| **Mortero Casero** | 5 ⚡ | Sniper | 8 | {2,3,4} | `Abs {1,2,3}` pick 1 · 14 | — | *Un caño, pólvora trucha y puntería de chiripa. Igual le encaja justo en la oficina del fondo.* |
-| **Quema de Cubiertas** | 5 📣 | Emisor | 15 | {2,3,4,5} | `Rel [0]` pick 0 · 2 | Humo: 2 daño/turno a vanguardia enemiga | *Diez gomas viejas y el viento a favor. El humo negro no le hace asco a nadie.* |
+| **Piquetero** | 4 ⚡ | Escaramuza | 20 | Cualquiera | Adelante · 14 | Aura +2 daño (adyac.) | *Bombo, bandera y aguante para parar todo. El GPS del camionero lo putea de memoria.* |
+| **Jubilado** | 5 $ | Muro | 32 | Frente {4,5,6} | Penetra ×2 · 3 | Espinas 3 | *83 pirulos, bastón y primera fila. La cana le tiene cagazo a lo que largue en la tele.* |
+| **Gordo Sindical** | 3 $ | Productora | 12 | Retaguardia {1,2,3} | Adelante · 3 | +1 $/turno | *El que arregla la paritaria y maneja la caja. Aparece en el palco, jamás en la primera fila.* |
+| **Fisura** | 5 ⚡ | Cleave | 20 | {2,3,4,5} | Penetra ×3 · 6 | +1 ⚡/turno | *Arranca la baldosa de la plaza con las manos y la parte en cuatro. Cada cascote tiene destinatario.* |
+| **Tuitero Militante** | 2 📣 | Productora | 10 | Retaguardia {1,2,3} | Adelante · 2 | +1 📣/turno | *2.300 seguidores y la certeza de que cambió la historia con un hilo.* |
+| **Choripanero** | 4 📣 | Healer | 15 | {2,3,4,5} | Cura (snipe) · 3 | — | *Pan, chori y chimi para aguantar la jornada. El que morfa, vuelve a la marcha.* |
+| **Mortero Casero** | 5 ⚡ | Sniper | 8 | {2,3,4} | Snipe · 14 | — | *Un caño, pólvora trucha y puntería de chiripa. Igual le encaja justo en la oficina del fondo.* |
+| **Quema de Cubiertas** | 5 📣 | Emisor | 15 | {2,3,4,5} | Adelante · 2 | Humo: 2 daño/turno a vanguardia enemiga | *Diez gomas viejas y el viento a favor. El humo negro no le hace asco a nadie.* |
 
 ### Acciones
 | Carta | Categoría | Costo | Efecto | Descripción |
@@ -549,19 +518,19 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 
 ## 10. Cartas — Policías
 
-> **Unidades diferenciadas por arquetipo** (geometría de combate y zonas de deploy en §6). Los **costos** mostrados son el **base de diseño**, balanceado **per-card por valor/costo** (`sim/valuation.py`, encareciendo las cartas más eficientes para alinearlas con su rol espejo); encima, el juego aplica el **factor económico global ×1.2** y la **inflación** por turno (§3). **HP, daño, posición y la magnitud de las pasivas** quedaron **validados por simulación** (Fase 5, `sim/`): los valores ya incorporan el tune global de durabilidad (daño ×1.5 / HP ×0.85 horneados) y los ajustes per-card de balance. El **rol** de cada pasiva no cambió; sí su número. Notación: `Rel` = ataque `Relative` (offsets desde el slot del atacante; `+` = hacia el frente enemigo); `Abs` = `Absolute` (slots fijos del oponente, 1–6); `pick 0` = afecta todos los del patrón, `pick N` = el atacante elige N; `cura X` = la acción cura X HP a aliadas (`effect=HealAllies`, mismo catálogo de patrones del §6) en vez de dañar. Pasivas: §7.3.
+> **Unidades diferenciadas por arquetipo** (geometría de combate y zonas de deploy en §6). Los **costos** mostrados son el **base de diseño**, balanceado **per-card por valor/costo** (`sim/valuation.py`, encareciendo las cartas más eficientes para alinearlas con su rol espejo); encima, el juego aplica el **factor económico global ×1.2** y la **inflación** por turno (§3). **HP, daño, posición y la magnitud de las pasivas** quedaron **validados por simulación** (Fase 5, `sim/`): los valores ya incorporan el tune global de durabilidad (daño ×1.5 / HP ×0.85 horneados) y los ajustes per-card de balance. El **rol** de cada pasiva no cambió; sí su número. Notación (targeting anclado a la formación, §6): `Adelante` = pega a la unidad más adelantada del rival (`Frontmost ×1`); `Penetra ×N` = a las N más adelantadas (whiff en profundidad vacía); `Snipe` = elige cualquiera (`Any`); `cura X` = cura X HP a aliadas (`effect=HealAllies`). Pasivas: §7.3.
 
 ### Unidades
 | Carta | Costo | Arquetipo | maxHp | Deploy | Ataque · daño | Pasiva | Descripción |
 |-------|-------|-----------|-------|--------|---------------|--------|-------------|
-| **Infante** | 6 ⚡ | Escaramuza | 22 | Cualquiera | `Rel [-1,0,+1]` pick 1 · 15 | Aura +2 daño (adyac.) | *Escudo, casco y 14 horas de turno. Va al frente porque le pagan para eso.* |
-| **Gendarme** | 4 $ | Muro | 27 | Frente {4,5,6} | `Abs {4,5,6}` pick 0 · 4 | Espinas 3 | *Lo trajeron de la frontera a cuidar una esquina. No se mueve, no se cansa, no entiende el reclamo.* |
-| **Puntero** | 5 $ | Productora | 12 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 3 | +1 $/turno | *Reparte bolsones y promesas. La guita sale de algún lado, siempre.* |
-| **Itakero** | 4 ⚡ | Cleave | 19 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · 4 | +1 ⚡/turno | *Escopeta Itaka y postas de goma. Apunta al montón, total alguno cae.* |
-| **Trol Oficial** | 5 📣 | Productora | 14 | Retaguardia {1,2,3} | `Rel [0]` pick 0 · 2 | +1 📣/turno | *Diez cuentas, un solo sueldo del Estado. Inventa la tendencia antes del mediodía.* |
-| **Médico del SAME** | 4 $ | Healer | 15 | {2,3,4,5} | `Rel [-1,0,+1]` pick 0 · cura 2 | — | *Llega en ambulancia y atiende a todos. Después hace tres guardias para llegar a fin de mes.* |
-| **Halcón** | 6 ⚡ | Sniper | 8 | {2,3,4} | `Abs {1,2,3}` pick 1 · 15 | — | *Grupo especial, mira telescópica y paciencia de cazador. Desde la terraza ve toda la plaza.* |
-| **Gasero** | 5 📣 | Emisor | 15 | {2,3,4,5} | `Rel [0]` pick 0 · 2 | Gas: Veneno (3) a 1 de la vanguardia enemiga/turno | *Granada en mano, pañuelo en la cara. "Es para dispersar", dice, mientras llora hasta él.* |
+| **Infante** | 6 ⚡ | Escaramuza | 22 | Cualquiera | Adelante · 15 | Aura +2 daño (adyac.) | *Escudo, casco y 14 horas de turno. Va al frente porque le pagan para eso.* |
+| **Gendarme** | 4 $ | Muro | 27 | Frente {4,5,6} | Penetra ×2 · 4 | Espinas 3 | *Lo trajeron de la frontera a cuidar una esquina. No se mueve, no se cansa, no entiende el reclamo.* |
+| **Puntero** | 5 $ | Productora | 12 | Retaguardia {1,2,3} | Adelante · 3 | +1 $/turno | *Reparte bolsones y promesas. La guita sale de algún lado, siempre.* |
+| **Itakero** | 4 ⚡ | Cleave | 19 | {2,3,4,5} | Penetra ×3 · 4 | +1 ⚡/turno | *Escopeta Itaka y postas de goma. Apunta al montón, total alguno cae.* |
+| **Trol Oficial** | 5 📣 | Productora | 14 | Retaguardia {1,2,3} | Adelante · 2 | +1 📣/turno | *Diez cuentas, un solo sueldo del Estado. Inventa la tendencia antes del mediodía.* |
+| **Médico del SAME** | 4 $ | Healer | 15 | {2,3,4,5} | Cura adelante ×3 · 2 | — | *Llega en ambulancia y atiende a todos. Después hace tres guardias para llegar a fin de mes.* |
+| **Halcón** | 6 ⚡ | Sniper | 8 | {2,3,4} | Snipe · 15 | — | *Grupo especial, mira telescópica y paciencia de cazador. Desde la terraza ve toda la plaza.* |
+| **Gasero** | 5 📣 | Emisor | 15 | {2,3,4,5} | Adelante · 2 | Gas: Veneno (3) a 1 de la vanguardia enemiga/turno | *Granada en mano, pañuelo en la cara. "Es para dispersar", dice, mientras llora hasta él.* |
 
 ### Acciones
 | Carta | Categoría | Costo | Efecto | Descripción |
@@ -626,13 +595,15 @@ Los slots van del **1 al 6**. De las **3 unidades iniciales**, la Escaramuza y l
 
 **Jugar / descartar carta (drag & drop):** se arrastra la carta de la mano y se suelta sobre la zona **DESCARTAR**, sobre **JUGAR**, **o directamente sobre un slot objetivo válido** (despliegue de unidad, equipar, o acción con objetivo de unidad). Mientras se arrastra, una **copia de la carta ("ghost")** acompaña el puntero y **los slots elegibles para esa carta se iluminan** (highlight). Si la carta se suelta en un slot **inválido** o en cualquier lugar que no sea un drop target válido, **la acción se cancela sin gastar recursos** y la carta vuelve a la mano.
 
-**Atacar con una unidad:** las unidades propias que **pueden actuar este turno** (del jugador activo, sin atacar aún, no aturdidas y permitido por la regla del turno 1) se **resaltan**. **Click** sobre una de ellas → aparece un **popover** con su acción disponible; al clickearlo, actúa. Si es a elección (`pickCount > 0`), a continuación se clickea el/los slot(s) objetivo (en el tablero rival si daña, **en el propio si es un healer** que cura aliadas, §7.2). **[FUTURO]** si una unidad llega a tener varios ataques (`List<UnitAttack>`), el popover los lista.
+**Atacar con una unidad:** las unidades propias que **pueden actuar este turno** (del jugador activo, sin atacar aún, no aturdidas y permitido por la regla del turno 1) se **resaltan**. **Click** sobre una de ellas → aparece un **popover** con su acción disponible; al clickearlo, actúa. Si es a elección (`mode = Any`, snipe), a continuación se clickea la unidad objetivo (en el tablero rival si daña, **en el propio si es un healer** que cura aliadas, §7.2); los modos anclados (`Frontmost`/`Backmost`/`All`) actúan directo sin elegir. **[FUTURO]** si una unidad llega a tener varios ataques (`List<UnitAttack>`), el popover los lista.
 
 **Equipar:** se arrastra la carta de Equipo sobre una **unidad propia** (el slot es el *drop target*, §8.4).
 
 **Mover / intercambiar (efectos de dos slots, MoveUnit/SwapUnits):** se elige el **primer** slot (arrastrando la carta a ese slot, o jugándola en JUGAR y clickeando el slot) y luego se clickea el **segundo** (Move: slot propio libre y permitido; Swap: la otra unidad enemiga). El primer slot queda marcado mientras se elige el segundo.
 
-**Efectos activos (implementado):** **badges por unidad** sobre cada slot ocupado para sus estados (Veneno/Aturdir/Furia/Desmoralizar) y el equipo adjunto, cada uno con *tooltip*; e indicador por jugador para sus `activeStatuses` de producción en el panel de stats.
+**Anatomía de la unidad en el tablero (implementado):** cada slot ocupado se dibuja como una "carta de unidad" vertical: **área de arte** (hueco del sprite, hoy un panel tinte-facción con el nombre; cuando exista `CardData.sprite` se pinta de fondo) → **barra de HP con el valor superpuesto** → **fila de iconos**. Los iconos son un único registro que cubre, en orden: el **stat de acción** (⚔ daño efectivo o ✚ cura), las **pasivas** (producción/regen/aura/espinas/daño o estado por turno), los **estados** (Veneno/Aturdir/Furia/Desmoralizar) y el **equipo** adjunto. El icono de acción muestra el **daño/cura efectivo** y, si pega a más de un objetivo (AoE), `daño×objetivos` (p. ej. `5×3` = 5 a cada uno de 3). Cada icono es *sprite-ready* (glifo emoji como fallback hasta tener el icono dibujado). Además, indicador por jugador para sus `activeStatuses` de producción en el panel de stats.
+
+**Hover de detalle (dos niveles):** al pasar el mouse sobre **un icono** se abre el popover con el detalle de *ese* efecto (su forma de ataque/zona, magnitud y turnos restantes); al salir del icono, vuelve el popover **completo** de la unidad. Pasar el mouse sobre el resto de la unidad muestra directamente la info completa (nombre, descripción, alcance, pasivas, efectos activos y equipo).
 
 **Popover informativo (hover):** al pasar el mouse sobre una **unidad** del tablero o una **carta** de la mano, se despliega un panel con su nombre, descripción, alcance (a qué slots pega/cura y cuánto), pasivas, efectos activos y equipo.
 
@@ -710,7 +681,7 @@ Overlay con:
 - **Balance de unidades:** ✅ **validado por simulación** (Fase 5, `sim/`). Los valores de §9/§10 son los finales del balanceo global (duración media ≈32, facción ≈48/52). Pendiente sólo el **balance fino per-card** si se quiere apretar el 48/52 (no lo mueven los knobs globales).
 - **Apilamiento:** punto de extensión reservado (`UnitSlot.count`), inactivo en v1.
 - **Unidades iniciales por facción:** **3** — Manifestantes = Piquetero + Gordo Sindical + Jubilado; Policías = Infante + Puntero + Gendarme (1 peleador *Escaramuza* + 1 *Productora* + 1 *Muro*). El peleador (deploy **Cualquiera**) y la productora (retaguardia) arrancan en slots 1–2; el Muro (deploy **Frente**) arranca en la vanguardia (slot 4) → presencia en el frente desde el turno 1. Da más cuerpos en juego y combates más largos.
-- **Feedback visual por unidad:** ✅ **implementado** — badges por estado (Veneno/Aturdir/Furia/Desmoralizar) y por equipo adjunto sobre cada slot, con *tooltip*, más el popover informativo de hover (§11.3). Pendiente sólo, si se quisiera, arte/iconos por carta en lugar de los badges de texto.
+- **Feedback visual por unidad:** ✅ **implementado** — slot tipo "carta de unidad" (área de arte sprite-ready + barra de HP con valor + fila de iconos para stat de acción/pasivas/estados/equipo, con *tooltip*), más el popover informativo de hover (§11.3). Pendiente sólo, si se quisiera, reemplazar los glifos emoji de los iconos por **iconos dibujados** (asignando el `Sprite` de cada `SlotIcon`) y el **sprite del personaje** en el área de arte.
 - **Tope de equipos por unidad:** hoy sin límite (§8.4); definir si conviene un máximo.
 - **EquipmentCardData:** diseñado e incluido en el catálogo (§7.1 / §8.4 / §9/§10, 4 cartas/facción); falta implementar (capa de stats efectivos, §15 Fase 4).
 - **IPlayerController:** diseño del punto de extensión para IA / online [FUTURO].
@@ -732,6 +703,8 @@ Overlay con:
 ## 15. Extensiones de modelo [IMPLEMENTAR]
 
 Checklist para la sesión de implementación. **El spec es la fuente de verdad: `CardLibrary.cs` y los assets deben quedar alineados con él.**
+
+> **Nota (rediseño de combate):** el targeting que estas fases describen (`AttackReference Absolute/Relative` + `pattern` + `pickCount`, y `PassiveScope`) fue **reemplazado** por el modelo de **formación anclada** — `TargetMode` (`Frontmost`/`Backmost`/`Any`/`All`/`Adjacent`/`Self`) + `count` — descrito en §6/§7.2/§7.3. Los nombres de campo en las cajas de abajo son **históricos**; la semántica vigente es la del §6.
 
 ### Fase 1 — Diferenciación de unidades y posición
 **Sin cambios de modelo.** `allowedSlots`, `UnitAttack` (`Absolute`/`Relative`, `pattern`, `pickCount`, `damagePerSlot`) y `maxHp` ya soportan todas las zonas y patrones del §6.
@@ -781,7 +754,7 @@ Sirve para priorizar objetivos (a quién pegar/curar) y para puntuar el deploy. 
 
 ```
 valor_unidad(u) = maxHp_efectivo/4 + daño_total_efectivo/2 + valor_pasiva(u)
-daño_total_efectivo = damagePerSlot_efectivo × min(slots_que_golpea, pickCount o |pattern|)
+daño_total_efectivo = damagePerSlot_efectivo × n_golpes   (n_golpes = count si Frontmost/Backmost/Any; ~3 si All)
 valor_pasiva: ProduceResource → 4·value ; Aura/Retaliate/Regeneration → 3·value ;
               TurnDamage → 3·value ; TurnStatus → 4 ; HealAllies → 3·amount
 ```
@@ -814,9 +787,9 @@ Cada carta recibe un puntaje; se juega la de mayor puntaje > umbral.
 
 Para cada unidad propia no aturdida, evalúa su `UnitAttack`:
 
-- **Daño (`DamageEnemies`):** resuelve los slots candidatos (§6). El **valor de la jugada** = Σ sobre los slots elegidos de `min(daño_efectivo, hp_objetivo)` + `valor_unidad(objetivo)` por cada objetivo que **muere**. Daño efectivo = base + Furia + Aura − Desmoralizar; resta el `Retaliate` esperado del defensor al valor.
-  - **`pickCount > 0`:** elige los N slots del patrón que maximizan ese valor (greedy: prioriza kills, luego mayor daño-no-desperdiciado, luego mayor `valor_unidad` del objetivo).
-- **Cura (`HealAllies`):** valor = Σ `min(amount, maxHp − hp_actual)` sobre los aliados elegidos; prioriza al aliado dañado de mayor `valor_unidad`. `pickCount>0` análogo.
+- **Daño (`DamageEnemies`):** resuelve los objetivos según `mode`/`count` sobre la formación rival (§6). El **valor de la jugada** = Σ sobre los objetivos de `min(daño_efectivo, hp_objetivo)` + `valor_unidad(objetivo)` por cada objetivo que **muere**. Daño efectivo = base + Furia + Aura − Desmoralizar; resta el `Retaliate` esperado del defensor al valor.
+  - **`mode = Any` (snipe):** elige las `count` unidades que maximizan ese valor (greedy: prioriza kills, luego mayor daño-no-desperdiciado, luego mayor `valor_unidad` del objetivo). Los modos anclados (`Frontmost`/`Backmost`/`All`) no eligen: golpean lo que la formación determina.
+- **Cura (`HealAllies`):** valor = Σ `min(amount, maxHp − hp_actual)` sobre los aliados objetivo; prioriza al aliado dañado de mayor `valor_unidad`. `mode=Any` análogo.
 
 Elige la unidad+objetivos de mayor valor de jugada. Empates: menor índice de slot (determinista).
 
@@ -835,7 +808,7 @@ Al desplegar una unidad sin slot forzado por `allowedSlots`, el bot elige entre 
 
 1. Productoras / Snipers / Emisores / Healers → **retaguardia** (menor índice permitido): se quieren proteger.
 2. Muros → **frente** (mayor índice permitido): tapan la línea.
-3. Escaramuza / Cleave → slot permitido que **maximice la cobertura** de su patrón `Relative` sobre el tablero rival actual; a igualdad, el más adelantado.
+3. Escaramuza / Cleave → **frente** (mayor índice permitido): la posición ya no cambia a quién pegan (el targeting está anclado a la formación rival, §6), así que van adelante para tankear el melee enemigo.
 4. Si no hay slot permitido **libre**: la unidad no se puede desplegar (no hay reemplazo, §8.3) → no se juega.
 
 ### 16.7 Determinismo

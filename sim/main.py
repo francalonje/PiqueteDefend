@@ -74,9 +74,8 @@ def cmd_dump(args):
             if isinstance(c, UnitCardData):
                 a = c.attack
                 eff = "cura" if a.effect.value == "HealAllies" else "dmg"
-                slots = "".join(str(s) for s in a.pattern)
-                print(f"  {c.name:22} {cost:7} HP {c.max_hp:3}  {a.reference.value[:3]}[{slots}]"
-                      f"x{a.pick_count} {eff}{a.amount_per_slot}  [{c.archetype}]")
+                print(f"  {c.name:22} {cost:7} HP {c.max_hp:3}  {a.mode.value}"
+                      f"x{a.count} {eff}{a.amount_per_slot}  [{c.archetype}]")
             elif isinstance(c, ActionCardData):
                 desc = "; ".join(f"{e.effect_type.value} v={e.value}"
                                  + (f" {e.status.status_type.value}({e.status.value}/{e.status.counter})" if e.status else "")

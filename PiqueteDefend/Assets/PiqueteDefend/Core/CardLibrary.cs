@@ -11,8 +11,9 @@ namespace PiqueteDefend.Core
     ///
     /// Los valores numéricos están <b>validados por simulación</b> (Fase 5, `sim/`): incorporan el
     /// tune global de durabilidad (daño ×1.5 / HP ×0.85) y los ajustes per-card de balance.
-    /// Catálogo: 8 unidades + 10 acciones + 4 equipo = 22/facción. Índices de slot en base 0
-    /// (slot k del spec = índice k-1); los offsets Relative no cambian.
+    /// Catálogo: 8 unidades + 10 acciones + 4 equipo = 22/facción. allowedSlots en base 0
+    /// (slot k del spec = índice k-1); el targeting de ataque es por <see cref="TargetMode"/>,
+    /// anclado a la formación (spec §6) — el frente es el extremo de índice alto.
     /// </summary>
     public static class CardLibrary
     {
@@ -27,33 +28,33 @@ namespace PiqueteDefend.Core
             {
                 // ── Unidades ──
                 Unit("piquetero", "Piquetero", M, UnitSubtype.Atacante, ResourceType.Fuerza, 4,
-                     20, NoSlots, Atk(AttackReference.Relative, new[] { -1, 0, 1 }, 1, 14),
+                     20, NoSlots, Atk(TargetMode.Frontmost, 1, 14),
                      "Bombo, bandera y aguante para parar todo. El GPS del camionero lo putea de memoria.",
                      Aura(2)),
                 Unit("jubilado", "Jubilado", M, UnitSubtype.Defensiva, ResourceType.Dinero, 5,
-                     32, Frente, Atk(AttackReference.Absolute, new[] { 3, 4, 5 }, 0, 3),
+                     32, Frente, Atk(TargetMode.Frontmost, 2, 3),
                      "83 pirulos, bastón y primera fila. La cana le tiene cagazo a lo que largue en la tele.",
                      Espinas(3)),
                 Unit("gordo_sindical", "Gordo Sindical", M, UnitSubtype.Productora, ResourceType.Dinero, 3,
-                     12, Retaguardia, Atk(AttackReference.Relative, new[] { 0 }, 0, 3),
+                     12, Retaguardia, Atk(TargetMode.Frontmost, 1, 3),
                      "El que arregla la paritaria y maneja la caja. Aparece en el palco, jamás en la primera fila.",
                      Produce(ResourceType.Dinero, 1)),
                 Unit("fisura", "Fisura", M, UnitSubtype.Atacante, ResourceType.Fuerza, 5,
-                     20, Medio, Atk(AttackReference.Relative, new[] { -1, 0, 1 }, 0, 6),
+                     20, Medio, Atk(TargetMode.Frontmost, 3, 6),
                      "Arranca la baldosa de la plaza con las manos y la parte en cuatro. Cada cascote tiene destinatario.",
                      Produce(ResourceType.Fuerza, 1)),
                 Unit("tuitero", "Tuitero Militante", M, UnitSubtype.Productora, ResourceType.Social, 2,
-                     10, Retaguardia, Atk(AttackReference.Relative, new[] { 0 }, 0, 2),
+                     10, Retaguardia, Atk(TargetMode.Frontmost, 1, 2),
                      "2.300 seguidores y la certeza de que cambió la historia con un hilo.",
                      Produce(ResourceType.Social, 1)),
                 Unit("choripanero", "Choripanero", M, UnitSubtype.Defensiva, ResourceType.Social, 4,
-                     15, Medio, Heal(AttackReference.Absolute, new[] { 3, 4, 5 }, 1, 3),
+                     15, Medio, Heal(TargetMode.Any, 1, 3),
                      "Pan, chori y chimi para aguantar la jornada. El que morfa, vuelve a la marcha."),
                 Unit("mortero", "Mortero Casero", M, UnitSubtype.Atacante, ResourceType.Fuerza, 5,
-                     8, new[] { 1, 2, 3 }, Atk(AttackReference.Absolute, new[] { 0, 1, 2 }, 1, 14),
+                     8, new[] { 1, 2, 3 }, Atk(TargetMode.Any, 1, 14),
                      "Un caño, pólvora trucha y puntería de chiripa. Igual le encaja justo en la oficina del fondo."),
                 Unit("quema_cubiertas", "Quema de Cubiertas", M, UnitSubtype.Atacante, ResourceType.Social, 5,
-                     15, Medio, Atk(AttackReference.Relative, new[] { 0 }, 0, 2),
+                     15, Medio, Atk(TargetMode.Frontmost, 1, 2),
                      "Diez gomas viejas y el viento a favor. El humo negro no le hace asco a nadie.",
                      Humo(2)),
 
@@ -112,33 +113,33 @@ namespace PiqueteDefend.Core
             {
                 // ── Unidades ──
                 Unit("infante", "Infante", P, UnitSubtype.Atacante, ResourceType.Fuerza, 6,
-                     22, NoSlots, Atk(AttackReference.Relative, new[] { -1, 0, 1 }, 1, 15),
+                     22, NoSlots, Atk(TargetMode.Frontmost, 1, 15),
                      "Escudo, casco y 14 horas de turno. Va al frente porque le pagan para eso.",
                      Aura(2)),
                 Unit("gendarme", "Gendarme", P, UnitSubtype.Defensiva, ResourceType.Dinero, 4,
-                     27, Frente, Atk(AttackReference.Absolute, new[] { 3, 4, 5 }, 0, 4),
+                     27, Frente, Atk(TargetMode.Frontmost, 2, 4),
                      "Lo trajeron de la frontera a cuidar una esquina. No se mueve, no se cansa, no entiende el reclamo.",
                      Espinas(3)),
                 Unit("puntero", "Puntero", P, UnitSubtype.Productora, ResourceType.Dinero, 5,
-                     12, Retaguardia, Atk(AttackReference.Relative, new[] { 0 }, 0, 3),
+                     12, Retaguardia, Atk(TargetMode.Frontmost, 1, 3),
                      "Reparte bolsones y promesas. La guita sale de algún lado, siempre.",
                      Produce(ResourceType.Dinero, 1)),
                 Unit("itakero", "Itakero", P, UnitSubtype.Atacante, ResourceType.Fuerza, 4,
-                     19, Medio, Atk(AttackReference.Relative, new[] { -1, 0, 1 }, 0, 4),
+                     19, Medio, Atk(TargetMode.Frontmost, 3, 4),
                      "Escopeta Itaka y postas de goma. Apunta al montón, total alguno cae.",
                      Produce(ResourceType.Fuerza, 1)),
                 Unit("trol", "Trol Oficial", P, UnitSubtype.Productora, ResourceType.Social, 5,
-                     14, Retaguardia, Atk(AttackReference.Relative, new[] { 0 }, 0, 2),
+                     14, Retaguardia, Atk(TargetMode.Frontmost, 1, 2),
                      "Diez cuentas, un solo sueldo del Estado. Inventa la tendencia antes del mediodía.",
                      Produce(ResourceType.Social, 1)),
                 Unit("medico_same", "Médico del SAME", P, UnitSubtype.Defensiva, ResourceType.Dinero, 4,
-                     15, Medio, Heal(AttackReference.Relative, new[] { -1, 0, 1 }, 0, 2),
+                     15, Medio, Heal(TargetMode.Frontmost, 3, 2),
                      "Llega en ambulancia y atiende a todos. Después hace tres guardias para llegar a fin de mes."),
                 Unit("halcon", "Halcón", P, UnitSubtype.Atacante, ResourceType.Fuerza, 6,
-                     8, new[] { 1, 2, 3 }, Atk(AttackReference.Absolute, new[] { 0, 1, 2 }, 1, 15),
+                     8, new[] { 1, 2, 3 }, Atk(TargetMode.Any, 1, 15),
                      "Grupo especial, mira telescópica y paciencia de cazador. Desde la terraza ve toda la plaza."),
                 Unit("gasero", "Gasero", P, UnitSubtype.Atacante, ResourceType.Social, 5,
-                     15, Medio, Atk(AttackReference.Relative, new[] { 0 }, 0, 2),
+                     15, Medio, Atk(TargetMode.Frontmost, 1, 2),
                      "Granada en mano, pañuelo en la cara. \"Es para dispersar\", dice, mientras llora hasta él.",
                      Gas(3)),
 
@@ -263,12 +264,12 @@ namespace PiqueteDefend.Core
             return card;
         }
 
-        // Ataques
-        private static UnitAttack Atk(AttackReference reference, int[] pattern, int pick, int dmg) =>
-            new UnitAttack(reference, pattern, pick, dmg, AttackEffect.DamageEnemies);
+        // Ataques (targeting anclado a la formación, spec §6)
+        private static UnitAttack Atk(TargetMode mode, int count, int dmg) =>
+            new UnitAttack(mode, count, dmg, AttackEffect.DamageEnemies);
 
-        private static UnitAttack Heal(AttackReference reference, int[] pattern, int pick, int amount) =>
-            new UnitAttack(reference, pattern, pick, amount, AttackEffect.HealAllies);
+        private static UnitAttack Heal(TargetMode mode, int count, int amount) =>
+            new UnitAttack(mode, count, amount, AttackEffect.HealAllies);
 
         // Pasivas
         private static PassiveEffect Produce(ResourceType r, int v) =>
@@ -277,7 +278,7 @@ namespace PiqueteDefend.Core
         private static PassiveEffect Aura(int v) => new PassiveEffect
         {
             passiveType = PassiveType.AuraDamage, value = v, target = PassiveTarget.Allies,
-            reference = AttackReference.Relative, pattern = new[] { -1, 1 }, pickCount = 0
+            mode = TargetMode.Adjacent, count = 0
         };
 
         private static PassiveEffect Espinas(int v) => new PassiveEffect
@@ -290,18 +291,18 @@ namespace PiqueteDefend.Core
             passiveType = PassiveType.Regeneration, value = v, target = PassiveTarget.Self
         };
 
+        // Humo: daño/turno a la vanguardia enemiga (las 3 unidades más adelantadas).
         private static PassiveEffect Humo(int v) => new PassiveEffect
         {
             passiveType = PassiveType.TurnDamage, value = v, target = PassiveTarget.Enemies,
-            reference = AttackReference.Absolute, pattern = new[] { 3, 4, 5 }, pickCount = 0
+            mode = TargetMode.Frontmost, count = 3
         };
 
-        // Gas: Veneno a 1 de la vanguardia enemiga (pick 1; la resolución de pasivas elige N
-        // slots ocupados, determinista). Ver spec §7.3/§10.
+        // Gas: Veneno a la unidad enemiga más adelantada (la del frente). Ver spec §7.3/§10.
         private static PassiveEffect Gas(int v) => new PassiveEffect
         {
             passiveType = PassiveType.TurnStatus, status = Poison(v, 1), target = PassiveTarget.Enemies,
-            reference = AttackReference.Absolute, pattern = new[] { 3, 4, 5 }, pickCount = 1
+            mode = TargetMode.Frontmost, count = 1
         };
 
         // Efectos de acción

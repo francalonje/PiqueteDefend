@@ -39,9 +39,15 @@ class CardType(Enum):
     EQUIPO = "Equipo"
 
 
-class AttackReference(Enum):
-    ABSOLUTE = "Absolute"   # pattern = slots fijos del tablero objetivo (0–5)
-    RELATIVE = "Relative"   # pattern = offsets desde el slot del atacante (0 = enfrentado)
+class TargetMode(Enum):
+    """Cómo se eligen objetivos, anclado a la formación (spec §6). El frente del tablero
+    objetivo es el extremo de índice alto (cerca del rival)."""
+    FRONTMOST = "Frontmost"   # la más adelantada ocupada + (count-1) hacia el fondo
+    BACKMOST = "Backmost"     # la más atrasada ocupada + (count-1) hacia el frente
+    ANY = "Any"               # count unidades a elección (snipe)
+    ALL = "All"               # todas (AoE)
+    ADJACENT = "Adjacent"     # vecinas (±1) de la fuente (auras)
+    SELF = "Self"             # la propia fuente
 
 
 class AttackEffect(Enum):
@@ -115,15 +121,14 @@ class StatusEffect:
 
 @dataclass
 class UnitAttack:
-    reference: AttackReference
-    pattern: List[int]
-    pick_count: int
+    mode: TargetMode
+    count: int                                 # profundidad/alcance (Frontmost/Backmost) o cuántas elegir (Any)
     amount_per_slot: int                       # daño si DamageEnemies, cura si HealAllies
     effect: AttackEffect = AttackEffect.DAMAGE_ENEMIES
 
     @property
     def requires_choice(self) -> bool:
-        return self.pick_count > 0
+        return self.mode == TargetMode.ANY
 
 
 @dataclass
@@ -133,9 +138,8 @@ class PassiveEffect:
     resource: Optional[ResourceType] = None         # sólo ProduceResource
     status: Optional[StatusEffect] = None            # sólo TurnStatus
     target: PassiveTarget = PassiveTarget.SELF
-    reference: AttackReference = AttackReference.RELATIVE
-    pattern: List[int] = field(default_factory=list)
-    pick_count: int = 0
+    mode: TargetMode = TargetMode.SELF
+    count: int = 1
 
 
 @dataclass
