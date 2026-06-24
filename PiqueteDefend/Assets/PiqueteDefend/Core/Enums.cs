@@ -114,7 +114,31 @@ namespace PiqueteDefend.Core
         AuraDamage,
         Retaliate,
         TurnDamage,
-        TurnStatus
+        TurnStatus,
+
+        /// <summary>
+        /// Death-rattle (spec §7.3): se dispara cuando la unidad muere por <b>cualquier</b> fuente
+        /// (ataque, Poison, ModifyHP de carta, muerte súbita), antes de liberar el slot. Reusa el
+        /// payload dirigido (<c>target</c>/<c>mode</c>/<c>count</c>): con <c>status</c> aplica un
+        /// estado (ej. el Jubilado mártir → Furia a aliados adyacentes); sin <c>status</c>, <c>value</c>
+        /// de daño directo (ej. explosión a enemigos). NO lo dispara <c>RemoveUnit</c> (remoción ≠ muerte).
+        /// </summary>
+        OnDeath,
+
+        /// <summary>
+        /// Blindaje (spec §7.3): reduce en <c>value</c> el daño de cada <b>ataque de unidad</b> recibido
+        /// (piso 0). NO mitiga el daño directo (Poison, TurnDamage, ModifyHP de carta, OnDeath ni muerte
+        /// súbita, que "ignora defensas", §5.1). Identidad defensiva de Policías (escudo antimotín).
+        /// </summary>
+        Armor,
+
+        /// <summary>
+        /// Chorro / empuje (spec §7.3): tras resolver el ataque de la unidad que la porta, cada objetivo
+        /// sobreviviente es <b>empujado al slot libre más al fondo</b> (menor índice) de su formación;
+        /// no-op si no hay lugar más atrás. Reposiciona al rival (rompe su formación). Ignora
+        /// <c>allowedSlots</c> (es involuntario, como SwapUnits). <c>value</c> sin uso. Identidad de Policías (carro hidrante).
+        /// </summary>
+        PushBack
     }
 
     /// <summary>Sobre qué tablero recae una pasiva dirigida (spec §7.3). Reemplaza al viejo PassiveScope.</summary>

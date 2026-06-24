@@ -36,10 +36,16 @@ def _passive_value(passives) -> float:
         if pe.passive_type == PassiveType.PRODUCE_RESOURCE:
             total += 4 * pe.value
         elif pe.passive_type in (PassiveType.AURA_DAMAGE, PassiveType.RETALIATE,
-                                 PassiveType.REGENERATION, PassiveType.TURN_DAMAGE):
+                                 PassiveType.REGENERATION, PassiveType.TURN_DAMAGE,
+                                 PassiveType.ARMOR):
             total += 3 * pe.value
         elif pe.passive_type == PassiveType.TURN_STATUS:
             total += 4
+        elif pe.passive_type == PassiveType.ONDEATH:
+            # mártir: el valor vive en el payload (status Furia o daño directo)
+            total += (2 * pe.status.value if pe.status is not None else 3 * pe.value)
+        elif pe.passive_type == PassiveType.PUSHBACK:
+            total += 2
     return total
 
 
@@ -112,7 +118,7 @@ def choose_deploy_slot(engine: GameEngine, p: PlayerState, unit: UnitCardData) -
     free = [i for i in range(BOARD) if p.slots[i] is None and unit.allows_slot(i)]
     if free:
         arch = unit.archetype
-        if arch in ("Productora", "Sniper", "Emisor", "Healer"):
+        if arch in ("Productora", "Sniper", "Morterista", "Emisor", "Healer"):
             return min(free)          # retaguardia: protegerlas
         if arch == "Muro":
             return max(free)          # frente: tapar la línea (será el más adelantado = tankea)

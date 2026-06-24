@@ -228,6 +228,96 @@ El tablero de cada jugador es **una única línea de 6 slots**, un **eje de prof
 >
 > **Principio vainilla:** una **pasiva** (o una acción de utilidad como **curar**) suma al `valor`. Una unidad **vainilla** —sin pasiva y con ataque de daño normal— recupera ese presupuesto como **+HP o +daño**: no debería existir una unidad que no aporte nada extra y además pegue/aguante como una que sí.
 
+### 6.1 Principios de diseño de cartas
+
+> La **constitución del balance**: la guía que debe respetar cada carta del pool. La heurística de
+> arriba dice *cómo se valora* una carta; estos principios dicen *qué queremos que el pool produzca*:
+> balance verificable, sensación de piedra-papel-tijera y un meta de builds emergentes. Cualquier
+> carta nueva o re-balanceada se justifica contra ellos.
+
+**Stats / combate**
+
+1. **Presupuesto sobre una curva.** Cada unidad reparte un presupuesto entre HP, daño y utilidad.
+   Más HP ⇒ menos daño. La utilidad (pasiva, cura) **se paga con stats** (principio vainilla): una
+   unidad sin pasiva debe pegar/aguantar más que una con utilidad equivalente.
+2. **Stats baratos en bulk, acciones caras.** El poder numérico es **exponencialmente** más caro.
+   Corolario buscado: dos unidades baratas superan en stats crudos a una cara; lo que compra la cara
+   es **alcance + economía de acción** (mata en 1 acción lo que dos baratas en 2). Esa tensión es
+   deseada.
+3. **Las unidades son la carta central.** Acciones y equipo **orbitan** a las unidades (las
+   habilitan, protegen, castigan); nunca son el motor del juego por sí solas.
+
+**Targeting / RPS de formación**
+
+4. **Cada modo de targeting tiene una formación que lo castiga** (triángulo del §6):
+   - Melee/Penetra (`Frontmost`) ← muro gordo adelante + frágiles atrás.
+   - Muro + carry escondido ← snipe (`Any`) y "pega al fondo" (`Backmost`).
+   - Snipe (snipers frágiles y caros) ← agro de cuerpos baratos.
+   - Ir ancho (swarm) ← AoE (`All`).
+
+   El pool de **cada facción** debe cubrir **cada esquina**; ninguna formación gana contra todas.
+5. **El alcance es el recurso premium.** `Frontmost ×1` es gratis/default; `Any`/`Backmost`/`All`/
+   `Penetra` cuestan caro **porque saltean la posición** (única palanca defensiva, §6).
+6. **No saturar de snipe/AoE.** Posicionar es la counterplay del defensor; si medio pool ignora la
+   formación, muere el eje de profundidad.
+
+**Economía / tempo**
+
+7. **La acción es la moneda real.** Con 1 carta + 1 ataque por turno, se valora por **valor-por-
+   acción**, no por stats crudos. La producción es **tempo diferido** ⇒ debe ser **castigable por el
+   agro**. RPS estratégico: *agro > codicia (economía) > midrange > agro*.
+8. **La inversión debe ser vulnerable.** Unidad cara/equipada/buffeada = huevos en una canasta ⇒
+   snipe/remoción/desmoralizar la castigan; el AoE castiga ir ancho. Sin counters no hay meta, hay
+   dominante.
+
+**Meta / builds**
+
+9. **La sinergia vive en pasivas + posición + economía, no en stats.** Sin deckbuilding (v1), el
+   "build" es la **formación + el lean de recurso** (aura sobre adyacentes, muro+carry, eco+healer).
+   El meta son *formaciones y planes económicos* emergentes, no listas.
+10. **Balance simétrico, no espejado.** Las facciones se equilibran en **poder agregado**
+    (win-rate del sim ≈ 50/50), **no clonándose**: cada una puede tener arquetipos, pasivas y
+    lineups propios y divergentes. La simetría es de *fuerza*, no de *forma* — la asimetría da
+    identidad y matchups más ricos. El eje recurso=build (§6.2) sí vale en ambas. (Ej.: el
+    **Jubilado** mártir de Manifestantes, §9, no tiene equivalente espejado en Policías.)
+
+**Flavor / tono**
+
+11. **Tono de nombre y descripción.** Humor político y de cultura popular argentina: **negro,
+    bizarro, ácido**, en **dialecto argentino** (voseo, lunfardo). El nombre y la descripción
+    reflejan los **stats/rol reales** de la carta (un tanque suena duro; un frágil de sacrificio,
+    patético-épico; un sniper, frío y distante).
+
+> **Proceso:** `docs/game-spec.md` + `Core/CardLibrary.cs` + `sim/` se mueven juntos
+> (`py sim/parity_check.py`). Valores rough validados por feel de playtest, no sobre-tune en el sim.
+
+### 6.2 Eje de build: recurso → arquetipo
+
+La palanca central de la "sensación de builds". **Clave (v1 sin deckbuilding):** la mano se roba del
+pool completo al azar; *leanear un recurso* no es elegir cartas, es **en qué recurso invertís
+producción** (productoras + boosts) y, por lo tanto, **qué cartas podés pagar de forma fiable**. El
+build es **emergente de la economía**. Para que funcione, el **recurso de costo de cada carta debe
+correlacionar con su rol**:
+
+| Recurso | Identidad | Arquetipos típicos | Acciones típicas |
+|---------|-----------|----------------------|------------------|
+| **⚡ Fuerza** | **Agresión / tempo de combate** | Escaramuza, Cleave, Sniper, Mártir | daño directo, furia/buffs de daño |
+| **$ Dinero** | **Durabilidad / economía** | Muro, Productora $, Healer, Control | +HP/defensa, boosts económicos |
+| **📣 Social** | **Control / momentum** | Productora 📣, Emisor, Carga | según facción (ver abajo) |
+
+> **El eje 📣 se expresa distinto por facción (§6.1 #10):** para **Manifestantes** es *momentum*
+> (rallying: Humo, doble producción, Escrache); para **Policías** es *supresión* (Gas, Veneno,
+> Desmoralizar, Skip-producción, Swap). Mismo recurso, expresión opuesta — buffear vs debuffear.
+
+> **Producción e ingreso por recurso.** Base = +1 de cada recurso/turno (§3). Una **productora** suma
+> **+2** de su recurso (recurso = 3/turno; dos productoras = 5/turno → leanear se siente). **⚡ no tiene
+> productora pura:** Manif lo **gotea** por combate (cleave +1⚡/turno), Pol lo recibe en **lump** por la
+> Licitación Express (boost grande). Asimetría intencional: ⚡ de Manif sostenido, ⚡ de Pol a golpes.
+
+> **Propiedad emergente buscada:** mono-recurso = rápido y enfocado **pero ciego a parte del
+> triángulo RPS** (te falta acceso fiable a tu counter); mixto = flexible pero más lento. Esa es la
+> tensión de build. La producción base (+1 de cada recurso) permite *splashear* el counter ocasional.
+
 ---
 
 ## 7. Arquitectura técnica (Unity)
@@ -334,10 +424,13 @@ Un pasivo puede **producir recursos, curar/buffear aliadas o dañar/debuffear en
 | `Retaliate` | Reactivo, al ser golpeada por un **ataque de unidad** | El atacante recibe `value` de daño |
 | `TurnDamage` | Inicio de turno del dueño | `value` daño a los objetivos (típico `Enemies`, `mode=Frontmost` = vanguardia) |
 | `TurnStatus` | Inicio de turno del dueño | Aplica `status` a los slots objetivo (`Enemies` o `Allies`) |
+| `OnDeath` | Al morir la unidad (cualquier fuente) | Death-rattle: con `status` aplica el estado a los objetivos (`target`/`mode`/`count`); sin `status`, `value` de daño directo. Ej.: Jubilado → Furia a aliados adyacentes |
+| `Armor` (Blindaje) | Reactivo, al recibir un **ataque de unidad** | Reduce el daño del golpe en `value` (piso 0). NO mitiga daño directo (Poison/TurnDamage/ModifyHP/OnDeath) ni muerte súbita |
+| `PushBack` (Chorro) | Continuo, tras el ataque de la portadora | Empuja a cada objetivo sobreviviente al slot libre más al fondo de su formación (no-op si no hay lugar); ignora `allowedSlots` |
 
 **PassiveTarget** enum: `Self`, `Allies`, `Enemies`. *(La adyacencia se expresa con `mode = Adjacent` sobre `Allies`.)*
 
-Reglas: las auras **se suman** y no se aplican a sí mismas. `Retaliate` sólo responde a ataques de unidad (no a daño directo de cartas, pasivas ni muerte súbita) y **dispara aunque la unidad muera** (re-evaluar KO). `TurnDamage`/`TurnStatus` se resuelven al inicio del turno del dueño y respetan whiff en slots vacíos. El daño/estado de pasivas **no** dispara `Retaliate` (no es ataque de unidad).
+Reglas: las auras **se suman** y no se aplican a sí mismas. `Retaliate` sólo responde a ataques de unidad (no a daño directo de cartas, pasivas ni muerte súbita) y **dispara aunque la unidad muera** (re-evaluar KO). `TurnDamage`/`TurnStatus` se resuelven al inicio del turno del dueño y respetan whiff en slots vacíos. El daño/estado de pasivas **no** dispara `Retaliate` (no es ataque de unidad). `OnDeath` dispara al llegar a 0 HP por **cualquier** fuente, antes de liberar el slot, y puede encadenar más muertes (re-evaluar KO); `RemoveUnit` (remoción directa) **no** lo dispara. `Armor` mitiga sólo el daño de **ataques de unidad** (no el directo ni la muerte súbita, que ignora defensas, §5.1). `PushBack` reposiciona tras aplicar el daño y antes del `Retaliate`.
 
 > **Targeting de pasivas:** como la pasiva es **automática** (no hay elección humana), `mode=Frontmost`/`Backmost` resuelven anclados a la formación (deterministas; espejo exacto en el sim). Ej.: el **Gas** del Gasero (`Frontmost count=1`) envenena **a la unidad más adelantada** del rival; el **Humo** (`Frontmost count=3`) daña a las 3 de vanguardia.
 
@@ -476,36 +569,47 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 
 ## 9. Cartas — Manifestantes
 
-> **Unidades diferenciadas por arquetipo** (geometría de combate y zonas de deploy en §6). Los **costos** mostrados son el **base de diseño**, balanceado **per-card por valor/costo** (`sim/valuation.py`, encareciendo las cartas más eficientes para alinearlas con su rol espejo); encima, el juego aplica el **factor económico global ×1.2** y la **inflación** por turno (§3). **HP, daño, posición y la magnitud de las pasivas** quedaron **validados por simulación** (Fase 5, `sim/`): los valores de abajo ya incorporan el tune global de durabilidad (daño ×1.5 / HP ×0.85 horneados) y los ajustes per-card de balance. El **rol** de cada pasiva no cambió; sí su número. Notación (targeting anclado a la formación, §6): `Adelante` = pega a la unidad más adelantada del rival (`Frontmost ×1`); `Penetra ×N` = a las N más adelantadas (whiff en profundidad vacía); `Snipe` = elige cualquiera (`Any`); `cura X` = cura X HP a aliadas (`effect=HealAllies`). Pasivas: §7.3.
+> **Identidad (asimétrica, §6.1 #10):** los Manifestantes ganan con **cantidad, aguante popular,
+> martirio y momentum** — buffean a los suyos, se sacrifican y aguantan. Sus pasivas distintivas
+> (no presentes en Policías): **Aura +daño**, **Espinas**, **OnDeath-mártir** (Furia), **Cura**,
+> **Mortero al fondo** (`Backmost`) y **Humo** (TurnDamage `All`). Su economía de ⚡ **gotea** por
+> combate (Fisura +1⚡). Su único control duro es el **Escrache** (Stun); el resto es buff/economía/daño.
+>
+> **Valores rough** (anclas de diseño, §6.1): pendientes de validar por sim/playtest — el sim/`valuation.py`
+> afina los **costos** (curva super-lineal) y el balance afina HP/daño/pasivas. Encima, el juego aplica
+> el factor económico global y la inflación (§3). Notación (targeting anclado a la formación, §6):
+> `Adelante` = más adelantada del rival (`Frontmost ×1`); `Penetra ×N` = las N más adelantadas (whiff
+> en profundidad vacía); `Al fondo` = la más atrasada (`Backmost`); `Snipe` = elige cualquiera (`Any`);
+> `Todos` = AoE (`All`); `cura X` = cura HP a aliadas (`HealAllies`). Pasivas: §7.3.
 
-### Unidades
+### Unidades (9)
 | Carta | Costo | Arquetipo | maxHp | Deploy | Ataque · daño | Pasiva | Descripción |
 |-------|-------|-----------|-------|--------|---------------|--------|-------------|
-| **Piquetero** | 4 ⚡ | Escaramuza | 20 | Cualquiera | Adelante · 14 | Aura +2 daño (adyac.) | *Bombo, bandera y aguante para parar todo. El GPS del camionero lo putea de memoria.* |
-| **Jubilado** | 5 $ | Muro | 32 | Frente {4,5,6} | Penetra ×2 · 3 | Espinas 3 | *83 pirulos, bastón y primera fila. La cana le tiene cagazo a lo que largue en la tele.* |
-| **Gordo Sindical** | 3 $ | Productora | 12 | Retaguardia {1,2,3} | Adelante · 3 | +1 $/turno | *El que arregla la paritaria y maneja la caja. Aparece en el palco, jamás en la primera fila.* |
-| **Fisura** | 5 ⚡ | Cleave | 20 | {2,3,4,5} | Penetra ×3 · 6 | +1 ⚡/turno | *Arranca la baldosa de la plaza con las manos y la parte en cuatro. Cada cascote tiene destinatario.* |
-| **Tuitero Militante** | 2 📣 | Productora | 10 | Retaguardia {1,2,3} | Adelante · 2 | +1 📣/turno | *2.300 seguidores y la certeza de que cambió la historia con un hilo.* |
-| **Choripanero** | 4 📣 | Healer | 15 | {2,3,4,5} | Cura (snipe) · 3 | — | *Pan, chori y chimi para aguantar la jornada. El que morfa, vuelve a la marcha.* |
-| **Mortero Casero** | 5 ⚡ | Sniper | 8 | {2,3,4} | Snipe · 14 | — | *Un caño, pólvora trucha y puntería de chiripa. Igual le encaja justo en la oficina del fondo.* |
-| **Quema de Cubiertas** | 5 📣 | Emisor | 15 | {2,3,4,5} | Adelante · 2 | Humo: 2 daño/turno a vanguardia enemiga | *Diez gomas viejas y el viento a favor. El humo negro no le hace asco a nadie.* |
+| **Piquetero** | 4 ⚡ | Escaramuza | 20 | Cualquiera | Adelante · 14 | Aura +2 daño (adyac.) | *Bombo, bandera y aguante para parar el país. El camionero lo putea en seis idiomas y él ni se inmuta.* |
+| **Fisura** | 5 ⚡ | Cleave | 18 | {2,3,4,5} | Penetra ×3 · 7 | +1 ⚡/turno | *Arranca la baldosa con las manos y la parte en cuatro. Cada cascote ya tiene nombre y apellido.* |
+| **Jubilado** | 2 ⚡ | Mártir | 6 | Cualquiera | Adelante · 2 | OnDeath: Furia (+4, 2t) a aliados adyacentes | *Mil miércoles de marcha en el lomo y cero miedo a esta altura del partido. Cuando cae, la columna redobla el bombo y sale con todo.* |
+| **Mortero Casero** | 5 ⚡ | Morterista | 8 | {2,3,4} | Al fondo · 14 | — | *Un caño, pólvora trucha y fe. No le apunta a nadie, pero siempre le encaja al de la oficina del fondo.* |
+| **Encadenado** | 5 $ | Muro | 32 | Frente {4,5,6} | Penetra ×2 · 3 | Espinas 3 (Retaliate) | *Se candó al obelisco a las seis de la mañana y tiró la llave. De ahí no lo saca nadie, y el que lo intenta se lleva los candados de recuerdo.* |
+| **Gordo Sindical** | 3 $ | Productora | 12 | Retaguardia {1,2,3} | Adelante · 3 | +2 $/turno | *Maneja la caja, la lista y el micro. Aparece en el palco, jamás en la primera fila.* |
+| **Choripanero** | 4 $ | Healer | 15 | {2,3,4,5} | Cura (snipe) · 3 | — | *Pan, chori y un chimi que resucita muertos. El que morfa, vuelve a la marcha como si nada.* |
+| **Tuitero Militante** | 2 📣 | Productora | 10 | Retaguardia {1,2,3} | Adelante · 2 | +2 📣/turno | *2.300 seguidores y la certeza absoluta de que cambió la historia con un hilo de Twitter.* |
+| **Quema de Cubiertas** | 5 📣 | Emisor | 15 | {2,3,4,5} | Adelante · 2 | Humo: 2 daño/turno a **todo** el rival (`All`) | *Diez gomas viejas, un fósforo y el viento a favor. El humo negro no discrimina: te entra a todos.* |
 
-### Acciones
+### Acciones (8)
 | Carta | Categoría | Costo | Efecto | Descripción |
 |-------|-----------|-------|--------|-------------|
 | **Colecta** | Boost | 3 📣 | +6 $ propio | *Pasamos la gorra. La de los compañeros, no la de la cana.* |
 | **Fernet con Cola** | Boost | 1 $ | +3 ⚡ propio | *Hidratación táctica. No es doping si lo toma toda la marcha.* |
-| **Viral en Redes** | Boost | 2 $ | +7 📣 propio | *Un video de 14 segundos, tres palos de reproducciones. El ministerio ya está llamando.* |
-| **Saqueo** | Sabotaje | 1 ⚡ | Oponente −3 $ | *No es afano. Es redistribución urgente de mercadería.* |
+| **Viral en Redes** | Boost | 2 $ | +7 📣 propio | *Catorce segundos de video, tres palos de reproducciones. El ministerio ya está llamando.* |
 | **Paro General** | Ataque | 5 ⚡ | 21 daño directo a una unidad enemiga | *24 horas de nada. No hay bondi, no hay banco, no hay delivery. El país clavado.* |
-| **Abrazo Colectivo** | Defensa | 5 $ | +10 HP a una unidad propia | *El abrazo que cura todo. Menos la deuda en pesos.* |
+| **El Aguante** | Buff | 2 ⚡ | Furia (+4 daño, 2 turnos) a una unidad propia | *Cantito, bombo y se renueva el aguante. Treinta cuadras más, fácil.* |
 | **Asamblea Popular** | Especial | 6 📣 | Doble producción propia el próximo turno | *Se vota a mano alzada. Cuatro horas de bardo, pero esta vez salió.* |
-| **Escrache** | Sabotaje | 4 📣 | Aturde 1 turno a una unidad enemiga | *Le golpean la puerta a las 7 de la mañana con bombos. No se asoma en todo el día.* |
-| **El Aguante** | Boost | 2 ⚡ | Furia (+4 daño, 2 turnos) a una unidad propia | *Cantito, bombo y se renueva el aguante. Treinta cuadras más, fácil.* |
-| **Cambio de Consigna** | Especial | 1 📣 | Mueve una unidad propia a un slot libre permitido | *La columna pega la vuelta en U. Nadie cazó la orden, pero todos giraron.* |
+| **Abrazo Colectivo** | Defensa | 5 $ | +10 HP a una unidad propia | *El abrazo que cura todo. Menos la deuda en pesos.* |
+| **Escrache** | Control | 4 📣 | Aturde 1 turno a una unidad enemiga | *Le golpean la puerta a las 7 de la mañana con bombos. No se asoma en todo el día.* |
 
-### Equipamiento
-> Se juega sobre una unidad propia; dura hasta que la unidad muere (§8.4).
+### Equipamiento (4)
+> Se juega sobre una unidad propia; dura hasta que la unidad muere (§8.4). +HP/+daño son básicos
+> (compartidos con Policías); los *grants* de pasiva (Regeneración, Espinas) son exclusivos de Manif.
 
 | Carta | Costo | Efecto | Descripción |
 |-------|-------|--------|-------------|
@@ -518,43 +622,52 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 
 ## 10. Cartas — Policías
 
-> **Unidades diferenciadas por arquetipo** (geometría de combate y zonas de deploy en §6). Los **costos** mostrados son el **base de diseño**, balanceado **per-card por valor/costo** (`sim/valuation.py`, encareciendo las cartas más eficientes para alinearlas con su rol espejo); encima, el juego aplica el **factor económico global ×1.2** y la **inflación** por turno (§3). **HP, daño, posición y la magnitud de las pasivas** quedaron **validados por simulación** (Fase 5, `sim/`): los valores ya incorporan el tune global de durabilidad (daño ×1.5 / HP ×0.85 horneados) y los ajustes per-card de balance. El **rol** de cada pasiva no cambió; sí su número. Notación (targeting anclado a la formación, §6): `Adelante` = pega a la unidad más adelantada del rival (`Frontmost ×1`); `Penetra ×N` = a las N más adelantadas (whiff en profundidad vacía); `Snipe` = elige cualquiera (`Any`); `cura X` = cura X HP a aliadas (`effect=HealAllies`). Pasivas: §7.3.
+> **Identidad (asimétrica, §6.1 #10):** los Policías ganan con **precisión, control, equipo y plata**
+> — cuerpos vainilla potentes, snipe quirúrgico y supresión. Sus rasgos distintivos (no presentes en
+> Manif): **Snipe preciso** (`Any`), **Blindaje** (mitiga ataques), **Chorro** (reposiciona al rival),
+> **Carga AoE** (`All` activo), **Gas** (TurnStatus `All`) y un **arsenal de control en acciones**
+> (Veneno / Desmoralizar / Skip-producción / Swap enemigo). Su economía de ⚡ no gotea: llega en **lump**
+> por la **Licitación Express** (boost grande). No tiene Stun (es exclusivo de Manif).
+>
+> **Valores rough** (anclas de diseño, §6.1): pendientes de validar por sim/playtest (ver notación e
+> intro en §9). **Watch-point de balance:** Pol acumula dos fuentes de AoE (Carga + Gas) → es fuerte
+> vs swarm por diseño (dispersa multitudes), pero validar que no sea opresivo.
 
-### Unidades
+### Unidades (9)
 | Carta | Costo | Arquetipo | maxHp | Deploy | Ataque · daño | Pasiva | Descripción |
 |-------|-------|-----------|-------|--------|---------------|--------|-------------|
-| **Infante** | 6 ⚡ | Escaramuza | 22 | Cualquiera | Adelante · 15 | Aura +2 daño (adyac.) | *Escudo, casco y 14 horas de turno. Va al frente porque le pagan para eso.* |
-| **Gendarme** | 4 $ | Muro | 27 | Frente {4,5,6} | Penetra ×2 · 4 | Espinas 3 | *Lo trajeron de la frontera a cuidar una esquina. No se mueve, no se cansa, no entiende el reclamo.* |
-| **Puntero** | 5 $ | Productora | 12 | Retaguardia {1,2,3} | Adelante · 3 | +1 $/turno | *Reparte bolsones y promesas. La guita sale de algún lado, siempre.* |
-| **Itakero** | 4 ⚡ | Cleave | 19 | {2,3,4,5} | Penetra ×3 · 4 | +1 ⚡/turno | *Escopeta Itaka y postas de goma. Apunta al montón, total alguno cae.* |
-| **Trol Oficial** | 5 📣 | Productora | 14 | Retaguardia {1,2,3} | Adelante · 2 | +1 📣/turno | *Diez cuentas, un solo sueldo del Estado. Inventa la tendencia antes del mediodía.* |
-| **Médico del SAME** | 4 $ | Healer | 15 | {2,3,4,5} | Cura adelante ×3 · 2 | — | *Llega en ambulancia y atiende a todos. Después hace tres guardias para llegar a fin de mes.* |
-| **Halcón** | 6 ⚡ | Sniper | 8 | {2,3,4} | Snipe · 15 | — | *Grupo especial, mira telescópica y paciencia de cazador. Desde la terraza ve toda la plaza.* |
-| **Gasero** | 5 📣 | Emisor | 15 | {2,3,4,5} | Adelante · 2 | Gas: Veneno (3) a 1 de la vanguardia enemiga/turno | *Granada en mano, pañuelo en la cara. "Es para dispersar", dice, mientras llora hasta él.* |
+| **Infante** | 5 ⚡ | Escaramuza | 24 | Cualquiera | Adelante · 13 | — (vainilla: presupuesto en stats) | *Casco, escudo y cara de pocas pulgas. Va al frente porque es lo que mejor hace: plantarse y no moverse ni con grúa.* |
+| **Itakero** | 4 ⚡ | Cleave | 20 | {2,3,4,5} | Penetra ×3 · 4 | — (vainilla) | *Escopeta Itaka y postas de goma para todos. Apunta al montón y reza, total alguno cae.* |
+| **Halcón** | 6 ⚡ | Sniper | 8 | {2,3,4} | Snipe · 15 | — | *Mira telescópica desde la terraza. Te tiene en la cruz desde antes de que llegaras a la esquina.* |
+| **Gendarme** | 5 $ | Muro | 26 | Frente {4,5,6} | Penetra ×2 · 4 | Blindaje 2 (−2 al daño de ataques) | *Lo trajeron de la frontera a cuidar una baldosa, y la cuida con la vida. No se mueve, no se cansa, no afloja.* |
+| **Carro Hidrante** | 4 $ | Control | 18 | {2,3,4,5} | Adelante · 3 | Chorro: empuja al objetivo al fondo | *Diez mil litros a presión. Te despega del asfalto y te deja en la otra cuadra antes de que termines el cántico.* |
+| **Recaudador** | 3 $ | Productora | 12 | Retaguardia {1,2,3} | Adelante · 3 | +2 $/turno | *La plata sale de algún lado y mejor no preguntes. Reparte sobres y se queda con el vuelto.* |
+| **Caballería** | 6 📣 | Carga | 16 | {2,3,4,5} | Carga a **todos** (`All`) · 2 | — | *Entran al galope y a lo que venga. El comunicado oficial lo tituló "reordenamiento dinámico del espacio público".* |
+| **Trol Oficial** | 3 📣 | Productora | 14 | Retaguardia {1,2,3} | Adelante · 2 | +2 📣/turno | *Diez cuentas, un solo sueldo del Estado y cero ortografía. Inventa la tendencia antes del café.* |
+| **Gasero** | 5 📣 | Emisor | 15 | {2,3,4,5} | Adelante · 2 | Gas: Veneno (2) a **todo** el rival (`All`) | *Granada de gas en una mano, pañuelo en la otra. "Es para dispersar", avisa, y la nube no lee carteles: dispersa la plaza, la esquina y el kiosco de paso.* |
 
-### Acciones
+### Acciones (8)
 | Carta | Categoría | Costo | Efecto | Descripción |
 |-------|-----------|-------|--------|-------------|
 | **Partida Presupuestaria** | Boost | 2 📣 | +7 $ propio | *Existe en el papel. Se aprobó a las 3 de la mañana y nadie sabe para qué.* |
-| **Licitación Express** | Boost | 3 $ | +8 ⚡ propio | *Una empresa, un sobre y 48 horas. El pliego lo hicieron el lunes a la tarde.* |
+| **Licitación Express** | Boost | 3 $ | +10 ⚡ propio | *Una empresa, un sobre y 48 horas. El pliego lo hicieron el lunes a la tarde.* |
 | **Cadena Nacional** | Boost | 2 $ | +4 📣 propio | *Interrumpe la novela. El presidente habla 40 minutos. Nadie pidió que arranque.* |
-| **Embargo** | Sabotaje | 3 ⚡ | Oponente −7 $ | *El juez firmó, la guita voló. El otro ya lo veía venir.* |
 | **Operativo Apretón** | Ataque | 6 $ | 27 daño directo a una unidad enemiga | *Cuatro camiones, veinte efectivos y un drone. Todo para un jubilado con un cartel.* |
-| **Refuerzos** | Defensa | 5 📣 | +8 HP a una unidad propia | *Llegan dos camiones más. La línea se rearma como si nada.* |
-| **Toque de Queda** | Especial | 5 $ | El oponente no produce el próximo turno | *A las 22 todos adentro. El que se manda afuera, va en cana.* |
 | **Causa Judicial** | Sabotaje | 4 $ | Veneno (3 daño/turno, 2 turnos) a una unidad enemiga | *Te arman un expediente. Te va comiendo de a poco, durante años.* |
 | **Apriete** | Sabotaje | 2 ⚡ | Desmoraliza (−4 daño, 2 turnos) a una unidad enemiga | *Una charla en voz baja contra la pared. Se te van las ganas solas.* |
+| **Toque de Queda** | Especial | 5 $ | El oponente no produce el próximo turno | *A las 22 todos adentro. El que se manda afuera, va en cana.* |
 | **Reubicación Forzosa** | Especial | 2 $ | Intercambia dos unidades enemigas de slot | *Los suben a un patrullero, los bajan en la otra punta. Protocolo, dicen.* |
 
-### Equipamiento
-> Se juega sobre una unidad propia; dura hasta que la unidad muere (§8.4).
+### Equipamiento (4)
+> Se juega sobre una unidad propia; dura hasta que la unidad muere (§8.4). +HP/+daño son básicos
+> (compartidos con Manif); los *grants* de pasiva (Blindaje, Chorro) son exclusivos de Policías.
 
 | Carta | Costo | Efecto | Descripción |
 |-------|-------|--------|-------------|
 | **Chaleco Antibalas** | 3 $ | +12 maxHp | *Importado. Al menos figura en el inventario, que ya es algo.* |
 | **Tonfa** | 2 ⚡ | +4 daño | *Reglamentaria. El uso, a criterio del que la empuña.* |
-| **Obra Social** | 3 $ | Otorga Regeneración (+2 HP/turno) | *Cobertura del 100%. Después de tres formularios y una mañana de cola.* |
-| **Reflectores** | 2 📣 | Otorga Aura +2 daño a aliadas adyacentes | *Iluminan todo de golpe. De repente la patota se coordina sola.* |
+| **Escudo Antimotín** | 3 $ | Otorga Blindaje 2 (−2 al daño de ataques) | *Policarbonato y reglamento. El palazo que da, no el que recibe.* |
+| **Hidrante de Mano** | 3 📣 | Otorga Chorro (empuja al objetivo al fondo) | *Versión de bolsillo del carro. Igual te despeina el cántico.* |
 
 ---
 
@@ -653,6 +766,7 @@ Overlay con:
 | Unidades iniciales por facción | Predefinidas (data por facción) |
 | Recursos iniciales | 5 de cada uno (configurable) |
 | Producción base por turno | +1 de cada recurso ($/⚡/📣); en `GameConfig` (configurable) |
+| Producción de una productora | **+2** de su recurso (recurso = 3/turno; §6.2). ⚡ no tiene productora pura: cleave +1⚡/turno (Manif) o Licitación lump (Pol) |
 | Factor económico global de costo | **×1.2** sobre el costo base (uniforme, horneado; `knobs.cost_mult`) |
 | `inflationStartTurn` | Medio-turno **8**: desde ahí las cartas se encarecen (inflación, §3) |
 | `inflationPercentPerTurn` | **+5%** acumulativo por medio-turno (en revisión por playtest) |
@@ -661,26 +775,25 @@ Overlay con:
 | Primer jugador | Lo elige la selección de facción (la que arranca); coinflip si no se especifica |
 | `suddenDeathStart` | Turno 50 (backstop, configurable; bien por encima de la duración ideal) |
 | `maxTurns` | 120 (backstop duro, configurable) |
-| Duración ideal de partida | ~30–40 medios-turnos; **validado: media ≈ 32, mediana ≈ 21** (sim n=5000) |
-| Cartas por facción | 22 (8 unidades + 10 acciones + 4 equipo) |
+| Duración ideal de partida | ~30–40 medios-turnos (objetivo; re-validar tras el rework de cartas) |
+| Cartas por facción | 21 (9 unidades + 8 acciones + 4 equipo) |
 | Peso de robo (`drawWeight`) | Productoras y boosts de producción 2 · resto (incl. unidades) 1 (§8.1) |
 | Unidades iniciales por facción | **3**: Escaramuza (retag) + Productora (retag) + Muro (frente) |
 
-> **Balance por simulación (`sim/`) — régimen "tablero más lleno" (en playtest).** Con 3 unidades
-> iniciales, `drawWeight` de unidades/producción y la inflación temprana: **presencia ≈ 2.7
-> unidades/lado** (antes 1.9) y **≈ 1.2 en vanguardia** (antes 0.6), **media ≈ 39 / mediana ≈ 34**
-> medios-turnos (combates más largos), **99 % por KO**, ~32 % llega a muerte súbita, ~1 % timeout,
-> starved ≈ 28 %. **Facción: Manif ≈ 54/46 (SESGO leve, pendiente de rebalance fino per-card)** —
-> el régimen nuevo movió la facción; se aprieta carta por carta (no con knobs globales). Métricas de
-> presencia/vanguardia: `py sim/main.py run`. Valores en revisión por playtest.
+> **Balance por simulación (`sim/`) — PENDIENTE de re-validar tras el rework de cartas (§9/§10).** El
+> rework cambió todo el pool (roster asimétrico de 9/facción, pasivas nuevas `OnDeath`/`Armor`/`PushBack`,
+> productoras +2, 8 acciones). Los números de balance previos (duración, presencia, facción) quedaron
+> **obsoletos**. Tras bakear `CardLibrary` + `sim/`, correr `py sim/parity_check.py` (paridad motor↔sim)
+> y `py sim/main.py run` (facción ≈ 50/50 en agregado, duración objetivo, presencia/vanguardia) y
+> apretar carta por carta. Valores en revisión por playtest.
 
 ---
 
 ## 13. Pendientes [DEFINIR]
 
-- **Balance de unidades:** ✅ **validado por simulación** (Fase 5, `sim/`). Los valores de §9/§10 son los finales del balanceo global (duración media ≈32, facción ≈48/52). Pendiente sólo el **balance fino per-card** si se quiere apretar el 48/52 (no lo mueven los knobs globales).
+- **Balance de unidades:** ⏳ **pendiente de re-balanceo tras el rework de cartas** (§9/§10 son valores rough). Validar en `sim/` (facción ≈ 50/50 en agregado, duración objetivo) y apretar carta por carta.
 - **Apilamiento:** punto de extensión reservado (`UnitSlot.count`), inactivo en v1.
-- **Unidades iniciales por facción:** **3** — Manifestantes = Piquetero + Gordo Sindical + Jubilado; Policías = Infante + Puntero + Gendarme (1 peleador *Escaramuza* + 1 *Productora* + 1 *Muro*). El peleador (deploy **Cualquiera**) y la productora (retaguardia) arrancan en slots 1–2; el Muro (deploy **Frente**) arranca en la vanguardia (slot 4) → presencia en el frente desde el turno 1. Da más cuerpos en juego y combates más largos.
+- **Unidades iniciales por facción:** **3** — Manifestantes = Piquetero + Gordo Sindical + Encadenado; Policías = Infante + Recaudador + Gendarme (1 peleador *Escaramuza* + 1 *Productora* + 1 *Muro*). El peleador (deploy **Cualquiera**) y la productora (retaguardia) arrancan en slots 1–2; el Muro (deploy **Frente**) arranca en la vanguardia (slot 4) → presencia en el frente desde el turno 1. Da más cuerpos en juego y combates más largos.
 - **Feedback visual por unidad:** ✅ **implementado** — slot tipo "carta de unidad" (área de arte sprite-ready + barra de HP con valor + fila de iconos para stat de acción/pasivas/estados/equipo, con *tooltip*), más el popover informativo de hover (§11.3). Pendiente sólo, si se quisiera, reemplazar los glifos emoji de los iconos por **iconos dibujados** (asignando el `Sprite` de cada `SlotIcon`) y el **sprite del personaje** en el área de arte.
 - **Tope de equipos por unidad:** hoy sin límite (§8.4); definir si conviene un máximo.
 - **EquipmentCardData:** diseñado e incluido en el catálogo (§7.1 / §8.4 / §9/§10, 4 cartas/facción); falta implementar (capa de stats efectivos, §15 Fase 4).

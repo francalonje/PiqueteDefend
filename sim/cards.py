@@ -81,16 +81,33 @@ def regen(value, k: GlobalKnobs) -> PassiveEffect:
                          target=PassiveTarget.SELF)
 
 
-def turn_damage(value, count, k: GlobalKnobs) -> PassiveEffect:
-    # Humo: daño a las `count` unidades más adelantadas del rival (vanguardia).
+def turn_damage(value, k: GlobalKnobs) -> PassiveEffect:
+    # Humo: daño/turno a TODO el tablero rival (AoE). Spec §7.3/§9.
     return PassiveEffect(PassiveType.TURN_DAMAGE, value=scale(value, k.dmg_mult, minimum=1),
-                         target=PassiveTarget.ENEMIES, mode=TargetMode.FRONTMOST, count=count)
+                         target=PassiveTarget.ENEMIES, mode=TargetMode.ALL, count=0)
 
 
-def turn_status(status, count, k: GlobalKnobs) -> PassiveEffect:
-    # Gas: estado a las `count` unidades más adelantadas del rival.
+def turn_status(status, k: GlobalKnobs) -> PassiveEffect:
+    # Gas: estado/turno a TODO el tablero rival (AoE). Spec §7.3/§10.
     return PassiveEffect(PassiveType.TURN_STATUS, status=status, target=PassiveTarget.ENEMIES,
-                         mode=TargetMode.FRONTMOST, count=count)
+                         mode=TargetMode.ALL, count=0)
+
+
+def on_death_furia(value, counter, k: GlobalKnobs) -> PassiveEffect:
+    # Jubilado mártir: al morir, Furia a los aliados adyacentes (spec §7.3/§9).
+    return PassiveEffect(PassiveType.ONDEATH, status=furia(value, counter, k),
+                         target=PassiveTarget.ALLIES, mode=TargetMode.ADJACENT, count=0)
+
+
+def blindaje(value, k: GlobalKnobs) -> PassiveEffect:
+    # Blindaje: reduce el daño de ataques de unidad (spec §7.3, Policías).
+    return PassiveEffect(PassiveType.ARMOR, value=scale(value, k.dmg_mult, minimum=1),
+                         target=PassiveTarget.SELF)
+
+
+def chorro(k: GlobalKnobs) -> PassiveEffect:
+    # Chorro: al atacar, empuja al objetivo al fondo del rival (spec §7.3, Policías).
+    return PassiveEffect(PassiveType.PUSHBACK, target=PassiveTarget.SELF)
 
 
 def action(id, name, faction, category, cost_res, cost, effects, k: GlobalKnobs) -> ActionCardData:
@@ -148,43 +165,43 @@ def poison(value, counter, k: GlobalKnobs) -> StatusEffect:
 def build_manifestantes(k: GlobalKnobs) -> List[CardData]:
     HEAL = AttackEffect.HEAL_ALLIES
     return [
-        # Unidades
-        unit("piquetero", "Piquetero", M, "Escaramuza", FZA, 4, 24, [],
-             atk(TargetMode.FRONTMOST, 1, 9, k), [aura(1, k)], k),
-        unit("jubilado", "Jubilado", M, "Muro", DIN, 5, 38, FRENTE,
-             atk(TargetMode.FRONTMOST, 2, 2, k), [retaliate(2, k)], k),
-        unit("gordo_sindical", "Gordo Sindical", M, "Productora", DIN, 3, 14, RETAGUARDIA,
-             atk(TargetMode.FRONTMOST, 1, 2, k), [produce(DIN, 1, k)], k),
-        unit("fisura", "Fisura", M, "Cleave", FZA, 5, 24, [1, 2, 3, 4],
-             atk(TargetMode.FRONTMOST, 3, 4, k), [produce(FZA, 1, k)], k),
-        unit("tuitero", "Tuitero Militante", M, "Productora", SOC, 2, 12, RETAGUARDIA,
-             atk(TargetMode.FRONTMOST, 1, 1, k), [produce(SOC, 1, k)], k),
-        unit("choripanero", "Choripanero", M, "Healer", SOC, 4, 18, [1, 2, 3, 4],
-             atk(TargetMode.ANY, 1, 4, k, effect=HEAL), [], k),
-        unit("mortero", "Mortero Casero", M, "Sniper", FZA, 5, 10, [1, 2, 3],
-             atk(TargetMode.ANY, 1, 9, k), [], k),
-        unit("quema_cubiertas", "Quema de Cubiertas", M, "Emisor", SOC, 5, 18, [1, 2, 3, 4],
-             atk(TargetMode.FRONTMOST, 1, 1, k), [turn_damage(1, 3, k)], k),
+        # Unidades (9)
+        unit("piquetero", "Piquetero", M, "Escaramuza", FZA, 4, 20, [],
+             atk(TargetMode.FRONTMOST, 1, 14, k), [aura(2, k)], k),
+        unit("fisura", "Fisura", M, "Cleave", FZA, 5, 18, [1, 2, 3, 4],
+             atk(TargetMode.FRONTMOST, 3, 7, k), [produce(FZA, 1, k)], k),
+        unit("jubilado", "Jubilado", M, "Martir", FZA, 2, 6, [],
+             atk(TargetMode.FRONTMOST, 1, 2, k), [on_death_furia(4, 2, k)], k),
+        unit("mortero", "Mortero Casero", M, "Morterista", FZA, 5, 8, [1, 2, 3],
+             atk(TargetMode.BACKMOST, 1, 14, k), [], k),
+        unit("encadenado", "Encadenado", M, "Muro", DIN, 5, 32, FRENTE,
+             atk(TargetMode.FRONTMOST, 2, 3, k), [retaliate(3, k)], k),
+        unit("gordo_sindical", "Gordo Sindical", M, "Productora", DIN, 3, 12, RETAGUARDIA,
+             atk(TargetMode.FRONTMOST, 1, 3, k), [produce(DIN, 2, k)], k),
+        unit("choripanero", "Choripanero", M, "Healer", DIN, 4, 15, [1, 2, 3, 4],
+             atk(TargetMode.ANY, 1, 3, k, effect=HEAL), [], k),
+        unit("tuitero", "Tuitero Militante", M, "Productora", SOC, 2, 10, RETAGUARDIA,
+             atk(TargetMode.FRONTMOST, 1, 2, k), [produce(SOC, 2, k)], k),
+        unit("quema_cubiertas", "Quema de Cubiertas", M, "Emisor", SOC, 5, 15, [1, 2, 3, 4],
+             atk(TargetMode.FRONTMOST, 1, 2, k), [turn_damage(2, k)], k),
 
-        # Acciones (10)
+        # Acciones (8)
         action("colecta", "Colecta", M, "Boost", SOC, 3, [mod_res(TS(), DIN, 6, k)], k),
         action("fernet", "Fernet con Cola", M, "Boost", DIN, 1, [mod_res(TS(), FZA, 3, k)], k),
         action("viral", "Viral en Redes", M, "Boost", DIN, 2, [mod_res(TS(), SOC, 7, k)], k),
-        action("saqueo", "Saqueo", M, "Sabotaje", FZA, 1, [mod_res(TO(), DIN, -3, k)], k),
-        action("paro_general", "Paro General", M, "Ataque", FZA, 5, [mod_hp(TO(), -14, k)], k),
-        action("abrazo", "Abrazo Colectivo", M, "Defensa", DIN, 5, [mod_hp(TS(), 12, k)], k),
+        action("paro_general", "Paro General", M, "Ataque", FZA, 5, [mod_hp(TO(), -21, k)], k),
+        action("el_aguante", "El Aguante", M, "Boost", FZA, 2, [apply_status(TS(), furia(4, 2, k))], k),
         action("asamblea", "Asamblea Popular", M, "Especial", SOC, 6,
                [apply_status(TS(), StatusEffect(StatusType.DOUBLE_PRODUCTION, 2, 1))], k),
-        action("escrache", "Escrache", M, "Sabotaje", SOC, 4,
+        action("abrazo", "Abrazo Colectivo", M, "Defensa", DIN, 5, [mod_hp(TS(), 10, k)], k),
+        action("escrache", "Escrache", M, "Control", SOC, 4,
                [apply_status(TO(), StatusEffect(StatusType.STUN, 0, 1))], k),
-        action("el_aguante", "El Aguante", M, "Boost", FZA, 2, [apply_status(TS(), furia(3, 2, k))], k),
-        action("cambio_consigna", "Cambio de Consigna", M, "Especial", SOC, 1, [move_unit(TS())], k),
 
         # Equipo (4)
-        equip("pechera", "Pechera de Cartón", M, DIN, 3, [StatModifier(StatType.MAX_HP, scale(12, k.hp_mult, 1))], [], k),
-        equip("cascote", "Cascote", M, FZA, 2, [StatModifier(StatType.DAMAGE, scale(3, k.dmg_mult, 1))], [], k),
+        equip("pechera", "Pechera de Cartón", M, DIN, 3, [StatModifier(StatType.MAX_HP, scale(10, k.hp_mult, 1))], [], k),
+        equip("cascote", "Cascote", M, FZA, 2, [StatModifier(StatType.DAMAGE, scale(4, k.dmg_mult, 1))], [], k),
         equip("parrilla", "Parrilla Portátil", M, DIN, 3, [], [regen(2, k)], k),
-        equip("miguelitos", "Miguelitos", M, FZA, 3, [], [retaliate(3, k)], k),
+        equip("miguelitos", "Miguelitos", M, FZA, 3, [], [retaliate(4, k)], k),
     ]
 
 
@@ -193,53 +210,52 @@ def build_manifestantes(k: GlobalKnobs) -> List[CardData]:
 def build_policias(k: GlobalKnobs) -> List[CardData]:
     HEAL = AttackEffect.HEAL_ALLIES
     return [
-        # Unidades
-        unit("infante", "Infante", P, "Escaramuza", FZA, 6, 26, [],
-             atk(TargetMode.FRONTMOST, 1, 10, k), [aura(1, k)], k),
-        unit("gendarme", "Gendarme", P, "Muro", DIN, 4, 32, FRENTE,
-             atk(TargetMode.FRONTMOST, 2, 3, k), [retaliate(2, k)], k),
-        unit("puntero", "Puntero", P, "Productora", DIN, 5, 14, RETAGUARDIA,
-             atk(TargetMode.FRONTMOST, 1, 2, k), [produce(DIN, 1, k)], k),
-        unit("itakero", "Itakero", P, "Cleave", FZA, 4, 22, [1, 2, 3, 4],
-             atk(TargetMode.FRONTMOST, 3, 3, k), [produce(FZA, 1, k)], k),
-        unit("trol", "Trol Oficial", P, "Productora", SOC, 5, 16, RETAGUARDIA,
-             atk(TargetMode.FRONTMOST, 1, 1, k), [produce(SOC, 1, k)], k),
-        unit("medico_same", "Médico del SAME", P, "Healer", DIN, 4, 18, [1, 2, 3, 4],
-             atk(TargetMode.FRONTMOST, 3, 2, k, effect=HEAL), [], k),
-        unit("halcon", "Halcón", P, "Sniper", FZA, 6, 10, [1, 2, 3],
-             atk(TargetMode.ANY, 1, 10, k), [], k),
-        unit("gasero", "Gasero", P, "Emisor", SOC, 5, 18, [1, 2, 3, 4],
-             atk(TargetMode.FRONTMOST, 1, 1, k),
-             # Veneno re-emitido cada turno: counter 1 = 1 tick/turno, sin apilarse (roadmap).
-             # count 1 = a la unidad enemiga más adelantada (espejo del Core).
-             [turn_status(poison(2, 1, k), 1, k)], k),
+        # Unidades (9)
+        unit("infante", "Infante", P, "Escaramuza", FZA, 5, 24, [],
+             atk(TargetMode.FRONTMOST, 1, 13, k), [], k),
+        unit("itakero", "Itakero", P, "Cleave", FZA, 4, 20, [1, 2, 3, 4],
+             atk(TargetMode.FRONTMOST, 3, 4, k), [], k),
+        unit("halcon", "Halcón", P, "Sniper", FZA, 6, 8, [1, 2, 3],
+             atk(TargetMode.ANY, 1, 15, k), [], k),
+        unit("gendarme", "Gendarme", P, "Muro", DIN, 5, 26, FRENTE,
+             atk(TargetMode.FRONTMOST, 2, 4, k), [blindaje(2, k)], k),
+        unit("carro_hidrante", "Carro Hidrante", P, "Control", DIN, 4, 18, [1, 2, 3, 4],
+             atk(TargetMode.FRONTMOST, 1, 3, k), [chorro(k)], k),
+        unit("recaudador", "Recaudador", P, "Productora", DIN, 3, 12, RETAGUARDIA,
+             atk(TargetMode.FRONTMOST, 1, 3, k), [produce(DIN, 2, k)], k),
+        unit("caballeria", "Caballería", P, "Carga", SOC, 6, 16, [1, 2, 3, 4],
+             atk(TargetMode.ALL, 0, 2, k), [], k),
+        unit("trol", "Trol Oficial", P, "Productora", SOC, 3, 14, RETAGUARDIA,
+             atk(TargetMode.FRONTMOST, 1, 2, k), [produce(SOC, 2, k)], k),
+        unit("gasero", "Gasero", P, "Emisor", SOC, 5, 15, [1, 2, 3, 4],
+             atk(TargetMode.FRONTMOST, 1, 2, k),
+             # Veneno board-wide re-emitido cada turno: counter 1 = 1 tick/turno, sin apilarse (roadmap).
+             [turn_status(poison(2, 1, k), k)], k),
 
-        # Acciones (10)
+        # Acciones (8)
         action("partida", "Partida Presupuestaria", P, "Boost", SOC, 2, [mod_res(TS(), DIN, 7, k)], k),
-        action("licitacion", "Licitación Express", P, "Boost", DIN, 3, [mod_res(TS(), FZA, 8, k)], k),
+        action("licitacion", "Licitación Express", P, "Boost", DIN, 3, [mod_res(TS(), FZA, 10, k)], k),
         action("cadena", "Cadena Nacional", P, "Boost", DIN, 2, [mod_res(TS(), SOC, 4, k)], k),
-        action("embargo", "Embargo", P, "Sabotaje", FZA, 3, [mod_res(TO(), DIN, -7, k)], k),
-        action("operativo", "Operativo Apretón", P, "Ataque", DIN, 6, [mod_hp(TO(), -18, k)], k),
-        action("refuerzos", "Refuerzos", P, "Defensa", SOC, 5, [mod_hp(TS(), 9, k)], k),
+        action("operativo", "Operativo Apretón", P, "Ataque", DIN, 6, [mod_hp(TO(), -27, k)], k),
+        action("causa_judicial", "Causa Judicial", P, "Sabotaje", DIN, 4, [apply_status(TO(), poison(3, 2, k))], k),
+        action("apriete", "Apriete", P, "Sabotaje", FZA, 2, [apply_status(TO(), desmoralizar(4, 2, k))], k),
         action("toque_queda", "Toque de Queda", P, "Especial", DIN, 5,
                [apply_status(TO(), StatusEffect(StatusType.SKIP_PRODUCTION, 0, 1))], k),
-        action("causa_judicial", "Causa Judicial", P, "Sabotaje", DIN, 4, [apply_status(TO(), poison(2, 2, k))], k),
-        action("apriete", "Apriete", P, "Sabotaje", FZA, 2, [apply_status(TO(), desmoralizar(3, 2, k))], k),
         action("reubicacion", "Reubicación Forzosa", P, "Especial", DIN, 2, [swap_units(TO())], k),
 
         # Equipo (4)
-        equip("chaleco", "Chaleco Antibalas", P, DIN, 3, [StatModifier(StatType.MAX_HP, scale(14, k.hp_mult, 1))], [], k),
-        equip("tonfa", "Tonfa", P, FZA, 2, [StatModifier(StatType.DAMAGE, scale(3, k.dmg_mult, 1))], [], k),
-        equip("obra_social", "Obra Social", P, DIN, 3, [], [regen(2, k)], k),
-        equip("reflectores", "Reflectores", P, SOC, 2, [], [aura(1, k)], k),
+        equip("chaleco", "Chaleco Antibalas", P, DIN, 3, [StatModifier(StatType.MAX_HP, scale(12, k.hp_mult, 1))], [], k),
+        equip("tonfa", "Tonfa", P, FZA, 2, [StatModifier(StatType.DAMAGE, scale(4, k.dmg_mult, 1))], [], k),
+        equip("escudo_antimotin", "Escudo Antimotín", P, DIN, 3, [], [blindaje(2, k)], k),
+        equip("hidrante_mano", "Hidrante de Mano", P, SOC, 3, [], [chorro(k)], k),
     ]
 
 
 # ── Pools y unidades iniciales ───────────────────────────────────────────────
 
 STARTING_IDS: Dict[Faction, List[str]] = {
-    M: ["piquetero", "gordo_sindical", "jubilado"],   # Escaramuza + Productora + Muro(frente)
-    P: ["infante", "puntero", "gendarme"],
+    M: ["piquetero", "gordo_sindical", "encadenado"],   # Escaramuza + Productora + Muro(frente)
+    P: ["infante", "recaudador", "gendarme"],
 }
 
 

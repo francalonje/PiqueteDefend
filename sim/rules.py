@@ -281,6 +281,27 @@ class GameEngine:
         base += self.aura_bonus_for(board, slot_index)
         return max(0, base)
 
+    @staticmethod
+    def _armor_of(slot: UnitSlot) -> int:
+        """Suma del Blindaje (reducción de daño de ataque) de la unidad, incl. equipo (spec §7.3)."""
+        return sum(pe.value for pe in slot.all_passives() if pe.passive_type == PassiveType.ARMOR)
+
+    @staticmethod
+    def _has_passive(slot: UnitSlot, pt: PassiveType) -> bool:
+        return any(pe.passive_type == pt for pe in slot.all_passives())
+
+    @staticmethod
+    def _push_target_back(owner: PlayerState, t: int):
+        """Chorro: empuja la unidad del slot t al slot libre más al fondo (menor índice) de su
+        formación. No-op si no hay lugar más atrás. Ignora allowedSlots (empuje involuntario)."""
+        if not (0 <= t < BOARD) or owner.slots[t] is None:
+            return
+        for j in range(t):
+            if owner.slots[j] is None:
+                owner.slots[j] = owner.slots[t]
+                owner.slots[t] = None
+                return
+
     # ── Turno ──
     def begin_turn(self):
         self.half_turn += 1
@@ -528,9 +549,14 @@ class GameEngine:
                 continue  # whiff
             retaliation += sum(pe.value for pe in d.all_passives()
                                if pe.passive_type == PassiveType.RETALIATE)
-            d.current_hp -= dmg
+            taken = max(0, dmg - self._armor_of(d))   # Blindaje mitiga el golpe de ataque (spec §7.3)
+            d.current_hp -= taken
             if d.is_dead:
                 self._remove(opp, t)
+        # Chorro (PushBack): empuja a los objetivos sobrevivientes al fondo del rival (antes del Retaliate).
+        if p.slots[attacker_slot] is not None and self._has_passive(attacker, PassiveType.PUSHBACK):
+            for t in targets:
+                self._push_target_back(opp, t)
         if retaliation and p.slots[attacker_slot] is not None:
             attacker.current_hp -= retaliation
             if attacker.is_dead:
@@ -586,9 +612,25 @@ class GameEngine:
 
     def _remove(self, owner: PlayerState, slot: int):
         s = owner.slots[slot]
-        if s is not None:
-            self._record_death(s)
+        if s is None:
+            return
+        self._record_death(s)
         owner.slots[slot] = None
+        # OnDeath (death-rattle, spec §7.3): dispara antes de seguir; puede encadenar (vía _direct_damage).
+        other = self.players[1 - self.players.index(owner)]
+        for pe in s.all_passives():
+            if pe.passive_type == PassiveType.ONDEATH:
+                self._resolve_on_death(pe, owner, other, slot)
+
+    def _resolve_on_death(self, pe, owner: PlayerState, other: PlayerState, slot: int):
+        board_owner = other if pe.target == PassiveTarget.ENEMIES else owner
+        for t in self._passive_targets(pe, slot, board_owner.slots):
+            if not (0 <= t < BOARD) or board_owner.slots[t] is None:
+                continue
+            if pe.status is not None:
+                board_owner.slots[t].statuses.append(pe.status.clone())
+            elif pe.value:
+                self._direct_damage(board_owner, t, pe.value)
 
     def _record_deploy(self, unit: UnitCardData):
         self.deploys_by_arch[unit.archetype] = self.deploys_by_arch.get(unit.archetype, 0) + 1
