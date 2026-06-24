@@ -685,7 +685,7 @@ Por ahora los **lados son fijos**: **Manifestantes** siempre a la izquierda, **P
 
 ### 11.3 Pantalla de juego
 
-Pantalla única, **lados fijos**: Manifestantes a la izquierda, Policías a la derecha. 6 slots de unidades por jugador siempre visibles, pegados al borde externo de cada lado. La mano y las zonas de acción pertenecen solo al jugador activo.
+Pantalla única, **lados fijos**: Manifestantes a la izquierda, Policías a la derecha. El layout se organiza en **dos franjas full-width**: arriba la **franja de batalla** (las unidades de ambos jugadores, 6 slots por lado, frentes hacia el centro) y abajo la **mano en abanico** del jugador activo. 6 slots de unidades por jugador siempre visibles, pegados al borde externo de cada lado. La mano pertenece solo al jugador activo.
 
 Los slots van del **1 al 6**. De las **3 unidades iniciales**, el **Muro** arranca **adelante de todo** (slot 6, hacia el centro) — tankea el melee desde el turno 1 y nada se despliega por delante de él —, y la Escaramuza y la Productora arrancan en la **retaguardia** (slots 1 y 2, los más externos de cada lado), protegidas detrás del muro. La fila derecha (Policías) se dibuja invertida.
 
@@ -693,26 +693,31 @@ Los slots van del **1 al 6**. De las **3 unidades iniciales**, el **Muro** arran
 ┌────────────────────────────────────────────────────────────────────────────┐
 │ MANIFESTANTES            [ Terminar turno ]  (▶ chip)            POLICÍAS      │
 │ $:9 ⚡:6 📣:14                                            $:12 ⚡:8 📣:5         │
-│                                                                                │
 │                       (fondo / escena de la marcha)                            │
 │                    ┌─────────────┐                                             │
 │                    │ ⚔ Atacar·5  │ ← popover sobre la unidad clickeada         │
-│                    └──────┬──────┘                                             │
-│                     ╔═════════╗  ╔════════════╗                                │
-│ [1][2][3][4][5][6]  ║  JUGAR  ║  ║ DESCARTAR  ║           [6][5][4][3][2][1]   │
-│  slots Manif.       ╚═════════╝  ╚════════════╝            slots Policías      │
-│  (1·2 al borde izq) [c1][c2][c3][c4][c5][c6]             (1·2 al borde der)    │
-│                      ▲ mano del jugador activo                                 │
+│  FRANJA DE BATALLA └──────┬──────┘                                             │
+│ [1][2][3][4][5][6]                                       [6][5][4][3][2][1]    │
+│  slots Manif.                                             slots Policías       │
+│  (1·2 al borde izq)                                       (1·2 al borde der)   │
+│                    ╲ c2  c3  c4  c5 ╱   ← mano en abanico (solo activo)        │
+│                      ╲__c1________c6_╱     (asoma desde abajo; hover = sube)    │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Jugar / descartar carta (drag & drop):** se arrastra la carta de la mano y se suelta sobre la zona **DESCARTAR**, sobre **JUGAR**, **o directamente sobre un slot objetivo válido** (despliegue de unidad, equipar, o acción con objetivo de unidad). Mientras se arrastra, una **copia de la carta ("ghost")** acompaña el puntero y **los slots elegibles para esa carta se iluminan** (highlight). Si la carta se suelta en un slot **inválido** o en cualquier lugar que no sea un drop target válido, **la acción se cancela sin gastar recursos** y la carta vuelve a la mano.
+**Jugar carta (sin botón JUGAR):** todas las cartas se juegan en **dos pasos** (seleccionar → confirmar):
+- **Con click:** click en la carta la *arma*; los slots/objetivos válidos se **iluminan** y un segundo click confirma. Cartas **con objetivo** (desplegar unidad, equipar, acción que apunta a una unidad, Move/Swap) piden el slot objetivo. Cartas **globales** (sin objetivo de slot) se confirman con un click sobre **cualquier slot del tablero** (todos resaltados), evitando jugadas accidentales.
+- **Con drag & drop:** se arrastra la carta y se suelta directamente sobre un **slot objetivo válido** (o, para globales, sobre **cualquier slot**). Mientras se arrastra, una **copia de la carta ("ghost")** acompaña el puntero y los slots elegibles se **iluminan**. Soltar fuera de un drop target válido **cancela sin gastar recursos** (la carta vuelve a la mano).
+
+**Descartar carta (sin botón DESCARTAR):** **Ctrl+Click** sobre la carta (mouse) o **Ctrl + 1–6** (teclado).
+
+**Mano en abanico:** las cartas se dibujan solapadas en arco y asoman parcialmente desde el borde inferior; al **hover** una carta **sube, se endereza, crece y pasa al frente** para leerse completa (y abre su popover de detalle). Esto deja la franja de batalla más grande y prominente.
 
 **Atacar con una unidad:** las unidades propias que **pueden actuar este turno** (del jugador activo, sin atacar aún, no aturdidas y permitido por la regla del turno 1) se **resaltan**. **Click** sobre una de ellas → aparece un **popover** con su acción disponible; al clickearlo, actúa. Si es a elección (`mode = Any`, snipe), a continuación se clickea la unidad objetivo (en el tablero rival si daña, **en el propio si es un healer** que cura aliadas, §7.2); los modos anclados (`Frontmost`/`Backmost`/`All`) actúan directo sin elegir. **[FUTURO]** si una unidad llega a tener varios ataques (`List<UnitAttack>`), el popover los lista.
 
 **Equipar:** se arrastra la carta de Equipo sobre una **unidad propia** (el slot es el *drop target*, §8.4).
 
-**Mover / intercambiar (efectos de dos slots, MoveUnit/SwapUnits):** se elige el **primer** slot (arrastrando la carta a ese slot, o jugándola en JUGAR y clickeando el slot) y luego se clickea el **segundo** (Move: slot propio libre y permitido; Swap: la otra unidad enemiga). El primer slot queda marcado mientras se elige el segundo.
+**Mover / intercambiar (efectos de dos slots, MoveUnit/SwapUnits):** se elige el **primer** slot (arrastrando la carta a ese slot, o clickeando la carta y luego el slot) y luego se clickea el **segundo** (Move: slot propio libre y permitido; Swap: la otra unidad enemiga). El primer slot queda marcado mientras se elige el segundo.
 
 **Anatomía de la unidad en el tablero (implementado):** cada slot ocupado se dibuja como una "carta de unidad" vertical: **área de arte** (hueco del sprite, hoy un panel tinte-facción con el nombre; cuando exista `CardData.sprite` se pinta de fondo) → **barra de HP con el valor superpuesto** → **fila de iconos**. Los iconos son un único registro que cubre, en orden: el **stat de acción** (⚔ daño efectivo o ✚ cura), las **pasivas** (producción/regen/aura/espinas/daño o estado por turno), los **estados** (Veneno/Aturdir/Furia/Desmoralizar) y el **equipo** adjunto. El icono de acción muestra el **daño/cura efectivo** y, si pega a más de un objetivo (AoE), `daño×objetivos` (p. ej. `5×3` = 5 a cada uno de 3). Cada icono es *sprite-ready* (glifo emoji como fallback hasta tener el icono dibujado). Además, indicador por jugador para sus `activeStatuses` de producción en el panel de stats.
 
@@ -728,13 +733,14 @@ Los slots van del **1 al 6**. De las **3 unidades iniciales**, el **Muro** arran
 
 | Acción | Mouse | Teclado |
 |--------|-------|---------|
-| Jugar carta | Arrastrar sobre **JUGAR** **o sobre un slot válido** (los elegibles se iluminan) | Seleccionar (1–6) + Enter |
-| Descartar carta | Arrastrar la carta sobre **DESCARTAR** (drag & drop) | Seleccionar (1–6) + Backspace |
-| Desplegar unidad | Arrastrar a un slot propio **libre** y permitido (no hay reemplazo, §8.3); o JUGAR = primer libre | — |
-| Equipar a una unidad | Arrastrar el equipo sobre la unidad propia | — |
+| Jugar carta (con objetivo) | Click en la carta → click en el slot objetivo (los elegibles se iluminan); o arrastrar la carta al slot | — |
+| Jugar carta (global, sin objetivo) | Click en la carta → click en **cualquier slot** (todos resaltados) para confirmar; o arrastrar a cualquier slot | — |
+| Descartar carta | **Ctrl+Click** sobre la carta | **Ctrl + 1–6** |
+| Desplegar unidad | Click → slot propio **libre** y permitido (no hay reemplazo, §8.3); o arrastrar al slot | — |
+| Equipar a una unidad | Click → unidad propia; o arrastrar el equipo sobre la unidad propia | — |
 | Atacar / curar con una unidad | Click en la unidad (resaltada) → click en el popover de acción | — |
 | Elegir slot objetivo (ataque/cura a elección, sabotaje) | Click en el slot | — |
-| Mover / intercambiar unidad (MoveUnit / SwapUnits) | Arrastrar al primer slot (o JUGAR→click) → click en el segundo | — |
+| Mover / intercambiar unidad (MoveUnit / SwapUnits) | Arrastrar al primer slot (o click carta→slot) → click en el segundo | — |
 | Ver info de unidad / carta | Hover sobre la unidad o la carta | — |
 
 ### 11.5 Anatomía de una carta

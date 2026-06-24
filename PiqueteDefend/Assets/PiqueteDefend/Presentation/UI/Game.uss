@@ -186,14 +186,23 @@
     min-height: 0;
 }
 
-/* ── Banda inferior: slots(6) | centro(dropzones+mano) | slots(6) ─────── */
-.game__bottom {
+/* ── Batalla: unidades a todo el ancho. slots(6) | gap | slots(6) ─────── */
+/* Sin columna central → cada lado se queda con ~mitad del ancho (slots más anchos).
+   La mano va en una franja propia (abanico), así el tablero gana alto y prominencia. */
+.game__board {
     flex-direction: row;
     justify-content: space-between;
     align-items: stretch;
     width: 100%;
     flex-shrink: 0;
-    min-height: 250px;
+}
+
+/* Separador central angosto: mantiene el aire "los frentes se tocan" y ancla la
+   inflación. No crece (los slots absorben el ancho). */
+.game__board-gap {
+    width: 80px;
+    flex-grow: 0;
+    flex-shrink: 0;
 }
 
 /* Cada grupo absorbe la mitad del ancho que NO ocupa la columna central
@@ -206,9 +215,10 @@
     align-items: stretch;
     flex-grow: 1;
     flex-basis: 0;
-    /* Marca el alto de la banda inferior → unidades ~20% más altas que el alto que
-       imponía sólo la columna central (la mano queda abajo, el resto se estira). */
-    min-height: 430px;
+    /* Marca el alto de la franja de batalla. Con la mano movida a su abanico (abajo),
+       las unidades se quedan con casi todo el alto → más grandes y prominentes.
+       Acotado para no pasarse del alto lógico a 16:9 (~675px): top + board + handbar. */
+    min-height: 400px;
 }
 
 /* Jugador derecho (Policías): el slot 1/2 ("del fondo") va pegado al borde
@@ -223,8 +233,8 @@
 .slot {
     flex-grow: 1;
     flex-basis: 0;
-    min-width: 56px;
-    margin: 0 1px;
+    min-width: 76px;
+    margin: 0 2px;
     padding: 5px 3px;
     border-radius: 9px;
     border-width: 2px;
@@ -452,98 +462,63 @@
     border-color: rgba(255, 255, 255, 0.02);
 }
 
-/* ── Columna central: dropzones + hint + mano ─────────────────────────── */
-/* Ancho fijo en % (no flex-grow): así NO se queda con todo el sobrante y los
-   grupos de slots se ensanchan. ~23% deja las cartas un poco más anchas que el
-   mínimo, manteniendo las unidades grandes. */
-.game__center-col {
-    width: 32%;
-    flex-grow: 0;
+/* ── Mano en abanico: franja baja con las cartas solapadas asomando ───── */
+/* Altura baja: sólo reserva la franja visible del abanico. Las cartas (absolute)
+   se extienden por debajo (fuera de pantalla) y suben al hacer hover. overflow
+   visible: la carta hovereada (crecida) puede salirse hacia arriba sin recortarse. */
+.game__handbar {
+    width: 100%;
     flex-shrink: 0;
-    align-items: stretch;
-    justify-content: flex-end;
-    margin: 0 8px;
+    height: 150px;
+    position: relative;
+    overflow: visible;
 }
 
-.dropzones {
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    margin-bottom: 8px;
+/* Contenedor del abanico: las cartas se posicionan absolutas (left/bottom/rotate)
+   desde código (LayoutHand). Centrado horizontal lo da el cálculo por carta. */
+.hand {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    overflow: visible;
 }
 
-.dropzone {
-    flex-grow: 1;
-    flex-basis: 0;
-    height: 112px;
-    margin: 0 5px;
-    border-radius: 12px;
-    border-width: 2px;
-    border-color: rgba(255, 255, 255, 0.25);
-    background-color: rgba(20, 22, 28, 0.55);
-    align-items: center;
-    justify-content: center;
-    transition-property: background-color, border-color;
-    transition-duration: 0.12s;
-}
-
-.dropzone--play {
-    border-color: rgb(120, 200, 130);
-    background-color: rgba(38, 88, 48, 0.5);
-}
-
-.dropzone--discard {
-    border-color: rgb(214, 120, 110);
-    background-color: rgba(88, 38, 38, 0.5);
-}
-
-.dropzone--disabled {
-    opacity: 0.3;
-}
-
-.dropzone__label {
-    font-size: 16px;
-    -unity-font-style: bold;
-    color: rgb(235, 237, 242);
-}
-
+/* Hint de targeting: flota arriba-centro de la franja, sin empujar a las cartas. */
 .game__hint {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     font-size: 19px;
     color: rgb(235, 215, 140);
     -unity-text-align: middle-center;
-    height: 24px;
-    margin-bottom: 4px;
     white-space: normal;
 }
 
-.hand {
-    width: 100%;
-    flex-direction: row;
-    justify-content: center;
-    align-items: flex-end;
-}
-
+/* Carta del abanico: posición/rotación las fija LayoutHand (inline). El pivote
+   abajo-centro hace que abran como un abanico real y que al enderezarse/crecer en
+   hover lo hagan desde la base. El hover (subir, enderezar, crecer, traer al frente)
+   también lo aplica el código por inline; acá sólo dejamos la transición suave. */
 .card {
-    width: 90px;
-    min-width: 54px;
-    height: 208px;
-    flex-grow: 1;
-    flex-shrink: 1;
-    margin: 0 2px;
-    padding: 5px;
-    border-radius: 8px;
+    position: absolute;
+    width: 160px;
+    height: 240px;
+    transform-origin: 50% 100%;
+    padding: 7px;
+    border-radius: 9px;
     border-width: 2px;
-    border-color: rgba(255, 255, 255, 0.08);
-    background-color: rgba(48, 52, 66, 0.96);
+    border-color: rgba(255, 255, 255, 0.12);
+    background-color: rgba(48, 52, 66, 0.98);
     align-items: stretch;
     justify-content: flex-start;
-    transition-property: translate, border-color;
-    transition-duration: 0.1s;
+    transition-property: translate, scale, rotate, bottom, left, border-color;
+    transition-duration: 0.12s;
 }
 
-.card:hover {
-    border-color: rgba(255, 255, 255, 0.45);
-    translate: 0 -8px;
+.card--hovered {
+    border-color: rgba(255, 255, 255, 0.55);
 }
 
 .card--unaffordable {
@@ -555,24 +530,24 @@
 }
 
 .card__name {
-    font-size: 14px;
+    font-size: 16px;
     -unity-font-style: bold;
     color: rgb(240, 242, 247);
     white-space: normal;
 }
 
 .card__type {
-    font-size: 10px;
+    font-size: 11px;
     -unity-font-style: bold;
     color: rgb(150, 156, 172);
-    margin-top: 2px;
+    margin-top: 3px;
 }
 
 .card__cost {
-    font-size: 14px;
+    font-size: 16px;
     -unity-font-style: bold;
     color: rgb(228, 206, 120);
-    margin-top: 4px;
+    margin-top: 5px;
 }
 
 /* Costo con inflación aplicada: se tiñe de naranja para avisar que está inflado. */
@@ -581,10 +556,10 @@
 }
 
 .card__body {
-    font-size: 12px;
+    font-size: 13px;
     color: rgb(196, 202, 214);
     white-space: normal;
-    margin-top: 5px;
+    margin-top: 6px;
 }
 
 /* ── Popover de ataque ────────────────────────────────────────────────── */
@@ -677,6 +652,9 @@
     rotate: 3deg;
     scale: 1.05;
     border-color: rgb(232, 108, 70);
+    /* Sin transición: el ghost sigue al puntero seteando left/top, y la transición
+       de .card (left/bottom) lo haría ir con lag. */
+    transition-duration: 0s;
 }
 
 /* ── Overlay ──────────────────────────────────────────────────────────── */
