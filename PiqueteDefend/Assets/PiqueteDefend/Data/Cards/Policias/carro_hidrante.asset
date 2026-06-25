@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e8891f164702b9b46bef66a97e430139, type: 3}
-  m_Name: medico_same
+  m_Name: carro_hidrante
   m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.UnitCardData
-  id: medico_same
-  cardName: "M\xE9dico del SAME"
+  id: carro_hidrante
+  cardName: Carro Hidrante
   faction: 1
   costs:
   - resource: 0
@@ -21,18 +21,27 @@ MonoBehaviour:
   drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "Llega en ambulancia y atiende a todos. Despu\xE9s hace tres guardias
-    para llegar a fin de mes."
+  flavorText: "Diez mil litros a presi\xF3n. Te despega del asfalto y te deja en
+    la otra cuadra antes de que termines el c\xE1ntico."
   playSoundId: 
   animationHook: 
-  maxHp: 15
+  maxHp: 18
   allowedSlots: 01000000020000000300000004000000
   attack:
-    reference: 1
-    pattern: ffffffff0000000001000000
-    pickCount: 0
-    damagePerSlot: 2
-    effect: 1
+    mode: 2
+    count: 1
+    damagePerSlot: 3
+    effect: 0
     hitSoundId: 
-  passiveEffects: []
-  unitSubtype: 1
+  passiveEffects:
+  - passiveType: 8
+    value: 0
+    resource: 0
+    status:
+      statusType: 0
+      value: 0
+      counter: 0
+    target: 0
+    mode: 5
+    count: 1
+  unitSubtype: 0

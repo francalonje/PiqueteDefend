@@ -17,33 +17,21 @@ MonoBehaviour:
   faction: 1
   costs:
   - resource: 1
-    amount: 7
+    amount: 6
   drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: Escudo, casco y 14 horas de turno. Va al frente porque le pagan para
-    eso.
+  flavorText: "Casco, escudo y cara de pocas pulgas. Va al frente porque es lo que
+    mejor hace: plantarse y no moverse ni con gr\xFAa."
   playSoundId: 
   animationHook: 
-  maxHp: 22
+  maxHp: 24
   allowedSlots: 
   attack:
-    reference: 1
-    pattern: ffffffff0000000001000000
-    pickCount: 1
-    damagePerSlot: 15
+    mode: 0
+    count: 1
+    damagePerSlot: 14
     effect: 0
     hitSoundId: 
-  passiveEffects:
-  - passiveType: 2
-    value: 2
-    resource: 0
-    status:
-      statusType: 0
-      value: 0
-      counter: 0
-    target: 1
-    reference: 1
-    pattern: ffffffff01000000
-    pickCount: 0
+  passiveEffects: []
   unitSubtype: 0

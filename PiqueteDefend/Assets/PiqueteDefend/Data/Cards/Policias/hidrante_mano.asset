@@ -9,30 +9,30 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e61353bd5c717d2438b3fede9c541def, type: 3}
-  m_Name: embargo
-  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.ActionCardData
-  id: embargo
-  cardName: Embargo
+  m_Script: {fileID: 11500000, guid: c5f2ef8b1648ba744989b0b7354c0820, type: 3}
+  m_Name: hidrante_mano
+  m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.EquipmentCardData
+  id: hidrante_mano
+  cardName: Hidrante de Mano
   faction: 1
   costs:
-  - resource: 1
+  - resource: 2
     amount: 4
   drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "El juez firm\xF3, la guita vol\xF3. El otro ya lo ve\xEDa venir."
+  flavorText: "Versi\xF3n de bolsillo del carro. Igual te despeina el c\xE1ntico."
   playSoundId: 
   animationHook: 
-  actionCategory: 2
-  effects:
-  - effectType: 1
-    target: 1
-    targetSlot: -1
-    targetSlotB: -1
-    resourceTarget: 0
-    value: -7
+  statModifiers: []
+  grantedPassives:
+  - passiveType: 8
+    value: 0
+    resource: 0
     status:
       statusType: 0
       value: 0
       counter: 0
+    target: 0
+    mode: 5
+    count: 1

@@ -21,29 +21,27 @@ MonoBehaviour:
   drawWeight: 2
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "El que arregla la paritaria y maneja la caja. Aparece en el palco,
-    jam\xE1s en la primera fila."
+  flavorText: "Maneja la caja, la lista y el micro. Aparece en el palco, jam\xE1s
+    en la primera fila."
   playSoundId: 
   animationHook: 
   maxHp: 12
   allowedSlots: 000000000100000002000000
   attack:
-    reference: 1
-    pattern: 00000000
-    pickCount: 0
+    mode: 0
+    count: 1
     damagePerSlot: 3
     effect: 0
     hitSoundId: 
   passiveEffects:
   - passiveType: 0
-    value: 1
+    value: 2
     resource: 0
     status:
       statusType: 0
       value: 0
       counter: 0
     target: 0
-    reference: 1
-    pattern: 
-    pickCount: 0
+    mode: 5
+    count: 1
   unitSubtype: 2

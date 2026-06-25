@@ -21,16 +21,15 @@ MonoBehaviour:
   drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "Un ca\xF1o, p\xF3lvora trucha y punter\xEDa de chiripa. Igual le encaja
-    justo en la oficina del fondo."
+  flavorText: "Un ca\xF1o, p\xF3lvora trucha y fe. No le apunta a nadie, pero siempre
+    le encaja al de la oficina del fondo."
   playSoundId: 
   animationHook: 
   maxHp: 8
   allowedSlots: 010000000200000003000000
   attack:
-    reference: 0
-    pattern: 000000000100000002000000
-    pickCount: 1
+    mode: 1
+    count: 1
     damagePerSlot: 14
     effect: 0
     hitSoundId: 

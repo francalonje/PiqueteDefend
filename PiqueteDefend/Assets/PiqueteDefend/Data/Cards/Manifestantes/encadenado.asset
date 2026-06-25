@@ -10,39 +10,38 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e8891f164702b9b46bef66a97e430139, type: 3}
-  m_Name: gasero
+  m_Name: encadenado
   m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.UnitCardData
-  id: gasero
-  cardName: Gasero
-  faction: 1
+  id: encadenado
+  cardName: Encadenado
+  faction: 0
   costs:
-  - resource: 2
+  - resource: 0
     amount: 6
   drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "Granada de gas en una mano, pa\xF1uelo en la otra. \"Es para dispersar\",
-    avisa, y la nube no lee carteles: dispersa la plaza, la esquina y el kiosco de
-    paso."
+  flavorText: "Se cand\xF3 al obelisco a las seis de la ma\xF1ana y tir\xF3 la llave.
+    De ah\xED no lo saca nadie, y el que lo intenta se lleva los candados de recuerdo."
   playSoundId: 
   animationHook: 
-  maxHp: 15
-  allowedSlots: 01000000020000000300000004000000
+  maxHp: 32
+  allowedSlots: 030000000400000005000000
   attack:
     mode: 0
-    count: 1
-    damagePerSlot: 2
+    count: 2
+    damagePerSlot: 3
     effect: 0
     hitSoundId: 
   passiveEffects:
-  - passiveType: 5
-    value: 0
+  - passiveType: 3
+    value: 3
     resource: 0
     status:
-      statusType: 2
-      value: 2
-      counter: 1
-    target: 2
-    mode: 3
-    count: 0
-  unitSubtype: 0
+      statusType: 0
+      value: 0
+      counter: 0
+    target: 0
+    mode: 5
+    count: 1
+  unitSubtype: 1

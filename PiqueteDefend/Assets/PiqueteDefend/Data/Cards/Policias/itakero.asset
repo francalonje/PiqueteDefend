@@ -18,32 +18,20 @@ MonoBehaviour:
   costs:
   - resource: 1
     amount: 5
-  drawWeight: 2
+  drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "Escopeta Itaka y postas de goma. Apunta al mont\xF3n, total alguno
-    cae."
+  flavorText: "Escopeta Itaka y postas de goma para todos. Apunta al mont\xF3n y
+    reza, total alguno cae."
   playSoundId: 
   animationHook: 
-  maxHp: 19
+  maxHp: 20
   allowedSlots: 01000000020000000300000004000000
   attack:
-    reference: 1
-    pattern: ffffffff0000000001000000
-    pickCount: 0
+    mode: 0
+    count: 3
     damagePerSlot: 4
     effect: 0
     hitSoundId: 
-  passiveEffects:
-  - passiveType: 0
-    value: 1
-    resource: 1
-    status:
-      statusType: 0
-      value: 0
-      counter: 0
-    target: 0
-    reference: 1
-    pattern: 
-    pickCount: 0
+  passiveEffects: []
   unitSubtype: 0

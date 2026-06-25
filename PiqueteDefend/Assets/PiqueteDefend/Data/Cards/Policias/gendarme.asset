@@ -17,33 +17,31 @@ MonoBehaviour:
   faction: 1
   costs:
   - resource: 0
-    amount: 5
+    amount: 6
   drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: Lo trajeron de la frontera a cuidar una esquina. No se mueve, no se
-    cansa, no entiende el reclamo.
+  flavorText: Lo trajeron de la frontera a cuidar una baldosa, y la cuida con la
+    vida. No se mueve, no se cansa, no afloja.
   playSoundId: 
   animationHook: 
-  maxHp: 27
+  maxHp: 26
   allowedSlots: 030000000400000005000000
   attack:
-    reference: 0
-    pattern: 030000000400000005000000
-    pickCount: 0
+    mode: 0
+    count: 2
     damagePerSlot: 4
     effect: 0
     hitSoundId: 
   passiveEffects:
-  - passiveType: 3
-    value: 3
+  - passiveType: 7
+    value: 2
     resource: 0
     status:
       statusType: 0
       value: 0
       counter: 0
     target: 0
-    reference: 1
-    pattern: 
-    pickCount: 0
+    mode: 5
+    count: 1
   unitSubtype: 1

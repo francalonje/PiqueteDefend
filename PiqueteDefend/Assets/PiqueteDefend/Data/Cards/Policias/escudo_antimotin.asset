@@ -10,30 +10,29 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c5f2ef8b1648ba744989b0b7354c0820, type: 3}
-  m_Name: reflectores
+  m_Name: escudo_antimotin
   m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.EquipmentCardData
-  id: reflectores
-  cardName: Reflectores
+  id: escudo_antimotin
+  cardName: "Escudo Antimot\xEDn"
   faction: 1
   costs:
-  - resource: 2
-    amount: 2
+  - resource: 0
+    amount: 4
   drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: Iluminan todo de golpe. De repente la patota se coordina sola.
+  flavorText: Policarbonato y reglamento. El palazo que da, no el que recibe.
   playSoundId: 
   animationHook: 
   statModifiers: []
   grantedPassives:
-  - passiveType: 2
+  - passiveType: 7
     value: 2
     resource: 0
     status:
       statusType: 0
       value: 0
       counter: 0
-    target: 1
-    reference: 1
-    pattern: ffffffff01000000
-    pickCount: 0
+    target: 0
+    mode: 5
+    count: 1

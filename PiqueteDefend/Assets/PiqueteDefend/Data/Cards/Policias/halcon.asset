@@ -21,16 +21,15 @@ MonoBehaviour:
   drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "Grupo especial, mira telesc\xF3pica y paciencia de cazador. Desde
-    la terraza ve toda la plaza."
+  flavorText: "Mira telesc\xF3pica desde la terraza. Te tiene en la cruz desde antes
+    de que llegaras a la esquina."
   playSoundId: 
   animationHook: 
   maxHp: 8
   allowedSlots: 010000000200000003000000
   attack:
-    reference: 0
-    pattern: 000000000100000002000000
-    pickCount: 1
+    mode: 2
+    count: 1
     damagePerSlot: 15
     effect: 0
     hitSoundId: 

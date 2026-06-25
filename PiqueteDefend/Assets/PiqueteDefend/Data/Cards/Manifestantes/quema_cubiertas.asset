@@ -21,16 +21,15 @@ MonoBehaviour:
   drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: Diez gomas viejas y el viento a favor. El humo negro no le hace asco
-    a nadie.
+  flavorText: "Diez gomas viejas, un f\xF3sforo y el viento a favor. El humo negro
+    no discrimina: te entra a todos."
   playSoundId: 
   animationHook: 
   maxHp: 15
   allowedSlots: 01000000020000000300000004000000
   attack:
-    reference: 1
-    pattern: 00000000
-    pickCount: 0
+    mode: 2
+    count: 1
     damagePerSlot: 2
     effect: 0
     hitSoundId: 
@@ -43,7 +42,6 @@ MonoBehaviour:
       value: 0
       counter: 0
     target: 2
-    reference: 0
-    pattern: 030000000400000005000000
-    pickCount: 0
+    mode: 3
+    count: 0
   unitSubtype: 0

@@ -16,34 +16,32 @@ MonoBehaviour:
   cardName: Jubilado
   faction: 0
   costs:
-  - resource: 0
-    amount: 6
+  - resource: 1
+    amount: 2
   drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "83 pirulos, bast\xF3n y primera fila. La cana le tiene cagazo a lo
-    que largue en la tele."
+  flavorText: "Mil mi\xE9rcoles de marcha en el lomo y cero miedo a esta altura del
+    partido. Cuando cae, la columna redobla el bombo y sale con todo."
   playSoundId: 
   animationHook: 
-  maxHp: 32
-  allowedSlots: 030000000400000005000000
+  maxHp: 6
+  allowedSlots: 
   attack:
-    reference: 0
-    pattern: 030000000400000005000000
-    pickCount: 0
-    damagePerSlot: 3
+    mode: 2
+    count: 1
+    damagePerSlot: 2
     effect: 0
     hitSoundId: 
   passiveEffects:
-  - passiveType: 3
-    value: 3
+  - passiveType: 6
+    value: 0
     resource: 0
     status:
-      statusType: 0
-      value: 0
-      counter: 0
-    target: 0
-    reference: 1
-    pattern: 
-    pickCount: 0
-  unitSubtype: 1
+      statusType: 4
+      value: 4
+      counter: 2
+    target: 1
+    mode: 4
+    count: 0
+  unitSubtype: 0
