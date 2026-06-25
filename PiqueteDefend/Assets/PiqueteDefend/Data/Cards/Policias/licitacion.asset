@@ -32,7 +32,7 @@ MonoBehaviour:
     targetSlot: -1
     targetSlotB: -1
     resourceTarget: 1
-    value: 8
+    value: 10
     status:
       statusType: 0
       value: 0

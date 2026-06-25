@@ -21,17 +21,16 @@ MonoBehaviour:
   drawWeight: 2
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: Arranca la baldosa de la plaza con las manos y la parte en cuatro.
-    Cada cascote tiene destinatario.
+  flavorText: Arranca la baldosa con las manos y la parte en cuatro. Cada cascote
+    ya tiene nombre y apellido.
   playSoundId: 
   animationHook: 
-  maxHp: 20
+  maxHp: 18
   allowedSlots: 01000000020000000300000004000000
   attack:
-    reference: 1
-    pattern: ffffffff0000000001000000
-    pickCount: 0
-    damagePerSlot: 6
+    mode: 0
+    count: 3
+    damagePerSlot: 7
     effect: 0
     hitSoundId: 
   passiveEffects:
@@ -43,7 +42,6 @@ MonoBehaviour:
       value: 0
       counter: 0
     target: 0
-    reference: 1
-    pattern: 
-    pickCount: 0
+    mode: 5
+    count: 1
   unitSubtype: 0

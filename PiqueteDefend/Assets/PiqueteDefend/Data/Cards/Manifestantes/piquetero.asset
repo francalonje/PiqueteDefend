@@ -21,16 +21,15 @@ MonoBehaviour:
   drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: Bombo, bandera y aguante para parar todo. El GPS del camionero lo putea
-    de memoria.
+  flavorText: "Bombo, bandera y aguante para parar el pa\xEDs. El camionero lo putea
+    en seis idiomas y \xE9l ni se inmuta."
   playSoundId: 
   animationHook: 
   maxHp: 20
   allowedSlots: 
   attack:
-    reference: 1
-    pattern: ffffffff0000000001000000
-    pickCount: 1
+    mode: 0
+    count: 1
     damagePerSlot: 14
     effect: 0
     hitSoundId: 
@@ -43,7 +42,6 @@ MonoBehaviour:
       value: 0
       counter: 0
     target: 1
-    reference: 1
-    pattern: ffffffff01000000
-    pickCount: 0
+    mode: 4
+    count: 0
   unitSubtype: 0

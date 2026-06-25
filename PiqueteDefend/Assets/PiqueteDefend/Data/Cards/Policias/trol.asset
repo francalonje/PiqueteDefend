@@ -17,33 +17,31 @@ MonoBehaviour:
   faction: 1
   costs:
   - resource: 2
-    amount: 6
+    amount: 4
   drawWeight: 2
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "Diez cuentas, un solo sueldo del Estado. Inventa la tendencia antes
-    del mediod\xEDa."
+  flavorText: "Diez cuentas, un solo sueldo del Estado y cero ortograf\xEDa. Inventa
+    la tendencia antes del caf\xE9."
   playSoundId: 
   animationHook: 
   maxHp: 14
   allowedSlots: 000000000100000002000000
   attack:
-    reference: 1
-    pattern: 00000000
-    pickCount: 0
+    mode: 0
+    count: 1
     damagePerSlot: 2
     effect: 0
     hitSoundId: 
   passiveEffects:
   - passiveType: 0
-    value: 1
+    value: 2
     resource: 2
     status:
       statusType: 0
       value: 0
       counter: 0
     target: 0
-    reference: 1
-    pattern: 
-    pickCount: 0
+    mode: 5
+    count: 1
   unitSubtype: 2

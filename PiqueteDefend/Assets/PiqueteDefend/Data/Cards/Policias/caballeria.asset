@@ -10,39 +10,28 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e8891f164702b9b46bef66a97e430139, type: 3}
-  m_Name: gasero
+  m_Name: caballeria
   m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.UnitCardData
-  id: gasero
-  cardName: Gasero
+  id: caballeria
+  cardName: "Caballer\xEDa"
   faction: 1
   costs:
   - resource: 2
-    amount: 6
+    amount: 7
   drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "Granada de gas en una mano, pa\xF1uelo en la otra. \"Es para dispersar\",
-    avisa, y la nube no lee carteles: dispersa la plaza, la esquina y el kiosco de
-    paso."
+  flavorText: "Entran al galope y a lo que venga. El comunicado oficial lo titul\xF3
+    \"reordenamiento din\xE1mico del espacio p\xFAblico\"."
   playSoundId: 
   animationHook: 
-  maxHp: 15
+  maxHp: 16
   allowedSlots: 01000000020000000300000004000000
   attack:
-    mode: 0
-    count: 1
+    mode: 3
+    count: 0
     damagePerSlot: 2
     effect: 0
     hitSoundId: 
-  passiveEffects:
-  - passiveType: 5
-    value: 0
-    resource: 0
-    status:
-      statusType: 2
-      value: 2
-      counter: 1
-    target: 2
-    mode: 3
-    count: 0
+  passiveEffects: []
   unitSubtype: 0

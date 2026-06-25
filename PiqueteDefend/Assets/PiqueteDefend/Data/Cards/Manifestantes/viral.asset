@@ -21,7 +21,7 @@ MonoBehaviour:
   drawWeight: 2
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "Un video de 14 segundos, tres palos de reproducciones. El ministerio
+  flavorText: "Catorce segundos de video, tres palos de reproducciones. El ministerio
     ya est\xE1 llamando."
   playSoundId: 
   animationHook: 

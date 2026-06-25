@@ -16,21 +16,20 @@ MonoBehaviour:
   cardName: Choripanero
   faction: 0
   costs:
-  - resource: 2
+  - resource: 0
     amount: 5
   drawWeight: 1
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: Pan, chori y chimi para aguantar la jornada. El que morfa, vuelve a
-    la marcha.
+  flavorText: Pan, chori y un chimi que resucita muertos. El que morfa, vuelve a
+    la marcha como si nada.
   playSoundId: 
   animationHook: 
   maxHp: 15
   allowedSlots: 01000000020000000300000004000000
   attack:
-    reference: 0
-    pattern: 030000000400000005000000
-    pickCount: 1
+    mode: 2
+    count: 1
     damagePerSlot: 3
     effect: 1
     hitSoundId: 

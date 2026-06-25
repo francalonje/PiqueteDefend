@@ -10,39 +10,38 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e8891f164702b9b46bef66a97e430139, type: 3}
-  m_Name: puntero
+  m_Name: recaudador
   m_EditorClassIdentifier: PiqueteDefend.Core::PiqueteDefend.Core.UnitCardData
-  id: puntero
-  cardName: Puntero
+  id: recaudador
+  cardName: Recaudador
   faction: 1
   costs:
   - resource: 0
-    amount: 6
+    amount: 4
   drawWeight: 2
   sprite: {fileID: 0}
   descriptionText: 
-  flavorText: "Reparte bolsones y promesas. La guita sale de alg\xFAn lado, siempre."
+  flavorText: "La plata sale de alg\xFAn lado y mejor no preguntes. Reparte sobres
+    y se queda con el vuelto."
   playSoundId: 
   animationHook: 
   maxHp: 12
   allowedSlots: 000000000100000002000000
   attack:
-    reference: 1
-    pattern: 00000000
-    pickCount: 0
+    mode: 0
+    count: 1
     damagePerSlot: 3
     effect: 0
     hitSoundId: 
   passiveEffects:
   - passiveType: 0
-    value: 1
+    value: 2
     resource: 0
     status:
       statusType: 0
       value: 0
       counter: 0
     target: 0
-    reference: 1
-    pattern: 
-    pickCount: 0
+    mode: 5
+    count: 1
   unitSubtype: 2
