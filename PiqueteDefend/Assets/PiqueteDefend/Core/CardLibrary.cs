@@ -31,7 +31,7 @@ namespace PiqueteDefend.Core
             {
                 // ── Unidades (9) — cuestan $ Dinero (spec §3) ──
                 Unit("piquetero", "Piquetero", M, UnitSubtype.Atacante, 4,
-                     20, NoSlots, Atk(TargetMode.Frontmost, 1, 14),
+                     20, NoSlots, Atk(TargetMode.Frontmost, 1, 7, hits: 2),
                      "Bombo, bandera y aguante para parar el país. El camionero lo putea en seis idiomas y él ni se inmuta.",
                      Aura(2)),
                 Unit("fisura", "Fisura", M, UnitSubtype.Atacante, 5,
@@ -114,7 +114,7 @@ namespace PiqueteDefend.Core
             {
                 // ── Unidades (9) — cuestan $ Dinero (spec §3) ──
                 Unit("infante", "Infante", P, UnitSubtype.Atacante, 5,
-                     24, NoSlots, Atk(TargetMode.Frontmost, 1, 14),
+                     24, NoSlots, Atk(TargetMode.Frontmost, 1, 7, hits: 2),
                      "Casco, escudo y cara de pocas pulgas. Va al frente porque es lo que mejor hace: plantarse y no moverse ni con grúa."),
                 Unit("itakero", "Itakero", P, UnitSubtype.Atacante, 4,
                      20, Medio, Atk(TargetMode.Frontmost, 3, 4),
@@ -265,9 +265,10 @@ namespace PiqueteDefend.Core
             return card;
         }
 
-        // Ataques (targeting anclado a la formación, spec §6)
-        private static UnitAttack Atk(TargetMode mode, int count, int dmg) =>
-            new UnitAttack(mode, count, dmg, AttackEffect.DamageEnemies);
+        // Ataques (targeting anclado a la formación, spec §6). hits > 1 = multi-hit: el daño se aplica
+        // `hits` veces al MISMO objetivo (reparte el total en golpes más chicos; dispara Espinas por golpe).
+        private static UnitAttack Atk(TargetMode mode, int count, int dmg, int hits = 1) =>
+            new UnitAttack(mode, count, dmg, AttackEffect.DamageEnemies) { hits = hits };
 
         private static UnitAttack Heal(TargetMode mode, int count, int amount) =>
             new UnitAttack(mode, count, amount, AttackEffect.HealAllies);

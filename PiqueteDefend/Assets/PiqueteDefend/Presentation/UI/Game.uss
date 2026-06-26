@@ -275,6 +275,18 @@
     background-color: rgba(58, 84, 66, 0.97);
 }
 
+/* Unidad que PODRÍA atacar pero no le alcanza la ⚡ Fuerza: clickeable (muestra el popover
+   deshabilitado con el costo), pero resaltada en gris-apagado en vez del verde "puede actuar". */
+.slot--no-fuerza {
+    border-color: rgba(150, 160, 180, 0.7);
+    background-color: rgba(40, 44, 54, 0.85);
+}
+
+.slot--no-fuerza:hover {
+    border-color: rgba(190, 200, 220, 0.85);
+    background-color: rgba(52, 57, 70, 0.92);
+}
+
 .slot--target {
     border-color: rgb(232, 108, 70);
 }
@@ -312,61 +324,65 @@
     background-color: rgba(54, 100, 112, 0.98);
 }
 
-/* ── Área de arte (hueco del sprite de la unidad) ──────────────────────── */
-/* Contenedor transparente (sin "caja" detrás): el sprite va en una capa propia
-   (.slot__sprite) y el nombre se superpone abajo. La capa propia permite espejar
-   el sprite (mirar al rival) sin voltear el texto del nombre (dev-guide §5.1). */
+/* ── Área de arte (sprite de la unidad a toda la caja) ─────────────────── */
+/* El sprite LLENA toda la caja del slot (cover). La info (nombre + HP + pills) va
+   superpuesta abajo (.slot__footer), POR ENCIMA del sprite. El badge de daño, arriba-derecha. */
 .slot__art {
     flex-grow: 1;
-    min-height: 64px;
-    margin-bottom: 4px;
-    justify-content: flex-end;
-    align-items: center;
+    min-height: 96px;
     overflow: hidden;
 }
 
-/* Capa del sprite: llena el área de arte y muestra la figura ENTERA (contain), sin
-   recortes. Las texturas vienen normalizadas a un canvas uniforme (256x384, figura
-   alineada al piso) para que todas las unidades se vean a la MISMA altura; acá las
-   anclamos abajo (position-y: bottom) para que queden "paradas en el suelo" en vez de
-   flotando al centro. El espejado horizontal (mirar a la izquierda) lo aplica el código. */
+/* Capa del sprite: cubre toda la caja (cover) anclando al piso (position-y: bottom), así
+   la figura "se para" en el slot y aprovecha todo el alto. Las texturas vienen normalizadas
+   a un canvas uniforme (256x384, figura alineada al piso). El espejado horizontal lo aplica el código. */
 .slot__sprite {
     position: absolute;
     left: 0;
     top: 0;
     right: 0;
     bottom: 0;
-    background-size: contain;
+    background-size: cover;
     background-position-x: center;
     background-position-y: bottom;
 }
 
-/* Sin tinte de facción detrás del sprite (la "caja" se quitó por pedido de UX). Se
-   dejan las clases por si en el futuro se quiere un marco/halo sutil por facción. */
 .slot__art--manif { }
 .slot__art--polis { }
 
+/* Footer superpuesto: nombre + barra de HP + pills, anclado abajo y POR ENCIMA del sprite.
+   Fondo translúcido degradado a oscuro para que el texto se lea sobre cualquier figura. */
+.slot__footer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    flex-direction: column;
+    padding: 2px 2px 3px 2px;
+    background-color: rgba(10, 12, 18, 0.62);
+    border-top-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.08);
+}
+
 .slot__name {
     width: 100%;
-    padding: 2px 2px;
     font-size: 12px;
     color: rgb(245, 246, 250);
     -unity-font-style: bold;
     white-space: normal;
     -unity-text-align: middle-center;
-    background-color: rgba(18, 20, 28, 0.55);
 }
 
-/* Badge de daño/cura: chip prominente anclado arriba-derecha del arte de la unidad.
-   Reemplaza al viejo pill de ataque en la fila de iconos (queda más legible y mejor estilado). */
+/* Badge de daño/cura: chip compacto anclado arriba-derecha, POR ENCIMA del sprite.
+   Muestra el daño por golpe; los objetivos van en una etiqueta aparte (sin "×N"). */
 .slot__atk-badge {
     position: absolute;
     top: 3px;
     right: 3px;
     flex-direction: row;
     align-items: center;
-    padding: 1px 6px 2px 5px;
-    border-radius: 9px;
+    padding: 0 4px 1px 4px;
+    border-radius: 7px;
     border-width: 1px;
     border-color: rgba(0, 0, 0, 0.55);
     background-color: rgba(200, 60, 50, 0.96);
@@ -377,23 +393,36 @@
 }
 
 .slot__atk-badge-glyph {
-    font-size: 12px;
+    font-size: 10px;
     color: rgb(255, 255, 255);
     -unity-text-align: middle-center;
 }
 
 .slot__atk-badge-value {
-    font-size: 15px;
+    font-size: 12px;
+    -unity-font-style: bold;
+    margin-left: 2px;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-center;
+}
+
+/* Etiqueta de objetivos del badge ("2 obj." / "todos"): chip oscuro chico al lado del daño. */
+.slot__atk-badge-targets {
+    font-size: 9px;
     -unity-font-style: bold;
     margin-left: 3px;
-    color: rgb(255, 255, 255);
+    padding: 0 4px;
+    border-radius: 6px;
+    background-color: rgba(0, 0, 0, 0.45);
+    color: rgb(245, 230, 200);
     -unity-text-align: middle-center;
 }
 
 /* Barra de HP con el número de vida superpuesto y centrado */
 .slot__hp-bar-outer {
-    height: 16px;
-    background-color: rgba(0, 0, 0, 0.45);
+    height: 14px;
+    margin-top: 2px;
+    background-color: rgba(0, 0, 0, 0.55);
     border-radius: 4px;
     overflow: hidden;
 }
@@ -426,7 +455,7 @@
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
-    margin-top: 6px;
+    margin-top: 2px;
 }
 
 /* La pill NO se encoge: en un slot angosto wrappea entera a otra fila en vez de
@@ -682,6 +711,8 @@
 .card__pill--hp   { background-color: rgba(70, 150, 80, 0.95); }
 .card__pill--atk  { background-color: rgba(200, 60, 50, 0.95); }
 .card__pill--heal { background-color: rgba(70, 175, 110, 0.95); }
+/* Objetivos de un ataque múltiple ("2 obj." / "todos"): chip neutro, convención sin "×N". */
+.card__pill--targets { background-color: rgba(70, 76, 92, 0.95); font-size: 11px; }
 
 /* Cuerpo (sólo acciones): texto corto; el marco lo recorta (overflow hidden). */
 .card__body {
@@ -692,13 +723,13 @@
 }
 
 /* ── Popover de ataque ────────────────────────────────────────────────── */
-/* Píldora [⚔][verbo][valor] con un caret que apunta a la unidad. Layout en fila,
-   el daño resaltado en su propio chip para leerse de un vistazo. */
+/* Tarjetita en columna: fila principal [⚔ verbo · valor] + sub-fila [alcance · ⚡costo],
+   con un caret que apunta a la unidad. El daño y el costo van en chips para leerse de un vistazo. */
 .attack-popover {
     position: absolute;
-    flex-direction: row;
-    align-items: center;
-    padding: 7px 9px 7px 11px;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 7px 11px 8px 11px;
     border-radius: 10px;
     border-width: 2px;
     border-color: rgb(120, 180, 235);
@@ -709,18 +740,35 @@
 
 .attack-popover:hover {
     background-color: rgb(44, 58, 80);
-    scale: 1.05;
+    scale: 1.04;
+}
+
+/* Deshabilitado (no alcanza la ⚡): apagado y sin "pop" en hover. */
+.attack-popover--disabled {
+    opacity: 0.9;
+    border-color: rgb(120, 130, 150);
+    background-color: rgb(40, 44, 54);
+}
+
+.attack-popover--disabled:hover {
+    scale: 1;
+    background-color: rgb(40, 44, 54);
+}
+
+.attack-popover__main {
+    flex-direction: row;
+    align-items: center;
 }
 
 .attack-popover__icon {
-    font-size: 19px;
+    font-size: 18px;
     color: rgb(220, 232, 248);
     margin-right: 7px;
     -unity-text-align: middle-center;
 }
 
 .attack-popover__verb {
-    font-size: 18px;
+    font-size: 17px;
     -unity-font-style: bold;
     color: rgb(235, 240, 248);
     -unity-text-align: middle-center;
@@ -728,12 +776,12 @@
 
 /* Daño/cura en un chip propio (contraste alto) → es el dato que más mira el jugador. */
 .attack-popover__value {
-    min-width: 26px;
+    min-width: 24px;
     margin-left: 9px;
     padding: 1px 8px;
     border-radius: 8px;
     background-color: rgb(214, 74, 62);
-    font-size: 18px;
+    font-size: 17px;
     -unity-font-style: bold;
     color: rgb(255, 255, 255);
     -unity-text-align: middle-center;
@@ -745,6 +793,40 @@
 
 .attack-popover--heal {
     border-color: rgb(120, 220, 150);
+}
+
+/* Sub-fila: alcance en palabras (izq) + costo en ⚡ (der). */
+.attack-popover__sub {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 5px;
+}
+
+.attack-popover__reach {
+    flex-shrink: 1;
+    font-size: 12px;
+    -unity-font-style: italic;
+    color: rgb(180, 196, 216);
+    white-space: normal;
+}
+
+.attack-popover__cost {
+    flex-shrink: 0;
+    margin-left: 10px;
+    padding: 1px 7px;
+    border-radius: 7px;
+    background-color: rgba(70, 62, 30, 0.96);
+    color: rgb(232, 210, 124);
+    font-size: 13px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+/* Costo cuando no alcanza la ⚡: en rojo de alarma. */
+.attack-popover__cost--short {
+    background-color: rgb(150, 44, 40);
+    color: rgb(255, 226, 220);
 }
 
 /* Caret: cuadradito rotado 45° anclado abajo-centro, hace de "pico" hacia la unidad. */
@@ -770,6 +852,12 @@
 .attack-popover--heal .attack-popover__caret {
     border-right-color: rgb(120, 220, 150);
     border-bottom-color: rgb(120, 220, 150);
+}
+
+.attack-popover--disabled .attack-popover__caret {
+    background-color: rgb(40, 44, 54);
+    border-right-color: rgb(120, 130, 150);
+    border-bottom-color: rgb(120, 130, 150);
 }
 
 /* ── Popover informativo (hover sobre una unidad) ─────────────────────── */

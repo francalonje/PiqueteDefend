@@ -439,14 +439,17 @@ Modela la **acción** de una unidad. Por defecto pega daño a los enemigos; con 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
 | `mode` | TargetMode | A quién pega, anclado a la formación (§6): `Frontmost` / `Backmost` / `Any` / `All` (default `Frontmost`) |
-| `count` | int | Profundidad/alcance (`Frontmost`/`Backmost`) o cuántas elegir (`Any`); ignorado en `All` |
-| `damagePerSlot` | int | Magnitud por golpe: **daño** si `effect=DamageEnemies`, **curación** si `effect=HealAllies` (tope = maxHp) |
+| `count` | int | **Objetivos**: profundidad/alcance (`Frontmost`/`Backmost`) o cuántas elegir (`Any`); ignorado en `All` |
+| `hits` | int | **Golpes por objetivo** (multi-hit): el daño/cura se aplica `hits` veces al MISMO objetivo, en golpes separados. Default 1. Reparte el daño total en pegues más chicos: mantiene el total pero **dispara las reacciones por golpe** (Espinas/`Retaliate` y Blindaje cuentan por cada hit). `≤0` se trata como 1 |
+| `damagePerSlot` | int | Magnitud **por golpe**: **daño** si `effect=DamageEnemies`, **curación** si `effect=HealAllies` (tope = maxHp) |
 | `effect` | AttackEffect | `DamageEnemies` (default) = afecta el tablero rival / `HealAllies` = afecta el tablero propio curando |
 
 **TargetMode** enum: `Frontmost`, `Backmost`, `Any`, `All`, `Adjacent`, `Self` (§6).
 **AttackEffect** enum: `DamageEnemies`, `HealAllies` *(extensible: p. ej. `BuffAllies` a futuro)*
 
 El tablero objetivo lo decide `effect` (rival para daño, propio para cura). El **vocabulario de modos del §6 aplica igual a curaciones** (`Frontmost`/`Any` sobre el tablero propio). Un objetivo profundo vacío = whiff; curar a una unidad ya en maxHp se desperdicia. `requires_choice` ⟺ `mode = Any`.
+
+> **`count` (objetivos) vs `hits` (golpes) — son ejes distintos:** `count` es a **cuántas unidades** llega el ataque (penetrar/snipear); `hits` es **cuántas veces pega a CADA una**. Ej.: el **Piquetero** (`Frontmost count=1, hits=2, 7`) pega **dos golpes de 7** al de adelante (14 total, **un solo click**), y por eso le come **Espinas dos veces**; el **Encadenado** (`Frontmost count=2, hits=1, 3`) pega **3 a las 2 unidades de adelante**. El **costo en ⚡** es proporcional al **daño total por objetivo** (`damagePerSlot × hits`), así repartirlo en multi-hit no lo abarata.
 
 **[FUTURO]** → `List<UnitAttack>` para múltiples poderes por unidad con distintos modos.
 
@@ -570,7 +573,7 @@ Vive en `activeStatuses` de un **jugador** (estados de producción) o de una **u
 
 **`IPlayerController` (PLANIFICADO — single-player, §17):** abstracción de "controlador de jugador" (impl `Human` y `AI`) para que el motor consulte las acciones del turno sin conocer la escena. Habilita IA y, a futuro, multijugador online, sin modificar `GameEngine`. La IA porta la heurística de `sim/policy.py` (§16) adaptada al turno multi-acción.
 
-**Deckbuilding (PARCIAL — single-player, §17):** el motor recibe el **mazo del jugador** inyectado (mazo de la run) en vez de derivarlo de la facción. Punto de extensión para mazos configurables (tienda, armado pre-run).
+**Deckbuilding (IMPLEMENTADO — single-player, §17):** vía `PlayerSetup.deck` + `StartGame(PlayerSetup, PlayerSetup, firstIndex)` el motor recibe el **mazo del jugador** inyectado (mazo de la run) en vez de derivarlo de la facción. Con `PlayerSetup.ForFaction` cae al mazo del catálogo (hotseat). `PlayerSetup` también lleva los handicaps de dificultad (recursos/unidades iniciales extra, §17.1). Punto de extensión para mazos configurables (tienda, armado pre-run).
 
 ---
 
@@ -635,12 +638,13 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 > el factor económico global y la inflación (§3). Notación (targeting anclado a la formación, §6):
 > `Adelante` = más adelantada del rival (`Frontmost ×1`); `Penetra ×N` = las N más adelantadas (whiff
 > en profundidad vacía); `Al fondo` = la más atrasada (`Backmost`); `Snipe` = elige cualquiera (`Any`);
-> `Todos` = AoE (`All`); `cura X` = cura HP a aliadas (`HealAllies`). Pasivas: §7.3.
+> `Todos` = AoE (`All`); `cura X` = cura HP a aliadas (`HealAllies`); `×N golpes` = multi-hit, pega N veces
+> al MISMO objetivo (§7.2). `Todos` = AoE (`All`); Pasivas: §7.3.
 
 ### Unidades (9)
 | Carta | Costo | Arquetipo | maxHp | Deploy | Ataque · daño | Pasiva | Descripción |
 |-------|-------|-----------|-------|--------|---------------|--------|-------------|
-| **Piquetero** | 4 ⚡ | Escaramuza | 20 | Cualquiera | Adelante · 14 | Aura +2 daño (adyac.) | *Bombo, bandera y aguante para parar el país. El camionero lo putea en seis idiomas y él ni se inmuta.* |
+| **Piquetero** | 4 ⚡ | Escaramuza | 20 | Cualquiera | Adelante · 7 ×2 golpes | Aura +2 daño (adyac.) | *Bombo, bandera y aguante para parar el país. El camionero lo putea en seis idiomas y él ni se inmuta.* |
 | **Fisura** | 5 ⚡ | Cleave | 18 | {2,3,4,5} | Penetra ×3 · 7 | +1 ⚡/turno | *Arranca la baldosa con las manos y la parte en cuatro. Cada cascote ya tiene nombre y apellido.* |
 | **Jubilado** | 2 ⚡ | Mártir | 6 | Cualquiera | Snipe · 2 | OnDeath: Furia (+4, 2t) a aliados adyacentes | *Mil miércoles de marcha en el lomo y cero miedo a esta altura del partido. Cuando cae, la columna redobla el bombo y sale con todo.* |
 | **Mortero Casero** | 5 ⚡ | Morterista | 8 | {2,3,4} | Al fondo · 14 | — | *Un caño, pólvora trucha y fe. No le apunta a nadie, pero siempre le encaja al de la oficina del fondo.* |
@@ -696,7 +700,7 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 ### Unidades (9)
 | Carta | Costo | Arquetipo | maxHp | Deploy | Ataque · daño | Pasiva | Descripción |
 |-------|-------|-----------|-------|--------|---------------|--------|-------------|
-| **Infante** | 5 ⚡ | Escaramuza | 24 | Cualquiera | Adelante · 13 | — (vainilla: presupuesto en stats) | *Casco, escudo y cara de pocas pulgas. Va al frente porque es lo que mejor hace: plantarse y no moverse ni con grúa.* |
+| **Infante** | 5 ⚡ | Escaramuza | 24 | Cualquiera | Adelante · 7 ×2 golpes | — (vainilla: presupuesto en stats) | *Casco, escudo y cara de pocas pulgas. Va al frente porque es lo que mejor hace: plantarse y no moverse ni con grúa.* |
 | **Itakero** | 4 ⚡ | Cleave | 20 | {2,3,4,5} | Penetra ×3 · 4 | — (vainilla) | *Escopeta Itaka y postas de goma para todos. Apunta al montón y reza, total alguno cae.* |
 | **Halcón** | 6 ⚡ | Sniper | 8 | {2,3,4} | Snipe · 15 | — | *Mira telescópica desde la terraza. Te tiene en la cruz desde antes de que llegaras a la esquina.* |
 | **Gendarme** | 5 $ | Muro | 26 | Frente {4,5,6} | Penetra ×2 · 4 | Blindaje 2 (−2 al daño de ataques) | *Lo trajeron de la frontera a cuidar una baldosa, y la cuida con la vida. No se mueve, no se cansa, no afloja.* |
@@ -773,17 +777,17 @@ Los slots van del **1 al 6**. De las **3 unidades iniciales**, el **Muro** arran
 
 **Mano en abanico:** las cartas se dibujan solapadas en arco y asoman parcialmente desde el borde inferior; al **hover** una carta **sube, se endereza, crece y pasa al frente** para leerse completa (y abre su popover de detalle). Esto deja la franja de batalla más grande y prominente.
 
-**Atacar con una unidad:** las unidades propias que **pueden actuar este turno** (del jugador activo, sin atacar aún, no aturdidas y permitido por la regla del turno 1) se **resaltan**. **Click** sobre una de ellas → aparece un **popover** con su acción disponible — `⚔ Atacar` (o `✚ Curar`) con el **daño/cura en un chip destacado** y un **caret que apunta a la unidad** — y un *preview* de a qué slots llega; al clickearlo, actúa. Si es a elección (`mode = Any`, snipe), a continuación se clickea la unidad objetivo (en el tablero rival si daña, **en el propio si es un healer** que cura aliadas, §7.2); los modos anclados (`Frontmost`/`Backmost`/`All`) actúan directo sin elegir. **[FUTURO]** si una unidad llega a tener varios ataques (`List<UnitAttack>`), el popover los lista.
+**Atacar con una unidad:** las unidades propias que **pueden actuar este turno** (del jugador activo, sin atacar aún, no aturdidas y permitido por la regla del turno 1) se **resaltan**. **Click** sobre una de ellas → aparece un **popover** con su acción disponible — `⚔ Atacar` (o `✚ Curar`) con el **daño/cura en un chip destacado**, una sub-línea con el **alcance en palabras** + el **costo en ⚡** del ataque, y un **caret que apunta a la unidad** — más un *preview* de a qué slots llega; al clickearlo, actúa. **Si no le alcanza la ⚡:** la unidad **igual es clickeable** (se resalta en gris), pero el popover sale **deshabilitado** con el costo en rojo, dejando claro por qué no puede atacar. Si es a elección (`mode = Any`, snipe), a continuación se clickea la unidad objetivo (en el tablero rival si daña, **en el propio si es un healer** que cura aliadas, §7.2); los modos anclados (`Frontmost`/`Backmost`/`All`) actúan directo sin elegir. **[FUTURO]** si una unidad llega a tener varios ataques (`List<UnitAttack>`), el popover los lista.
 
 **Equipar:** se arrastra la carta de Equipo sobre una **unidad propia** (el slot es el *drop target*, §8.4).
 
 **Mover / intercambiar (efectos de dos slots, MoveUnit/SwapUnits):** se elige el **primer** slot (arrastrando la carta a ese slot, o clickeando la carta y luego el slot) y luego se clickea el **segundo** (Move: slot propio libre y permitido; Swap: la otra unidad enemiga). El primer slot queda marcado mientras se elige el segundo.
 
-**Anatomía de la unidad en el tablero (implementado):** cada slot ocupado se dibuja como una "carta de unidad" vertical: **área de arte** (hueco del sprite, hoy un panel tinte-facción con el nombre; cuando exista `CardData.sprite` se pinta de fondo) → **barra de HP con el valor superpuesto** → **fila de iconos**. El **daño/cura efectivo** se muestra como un **badge prominente anclado arriba-derecha del arte** (chip rojo `⚔ N` para ataque, verde `✚ N` para cura) y, si pega a más de un objetivo (AoE), `daño×objetivos` (p. ej. `5×3` = 5 a cada uno de 3); es el dato que más mira el jugador, por eso va destacado y no en la fila. La **fila de iconos** (chips compactos) cubre el resto: **pasivas** (producción/regen/aura/espinas/blindaje/empuje/al-morir/daño o estado por turno), **estados** (Veneno/Aturdir/Furia/Desmoralizar) y **equipo** adjunto. Cada icono es *sprite-ready* (glifo emoji como fallback hasta tener el icono dibujado). El arte y la barra de HP son **decorativos (no capturan el puntero)**: así toda la caja de la unidad es una única región de hover y el popover no parpadea al pasar por zonas sin sprite. Además, indicador por jugador para sus `activeStatuses` de producción en el panel de stats.
+**Anatomía de la unidad en el tablero (implementado):** el **sprite llena toda la caja** del slot (cover, anclado al piso) y la info va **superpuesta abajo, por encima del sprite**: nombre → **barra de HP con el valor superpuesto** → **fila de iconos**. El **daño/cura efectivo** se muestra como un **badge compacto arriba-derecha** (chip rojo `⚔ N` para ataque, verde `✚ N` para cura), donde **N es el daño por golpe**. Para el alcance se usa una **convención clara, sin `×N`** (que se confundía con "pega N veces"): junto al daño aparece una etiqueta aparte según el caso — **`N obj.`** / **`todos`** si pega a varias unidades (`count>1` / AoE), y **`N golpes`** si es **multi-hit** (`hits>1`, varios golpes al mismo objetivo, §7.2). La **fila de iconos** (chips compactos) cubre el resto: **pasivas** (producción/regen/aura/espinas/blindaje/empuje/al-morir/daño o estado por turno), **estados** (Veneno/Aturdir/Furia/Desmoralizar) y **equipo** adjunto. El **hover sobre el badge de daño** abre el detalle del ataque (daño, alcance/golpes y **costo en ⚡**). El sprite, el nombre y la barra de HP son **decorativos (no capturan el puntero)**; sólo los iconos y el badge lo hacen: así toda la caja es una única región de hover y el popover no parpadea. Cada icono es *sprite-ready* (glifo emoji como fallback). Además, indicador por jugador para sus `activeStatuses` de producción en el panel de stats.
 
 **Hover de detalle (dos niveles):** al pasar el mouse sobre **un icono** se abre el popover con el detalle de *ese* efecto (su forma de ataque/zona, magnitud y turnos restantes); al salir del icono, vuelve el popover **completo** de la unidad. Pasar el mouse sobre el resto de la unidad muestra directamente la info completa (nombre, descripción, alcance, pasivas, efectos activos y equipo).
 
-**Popover informativo (hover):** al pasar el mouse sobre una **unidad** del tablero o una **carta** de la mano, se despliega un panel con su nombre, descripción, alcance (a qué slots pega/cura y cuánto), pasivas, efectos activos y equipo.
+**Popover informativo (hover):** al pasar el mouse sobre una **unidad** del tablero o una **carta** de la mano, se despliega un panel con su nombre, descripción, alcance (a qué slots pega/cura, cuánto y en cuántos golpes), **costo del ataque en ⚡**, pasivas, efectos activos y equipo.
 
 **Indicador de turno:** un **chip** (pill) que salta al lado del jugador activo, más la marca **▶** en su panel de stats. El botón **Terminar turno** está centrado en el tope.
 
@@ -1016,10 +1020,12 @@ progresión, inspirada en Slay the Spire (progresión + recompensas) y The King 
 Reusa íntegro el motor de combate (§6) — el rival lo controla la **IA** (§16, vía `IPlayerController`,
 §7.8). El hotseat 2-jugadores comparte el mismo motor.
 
-> **Estado:** diseño aprobado; implementación por fases (ver el plan de la sesión). Esta sección es la
+> **Estado:** diseño aprobado; **capa de run implementada en `Core` (Fase 3)** — `RunState`/`RunManager`/
+> `RunMap` + inyección del mazo de la run y handicap de IA por distancia (§17.5). Falta la **presentación
+> (Fase 4)**: menú, pantalla de mapa, recompensa 1-de-3, turno de IA con delays. Esta sección es la
 > fuente de verdad del modo. Toma de StS las **recompensas de carta** y el **permadeath**, pero el
 > **mapa NO es por carriles**: es de **puntos a elección con dificultad por distancia** (§17.1).
-> Valores concretos (largo de run, nº de puntos) son **rough, a iterar por playtest** ([[feedback-playtest-driven]]).
+> Valores concretos (largo de run, nº de puntos, handicap) son **rough, a iterar por playtest** ([[feedback-playtest-driven]]).
 
 ### 17.1 Objetivo y estructura
 
@@ -1027,12 +1033,20 @@ Reusa íntegro el motor de combate (§6) — el rival lo controla la **IA** (§1
   en el mapa; el jugador **elige a qué punto ir** entre los disponibles. Cada punto se visita **una
   sola vez** (sin revisitar/backtracking; elegir una ruta **saltea** otros puntos).
 - **Dificultad por distancia:** **cuanto más lejos del punto inicial, más difícil** el combate. La
-  distancia al inicio es el dial de dificultad.
+  distancia al inicio = **saltos por el camino** (BFS sobre las conexiones) es el dial de dificultad.
+  **Palanca concreta (Fase 3):** la IA recibe un **handicap escalado por distancia** —
+  `RunConfig.aiResourceBonusPerLevel` (default **+2** a cada recurso inicial por nivel de distancia:
+  d1→+2, d2→+4, d3→+6) y, en el jefe, `bossExtraStartingUnits` (default **+1** unidad inicial extra).
+  El humano **no** recibe handicap. Se inyecta vía `PlayerSetup` (§17.5), sin tocar las reglas de combate.
 - **MVP = sólo puntos de COMBATE.** Puntos-**tienda** y puntos-**encuentro** quedan como **punto de
   extensión post-MVP** (no se implementan ahora; §17.4/§17.6). Tipo de punto = **data**, extensible.
-- **Objetivo de la run:** llegar al extremo del mapa (el punto/combate final más lejano). *[A DEFINIR
-  en Fase 3: forma concreta del grafo —cuántos puntos, conexiones—, cómo se mide la distancia, y si el
-  final es un punto-jefe especial.]*
+- **Objetivo de la run (Fase 3):** llegar al extremo del mapa = **vencer el combate del punto-jefe**
+  (el más lejano, tipo `Boss`) → `RunState.status = Won`. El grafo es de **puntos con caminos explícitos
+  y bifurcaciones** — un DAG dirigido "hacia adelante", **no carriles**: desde el punto actual se avanza
+  a **uno de sus sucesores** y la ruta no tomada queda atrás (una sola pasada). **Mapa default del MVP**
+  (`RunMapLibrary.BuildDefaultMap`): inicio → 3 anillos de combate (jefe incluido) = **~3 combates por
+  run**, 2-3 puntos por anillo (elección de ruta). Forma, tamaño y conexiones = **data, rough, iterables**.
+  El jefe especial con reglas propias queda como **extensión** (hoy `Boss` = combate más difícil).
 - **Derrota = fin de la run** (permadeath roguelike): perder un combate corta la run y se vuelve a
   empezar. (Meta-desbloqueos entre runs = extensión futura, §17.4.)
 - **Temática:** los puntos tienen identidad argenta (p. ej. *el barrio → el centro → la Casa Rosada*),
@@ -1064,14 +1078,32 @@ extensibles (un puñado simple en la primera versión). Punto de extensión: có
 (recompensa de élite/jefe, tienda). El sistema debe nacer **extensible** (lista de reliquias activas
 en el `RunState`, no campos sueltos), alineado con [[feedback-buenas-practicas]].
 
+> **No implementadas en Fase 3 (decisión 2026-06-26).** Quedan como **diseño** (esta sección sigue
+> siendo la fuente de verdad), pero el MVP no las construye. El **seam está reservado** en `RunState`
+> (comentario `[EXTENSIÓN]` donde irá la `List<RelicData>`) y los bonos de setup ya tienen vía de
+> aplicación vía `PlayerSetup` (los mismos campos que usa el handicap de la IA), así que sumarlas no
+> tocará el motor.
+
 ### 17.5 Arquitectura (Core, C# puro)
 
-- **`RunState`** (en `Core`, sin escena): mapa de **puntos a elección** (§17.1: distancia = dificultad,
-  una sola pasada), posición actual, **mazo persistente**, reliquias activas, estado de la run (en curso
-  / ganada / perdida). Testeable sin Unity.
-- **Mapa y puntos = data**, extensible sin tocar código (tipo de punto, conexiones, distancia).
-- **IA del rival:** `IPlayerController` con impl `Human` (envuelve el input de presentación) y `AI`
-  (porta `sim/policy.py`, §16, al turno multi-acción). Una sola dificultad para empezar, iterar por feel.
+- **`RunState`** (en `Core`, sin escena): `map` (puntos a elección), `currentNodeId`, `deck` persistente,
+  `clearedNodeIds`, `faction` (la del humano), `status` (`InProgress`/`Won`/`Lost`). Reliquias =
+  **seam documentado** (§17.4, no implementadas). Datos puros, testeable sin Unity.
+- **`RunMap` / `MapNode` / `MapNodeType` / `RunMapLibrary`:** el grafo de puntos como **data**. `MapNode`
+  = `{ id, type, title, connections, x/y (hint de presentación, inertes en Core) }`. `MapNodeType` =
+  `Start`/`Combat`/`Boss` (+ `Shop`/`Event` = extensión). La **dificultad = distancia** se deriva por
+  BFS (las conexiones son la única fuente de verdad). `RunMapLibrary.BuildDefaultMap` arma el mapa MVP.
+- **`RunManager`** (lógica de la run, Core puro): `AvailableNodes` (sucesores del actual),
+  `BeginCombat(nodeId)` (arma los `PlayerSetup` — mazo de run al humano, handicap a la IA — y devuelve
+  un `GameEngine` ya iniciado; la presentación corre el loop), `ResolveCombat(outcome)`
+  (gana→recompensa / jefe→`Won` / pierde o empata→`Lost`), `OfferReward`/`ChooseReward`/`SkipReward`.
+  `RunConfig` = parámetros (handicap, `rewardCount`). Lados fijos: humano = índice de su facción, IA la otra.
+- **Inyección del mazo:** `PlayerSetup` (deck override + bonos de recursos/unidades iniciales) +
+  `GameEngine.StartGame(PlayerSetup, PlayerSetup, firstIndex)`. Con setups por facción es idéntico al
+  inicio 2-jugadores (los call-sites del hotseat/tests no cambian). Es el punto de inyección del §7.8.
+- **IA del rival:** `IPlayerController` (§7.8) — `HeuristicAiController` (puerto de `sim/policy.py`, §16,
+  multi-acción) **ya implementado (Fase 2)**. La presentación lo conecta al índice `RunManager.AiIndex`.
+  Una sola dificultad para empezar, iterar por feel.
 - **Selección:** el humano elige facción, la IA toma la otra (§11.2 reusada). Menú con dos botones (§11.1).
 - **Presentación:** pantalla de **mapa temático**, pantalla de **recompensa (1-de-3)**, **HUD de run**
   (reliquias, progreso), y el combate con **turno de IA** (delays + indicador + input bloqueado, §11.3).

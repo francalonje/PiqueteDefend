@@ -128,10 +128,15 @@ class UnitAttack:
     count: int                                 # profundidad/alcance (Frontmost/Backmost) o cuántas elegir (Any)
     amount_per_slot: int                       # daño si DamageEnemies, cura si HealAllies
     effect: AttackEffect = AttackEffect.DAMAGE_ENEMIES
+    hits: int = 1                              # golpes por objetivo (multi-hit): el daño se aplica `hits` veces al mismo target
 
     @property
     def requires_choice(self) -> bool:
         return self.mode == TargetMode.ANY
+
+    @property
+    def effective_hits(self) -> int:
+        return self.hits if self.hits >= 1 else 1
 
 
 @dataclass

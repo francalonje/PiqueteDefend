@@ -56,14 +56,35 @@ namespace PiqueteDefend.Core
         /// <summary>True si la unidad del jugador activo en <paramref name="slot"/> puede atacar AHORA
         /// (ocupada, no aturdida, regla de iniciativa OK y sin haber atacado este turno, spec §6).
         /// Centraliza la condición "puede actuar" para la UI y los tests.</summary>
-        public bool UnitCanAttack(int slot)
+        public bool UnitCanAttack(int slot) => UnitCouldAttack(slot) && CanAffordAttack(slot);
+
+        /// <summary>"Puede actuar" IGNORANDO el costo en ⚡: ocupada, no aturdida, sin atacar este turno y
+        /// regla de iniciativa OK. La UI lo usa para permitir CLICKEAR la unidad y mostrar el popover
+        /// (deshabilitado si no alcanza la Fuerza); el costo se chequea aparte con <see cref="CanAffordAttack"/>.</summary>
+        public bool UnitCouldAttack(int slot)
         {
             if (!CanAttackThisTurn) return false;
             if (slot < 0 || slot >= ActivePlayer.unitSlots.Length) return false;
             UnitSlot s = ActivePlayer.unitSlots[slot];
-            return s != null && !s.IsStunned && !s.attackedThisTurn
-                   && ActivePlayer.GetResource(ResourceType.Fuerza) >= _config.AttackFuerzaCost(s.unit.attack.damagePerSlot);  // atacar cuesta ⚡ proporcional (spec §3/§6)
+            return s != null && !s.IsStunned && !s.attackedThisTurn;
         }
+
+        /// <summary>⚡ Fuerza que cuesta el ataque de la unidad en <paramref name="slot"/> (0 si no hay unidad).</summary>
+        public int AttackCost(int slot)
+        {
+            if (slot < 0 || slot >= ActivePlayer.unitSlots.Length) return 0;
+            UnitSlot s = ActivePlayer.unitSlots[slot];
+            return s == null ? 0 : AttackCostFor(s.unit.attack);
+        }
+
+        /// <summary>⚡ que costaría el ataque descrito por <paramref name="ua"/> (preview de carta de unidad).
+        /// Proporcional al daño TOTAL por objetivo (daño por golpe × golpes): repartirlo en multi-hit no lo abarata.</summary>
+        public int AttackCostFor(UnitAttack ua) =>
+            ua == null ? 0 : _config.AttackFuerzaCost(ua.damagePerSlot * ua.EffectiveHits);
+
+        /// <summary>True si el jugador activo puede pagar el ataque de la unidad en <paramref name="slot"/>.</summary>
+        public bool CanAffordAttack(int slot) =>
+            ActivePlayer.GetResource(ResourceType.Fuerza) >= AttackCost(slot);
 
         /// <summary>% de inflación vigente este medio-turno (spec §3). 0 = inflación no arrancó.</summary>
         public int InflationPercent
@@ -81,10 +102,20 @@ namespace PiqueteDefend.Core
 
         // ── Setup ───────────────────────────────────────────────────────────────
 
+        /// <summary>Inicio 2-jugadores (spec §6): facciones puras, sin handicaps ni mazo inyectado.
+        /// Conveniencia sobre <see cref="StartGame(PlayerSetup,PlayerSetup,int)"/>.</summary>
         public void StartGame(Faction player0Faction, Faction player1Faction, int firstIndex = -1)
+            => StartGame(PlayerSetup.ForFaction(player0Faction), PlayerSetup.ForFaction(player1Faction), firstIndex);
+
+        /// <summary>
+        /// Inicio con <see cref="PlayerSetup"/> por jugador (spec §7.8/§17.5): permite inyectar el
+        /// mazo de la run y handicaps de dificultad. Con setups <see cref="PlayerSetup.ForFaction"/>
+        /// es idéntico al inicio 2-jugadores.
+        /// </summary>
+        public void StartGame(PlayerSetup player0, PlayerSetup player1, int firstIndex = -1)
         {
-            _players[0] = NewPlayer(player0Faction);
-            _players[1] = NewPlayer(player1Faction);
+            _players[0] = NewPlayer(player0);
+            _players[1] = NewPlayer(player1);
 
             _firstIndex = firstIndex >= 0 ? firstIndex : _rng.Next(2);
             _activeIndex = _firstIndex;
@@ -93,23 +124,22 @@ namespace PiqueteDefend.Core
             Phase = GamePhase.AwaitingTurnStart;
         }
 
-        private PlayerState NewPlayer(Faction faction)
+        private PlayerState NewPlayer(PlayerSetup setup)
         {
-            var p = new PlayerState(_config.maxSlots)
-            {
-                faction = faction,
-                dinero = _config.initialDinero,
-                fuerza = _config.initialFuerza,
-                social = _config.initialSocial
-            };
+            Faction faction = setup.faction;
+            var p = new PlayerState(_config.maxSlots) { faction = faction };
 
-            foreach (UnitCardData unit in _catalog.GetStartingUnits(faction))
-            {
-                int slot = StartingSlot(p, unit);
-                if (slot >= 0) p.unitSlots[slot] = new UnitSlot(unit);
-            }
+            // Recursos iniciales + bonus de handicap, recortados al techo (spec §3/§17.1).
+            p.SetResource(ResourceType.Dinero, _config.initialDinero + setup.bonusDinero, _config.maxResource);
+            p.SetResource(ResourceType.Fuerza, _config.initialFuerza + setup.bonusFuerza, _config.maxResource);
+            p.SetResource(ResourceType.Social, _config.initialSocial + setup.bonusSocial, _config.maxResource);
 
-            p.deck.AddRange(_catalog.GetDeckList(faction));
+            // Unidades iniciales (base del setup o del catálogo) + extra de handicap (spec §17.1).
+            DeployStarting(p, setup.startingUnits ?? _catalog.GetStartingUnits(faction));
+            if (setup.extraStartingUnits != null) DeployStarting(p, setup.extraStartingUnits);
+
+            // Mazo: el inyectado (run) o el del catálogo (spec §8.1/§17.2).
+            p.deck.AddRange(setup.deck ?? _catalog.GetDeckList(faction));
             Shuffle(p.deck);
             for (int i = 0; i < _config.handSize; i++)
             {
@@ -118,6 +148,16 @@ namespace PiqueteDefend.Core
             }
 
             return p;
+        }
+
+        /// <summary>Despliega una tanda de unidades iniciales en sus slots de apertura (spec §11.3).</summary>
+        private void DeployStarting(PlayerState p, IReadOnlyList<UnitCardData> units)
+        {
+            foreach (UnitCardData unit in units)
+            {
+                int slot = StartingSlot(p, unit);
+                if (slot >= 0) p.unitSlots[slot] = new UnitSlot(unit);
+            }
         }
 
         /// <summary>
@@ -336,7 +376,7 @@ namespace PiqueteDefend.Core
             if (attacker == null) return ActionResult.NoUnitInSlot;
             if (attacker.IsStunned) return ActionResult.UnitStunned;
             if (attacker.attackedThisTurn) return ActionResult.AlreadyAttacked;  // una vez por unidad (spec §6)
-            int attackCost = _config.AttackFuerzaCost(attacker.unit.attack.damagePerSlot);  // ⚡ proporcional al daño (spec §3/§6)
+            int attackCost = AttackCost(attackerSlot);  // ⚡ proporcional al daño total por objetivo (spec §3/§6)
             if (active.GetResource(ResourceType.Fuerza) < attackCost)
                 return ActionResult.CannotAfford;
 
@@ -366,32 +406,41 @@ namespace PiqueteDefend.Core
             attacker.attackedThisTurn = true;  // consume el ataque de esta unidad (spec §6)
             active.AddResource(ResourceType.Fuerza, -attackCost, _config.maxResource);  // atacar cuesta ⚡ proporcional
 
+            // Multi-hit (spec §7.2): el golpe se aplica `hits` veces al MISMO objetivo. Reparte el daño/cura
+            // total en varios pegues, disparando Espinas/Blindaje por cada uno. hits=1 = comportamiento clásico.
+            int hits = ua.EffectiveHits;
+
             if (ua.IsHeal)
             {
-                foreach (int t in targets)
-                {
-                    if (t < 0 || t >= active.unitSlots.Length) continue;
-                    UnitSlot u = active.unitSlots[t];
-                    if (u != null && u.currentHp < u.MaxHp)
-                        u.currentHp = Math.Min(u.MaxHp, u.currentHp + ua.damagePerSlot);  // whiff si vacío/llena
-                }
+                for (int h = 0; h < hits; h++)
+                    foreach (int t in targets)
+                    {
+                        if (t < 0 || t >= active.unitSlots.Length) continue;
+                        UnitSlot u = active.unitSlots[t];
+                        if (u != null && u.currentHp < u.MaxHp)
+                            u.currentHp = Math.Min(u.MaxHp, u.currentHp + ua.damagePerSlot);  // whiff si vacío/llena
+                    }
                 return ActionResult.Success;
             }
 
-            // Daño efectivo (base + equipo + Furia + Aura − Desmoralizar) + Retaliate de los defensores.
+            // Daño efectivo POR GOLPE (base + equipo + Furia + Aura − Desmoralizar) + Retaliate de los
+            // defensores, ACUMULADO por cada hit (Espinas pega una vez por golpe — el punto del multi-hit).
             int dmg = EffectiveAttackDamage(active.unitSlots, attackerSlot);
             int retaliation = 0;
-            foreach (int t in targets)
+            for (int h = 0; h < hits; h++)
             {
-                if (t < 0 || t >= opp.unitSlots.Length) continue;
-                UnitSlot def = opp.unitSlots[t];
-                if (def == null) continue;  // whiff (spec §6)
-                foreach (PassiveEffect pe in def.AllPassives())
-                    if (pe.passiveType == PassiveType.Retaliate) retaliation += pe.value;
-                int taken = dmg - ArmorOf(def);  // Blindaje mitiga el golpe de ataque (spec §7.3)
-                if (taken < 0) taken = 0;
-                def.currentHp -= taken;
-                if (def.IsDead) KillUnit(opp, t);
+                foreach (int t in targets)
+                {
+                    if (t < 0 || t >= opp.unitSlots.Length) continue;
+                    UnitSlot def = opp.unitSlots[t];
+                    if (def == null) continue;  // whiff (slot vacío o ya muerto en un golpe previo)
+                    foreach (PassiveEffect pe in def.AllPassives())
+                        if (pe.passiveType == PassiveType.Retaliate) retaliation += pe.value;
+                    int taken = dmg - ArmorOf(def);  // Blindaje mitiga CADA golpe (spec §7.3)
+                    if (taken < 0) taken = 0;
+                    def.currentHp -= taken;
+                    if (def.IsDead) KillUnit(opp, t);
+                }
             }
 
             // Chorro (PushBack): empuja a los objetivos sobrevivientes al fondo del rival (antes del Retaliate).
