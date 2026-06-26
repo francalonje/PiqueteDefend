@@ -1017,19 +1017,26 @@ Reusa íntegro el motor de combate (§6) — el rival lo controla la **IA** (§1
 §7.8). El hotseat 2-jugadores comparte el mismo motor.
 
 > **Estado:** diseño aprobado; implementación por fases (ver el plan de la sesión). Esta sección es la
-> fuente de verdad del modo. Valores concretos (largo de run, nº de mundos/nodos) son **rough, a
-> iterar por playtest** ([[feedback-playtest-driven]]).
+> fuente de verdad del modo. Toma de StS las **recompensas de carta** y el **permadeath**, pero el
+> **mapa NO es por carriles**: es de **puntos a elección con dificultad por distancia** (§17.1).
+> Valores concretos (largo de run, nº de puntos) son **rough, a iterar por playtest** ([[feedback-playtest-driven]]).
 
 ### 17.1 Objetivo y estructura
 
-- **Objetivo:** atravesar un **mapa temático por niveles** (etapas con identidad: p. ej. *el barrio →
-  el centro → la Casa Rosada*) derrotando los combates de cada etapa hasta el **jefe** final.
-- **Mapa:** una secuencia de **nodos** por etapa. Tipo de nodo como **data** (extensible): combate
-  normal, **élite** (más difícil, mejor recompensa), **jefe** (cierra la etapa). Puntos de extensión
-  reservados para **descanso** y **tienda** (§17.4). Arranque rough: pocos nodos por etapa, escalando
-  dificultad; afinar por playtest.
+- **Mapa de PUNTOS a elección (NO tipo Slay the Spire / no carriles):** puntos temáticos repartidos
+  en el mapa; el jugador **elige a qué punto ir** entre los disponibles. Cada punto se visita **una
+  sola vez** (sin revisitar/backtracking; elegir una ruta **saltea** otros puntos).
+- **Dificultad por distancia:** **cuanto más lejos del punto inicial, más difícil** el combate. La
+  distancia al inicio es el dial de dificultad.
+- **MVP = sólo puntos de COMBATE.** Puntos-**tienda** y puntos-**encuentro** quedan como **punto de
+  extensión post-MVP** (no se implementan ahora; §17.4/§17.6). Tipo de punto = **data**, extensible.
+- **Objetivo de la run:** llegar al extremo del mapa (el punto/combate final más lejano). *[A DEFINIR
+  en Fase 3: forma concreta del grafo —cuántos puntos, conexiones—, cómo se mide la distancia, y si el
+  final es un punto-jefe especial.]*
 - **Derrota = fin de la run** (permadeath roguelike): perder un combate corta la run y se vuelve a
   empezar. (Meta-desbloqueos entre runs = extensión futura, §17.4.)
+- **Temática:** los puntos tienen identidad argenta (p. ej. *el barrio → el centro → la Casa Rosada*),
+  pero la estructura es de puntos elegibles, no de etapas lineales.
 
 ### 17.2 Mazo de la run (deckbuilding)
 
@@ -1059,9 +1066,10 @@ en el `RunState`, no campos sueltos), alineado con [[feedback-buenas-practicas]]
 
 ### 17.5 Arquitectura (Core, C# puro)
 
-- **`RunState`** (en `Core`, sin escena): mapa temático (mundos → nodos), posición actual, **mazo
-  persistente**, reliquias activas, estado de la run (en curso / ganada / perdida). Testeable sin Unity.
-- **Mapa y nodos = data** (ScriptableObjects / definición de etapa), extensible sin tocar código.
+- **`RunState`** (en `Core`, sin escena): mapa de **puntos a elección** (§17.1: distancia = dificultad,
+  una sola pasada), posición actual, **mazo persistente**, reliquias activas, estado de la run (en curso
+  / ganada / perdida). Testeable sin Unity.
+- **Mapa y puntos = data**, extensible sin tocar código (tipo de punto, conexiones, distancia).
 - **IA del rival:** `IPlayerController` con impl `Human` (envuelve el input de presentación) y `AI`
   (porta `sim/policy.py`, §16, al turno multi-acción). Una sola dificultad para empezar, iterar por feel.
 - **Selección:** el humano elige facción, la IA toma la otra (§11.2 reusada). Menú con dos botones (§11.1).
@@ -1070,6 +1078,7 @@ en el `RunState`, no campos sueltos), alineado con [[feedback-buenas-practicas]]
 
 ### 17.6 Puntos de extensión (resumen)
 
-Reservar el hueco, sin implementar todavía: **tienda** de cartas · **armado de mazo pre-run** ·
-**meta-progresión entre runs** (desbloqueos persistentes) · **dificultades** de IA · **combate
-automático por tempo** (alternativa al manual, a evaluar en sesión próxima — §6 quedaría como variante).
+Reservar el hueco, sin implementar todavía: **puntos-tienda** y **puntos-encuentro** en el mapa
+(§17.1) · **armado de mazo pre-run** · **meta-progresión entre runs** (desbloqueos persistentes) ·
+**dificultades** de IA · **combate automático por tempo** (alternativa al manual, a evaluar en sesión
+próxima — §6 quedaría como variante).
