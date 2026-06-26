@@ -16,7 +16,7 @@ MonoBehaviour:
   cardName: "Operativo Apret\xF3n"
   faction: 1
   costs:
-  - resource: 0
+  - resource: 2
     amount: 7
   drawWeight: 1
   sprite: {fileID: 0}

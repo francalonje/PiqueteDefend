@@ -16,7 +16,7 @@ MonoBehaviour:
   cardName: Cadena Nacional
   faction: 1
   costs:
-  - resource: 0
+  - resource: 2
     amount: 2
   drawWeight: 2
   sprite: {fileID: 0}

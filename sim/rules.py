@@ -165,6 +165,7 @@ class GameEngine:
         self.k = config
         self.rng = rng
         self.max_resource = 18   # espejo de GameConfig.maxResource (techo bajo anti-atesoramiento)
+        self.attack_fuerza_cost = 1   # espejo de GameConfig.attackFuerzaCost: atacar cuesta ⚡ (spec §3/§6)
         self.players = [PlayerState(faction0, config), PlayerState(faction1, config)]
         self.half_turn = 0
         self.active = 0
@@ -526,6 +527,9 @@ class GameEngine:
         # Cada unidad ataca una vez por turno (spec §6): rechaza si ya atacó o está aturdida.
         if attacker is None or attacker.is_stunned or attacker.attacked_this_turn:
             return False
+        # Atacar cuesta ⚡ Fuerza (spec §3/§6): rechaza si no alcanza.
+        if p.get(ResourceType.FUERZA) < self.attack_fuerza_cost:
+            return False
 
         ua = attacker.unit.attack
         # Targeting anclado a la formación del objetivo (spec §6): rival si daña, propio si cura.
@@ -544,6 +548,7 @@ class GameEngine:
         if not self._has_valid_target(ua, targets, p, opp):
             return False
         attacker.attacked_this_turn = True   # consume el ataque de esta unidad (spec §6)
+        p.add(ResourceType.FUERZA, -self.attack_fuerza_cost, self.max_resource)   # atacar cuesta ⚡
 
         if ua.effect == AttackEffect.HEAL_ALLIES:
             for t in targets:

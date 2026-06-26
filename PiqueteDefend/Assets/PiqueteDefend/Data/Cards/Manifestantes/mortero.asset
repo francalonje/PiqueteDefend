@@ -16,7 +16,7 @@ MonoBehaviour:
   cardName: Mortero Casero
   faction: 0
   costs:
-  - resource: 1
+  - resource: 0
     amount: 6
   drawWeight: 1
   sprite: {fileID: 0}

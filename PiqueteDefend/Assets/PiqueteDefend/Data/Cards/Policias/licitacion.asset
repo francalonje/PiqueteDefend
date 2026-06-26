@@ -16,7 +16,7 @@ MonoBehaviour:
   cardName: "Licitaci\xF3n Express"
   faction: 1
   costs:
-  - resource: 0
+  - resource: 2
     amount: 4
   drawWeight: 2
   sprite: {fileID: 0}

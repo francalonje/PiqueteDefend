@@ -16,7 +16,7 @@ MonoBehaviour:
   cardName: Trol Oficial
   faction: 1
   costs:
-  - resource: 2
+  - resource: 0
     amount: 4
   drawWeight: 2
   sprite: {fileID: 0}

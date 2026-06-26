@@ -16,7 +16,7 @@ MonoBehaviour:
   cardName: "Caballer\xEDa"
   faction: 1
   costs:
-  - resource: 2
+  - resource: 0
     amount: 7
   drawWeight: 1
   sprite: {fileID: 0}

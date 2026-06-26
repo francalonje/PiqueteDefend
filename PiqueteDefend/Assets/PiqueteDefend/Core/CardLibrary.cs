@@ -14,6 +14,9 @@ namespace PiqueteDefend.Core
     /// Roster <b>asimétrico</b> (§6.1 #11): las pasivas distintivas NO se repiten entre facciones.
     /// allowedSlots en base 0 (slot k del spec = índice k-1); el targeting de ataque es por
     /// <see cref="TargetMode"/>, anclado a la formación (spec §6) — el frente es el extremo de índice alto.
+    ///
+    /// <b>Recurso de costo por tipo (spec §3):</b> Unidad → $ Dinero · Acción y Equipo → 📣 Social.
+    /// Atacar cuesta ⚡ Fuerza (no es costo de carta, §6/GameConfig). Lo per-card es el <b>monto</b>.
     /// </summary>
     public static class CardLibrary
     {
@@ -26,79 +29,79 @@ namespace PiqueteDefend.Core
             const Faction M = Faction.Manifestantes;
             return new List<CardData>
             {
-                // ── Unidades (9) ──
-                Unit("piquetero", "Piquetero", M, UnitSubtype.Atacante, ResourceType.Fuerza, 4,
+                // ── Unidades (9) — cuestan $ Dinero (spec §3) ──
+                Unit("piquetero", "Piquetero", M, UnitSubtype.Atacante, 4,
                      20, NoSlots, Atk(TargetMode.Frontmost, 1, 14),
                      "Bombo, bandera y aguante para parar el país. El camionero lo putea en seis idiomas y él ni se inmuta.",
                      Aura(2)),
-                Unit("fisura", "Fisura", M, UnitSubtype.Atacante, ResourceType.Fuerza, 5,
+                Unit("fisura", "Fisura", M, UnitSubtype.Atacante, 5,
                      18, Medio, Atk(TargetMode.Frontmost, 3, 7),
                      "Arranca la baldosa con las manos y la parte en cuatro. Cada cascote ya tiene nombre y apellido.",
                      Produce(ResourceType.Fuerza, 1)),
-                Unit("jubilado", "Jubilado", M, UnitSubtype.Atacante, ResourceType.Fuerza, 2,
+                Unit("jubilado", "Jubilado", M, UnitSubtype.Atacante, 2,
                      6, NoSlots, Atk(TargetMode.Any, 1, 2),
                      "Mil miércoles de marcha en el lomo y cero miedo a esta altura del partido. Cuando cae, la columna redobla el bombo y sale con todo.",
                      OnDeathFuria(4, 2)),
-                Unit("mortero", "Mortero Casero", M, UnitSubtype.Atacante, ResourceType.Fuerza, 5,
+                Unit("mortero", "Mortero Casero", M, UnitSubtype.Atacante, 5,
                      8, new[] { 1, 2, 3 }, Atk(TargetMode.Backmost, 1, 14),
                      "Un caño, pólvora trucha y fe. No le apunta a nadie, pero siempre le encaja al de la oficina del fondo."),
-                Unit("encadenado", "Encadenado", M, UnitSubtype.Defensiva, ResourceType.Dinero, 5,
+                Unit("encadenado", "Encadenado", M, UnitSubtype.Defensiva, 5,
                      32, Frente, Atk(TargetMode.Frontmost, 2, 3),
                      "Se candó al obelisco a las seis de la mañana y tiró la llave. De ahí no lo saca nadie, y el que lo intenta se lleva los candados de recuerdo.",
                      Espinas(3)),
-                Unit("gordo_sindical", "Gordo Sindical", M, UnitSubtype.Productora, ResourceType.Dinero, 3,
+                Unit("gordo_sindical", "Gordo Sindical", M, UnitSubtype.Productora, 3,
                      12, Retaguardia, Atk(TargetMode.Frontmost, 1, 3),
                      "Maneja la caja, la lista y el micro. Aparece en el palco, jamás en la primera fila.",
                      Produce(ResourceType.Dinero, 2)),
-                Unit("choripanero", "Choripanero", M, UnitSubtype.Defensiva, ResourceType.Dinero, 4,
+                Unit("choripanero", "Choripanero", M, UnitSubtype.Defensiva, 4,
                      15, Medio, Heal(TargetMode.Any, 1, 3),
                      "Pan, chori y un chimi que resucita muertos. El que morfa, vuelve a la marcha como si nada."),
-                Unit("tuitero", "Tuitero Militante", M, UnitSubtype.Productora, ResourceType.Social, 2,
+                Unit("tuitero", "Tuitero Militante", M, UnitSubtype.Productora, 2,
                      10, Retaguardia, Atk(TargetMode.Frontmost, 1, 2),
                      "2.300 seguidores y la certeza absoluta de que cambió la historia con un hilo de Twitter.",
                      Produce(ResourceType.Social, 2)),
-                Unit("quema_cubiertas", "Quema de Cubiertas", M, UnitSubtype.Atacante, ResourceType.Social, 5,
+                Unit("quema_cubiertas", "Quema de Cubiertas", M, UnitSubtype.Atacante, 5,
                      15, Medio, Atk(TargetMode.Any, 1, 2),
                      "Diez gomas viejas, un fósforo y el viento a favor. El humo negro no discrimina: te entra a todos.",
                      Humo(2)),
 
-                // ── Acciones (8) ──
-                Action("colecta", "Colecta", M, ActionCategory.Boost, ResourceType.Social, 3,
+                // ── Acciones (8) — cuestan 📣 Social (spec §3) ──
+                Action("colecta", "Colecta", M, ActionCategory.Boost, 3,
                        "Pasamos la gorra. La de los compañeros, no la de la cana.",
                        ModRes(TargetType.Self, ResourceType.Dinero, 6)),
-                Action("fernet", "Fernet con Cola", M, ActionCategory.Boost, ResourceType.Dinero, 1,
+                Action("fernet", "Fernet con Cola", M, ActionCategory.Boost, 1,
                        "Hidratación táctica. No es doping si lo toma toda la marcha.",
                        ModRes(TargetType.Self, ResourceType.Fuerza, 3)),
-                Action("viral", "Viral en Redes", M, ActionCategory.Boost, ResourceType.Dinero, 2,
+                Action("viral", "Viral en Redes", M, ActionCategory.Boost, 2,
                        "Catorce segundos de video, tres palos de reproducciones. El ministerio ya está llamando.",
                        ModRes(TargetType.Self, ResourceType.Social, 7)),
-                Action("paro_general", "Paro General", M, ActionCategory.Ataque, ResourceType.Fuerza, 5,
+                Action("paro_general", "Paro General", M, ActionCategory.Ataque, 5,
                        "24 horas de nada. No hay bondi, no hay banco, no hay delivery. El país clavado.",
                        ModHP(TargetType.Opponent, -21)),
-                Action("el_aguante", "El Aguante", M, ActionCategory.Boost, ResourceType.Fuerza, 2,
+                Action("el_aguante", "El Aguante", M, ActionCategory.Boost, 2,
                        "Cantito, bombo y se renueva el aguante. Treinta cuadras más, fácil.",
                        ApplyStatus(TargetType.Self, Furia(4, 2))),
-                Action("asamblea", "Asamblea Popular", M, ActionCategory.EfectoEspecial, ResourceType.Social, 6,
+                Action("asamblea", "Asamblea Popular", M, ActionCategory.EfectoEspecial, 6,
                        "Se vota a mano alzada. Cuatro horas de bardo, pero esta vez salió.",
                        ApplyStatus(TargetType.Self, Double())),
-                Action("abrazo", "Abrazo Colectivo", M, ActionCategory.Defensa, ResourceType.Dinero, 5,
+                Action("abrazo", "Abrazo Colectivo", M, ActionCategory.Defensa, 5,
                        "El abrazo que cura todo. Menos la deuda en pesos.",
                        ModHP(TargetType.Self, 10)),
-                Action("escrache", "Escrache", M, ActionCategory.Sabotaje, ResourceType.Social, 4,
+                Action("escrache", "Escrache", M, ActionCategory.Sabotaje, 4,
                        "Le golpean la puerta a las 7 de la mañana con bombos. No se asoma en todo el día.",
                        ApplyStatus(TargetType.Opponent, Stun())),
 
-                // ── Equipo ──
-                Equipment("pechera", "Pechera de Cartón", M, ResourceType.Dinero, 3,
+                // ── Equipo (4) — cuestan 📣 Social (spec §3) ──
+                Equipment("pechera", "Pechera de Cartón", M, 3,
                           "Cartón, cinta de embalar y fe. Aguanta más de lo que el sentido común permite.",
                           new[] { MaxHpMod(10) }, NoPassives),
-                Equipment("cascote", "Cascote", M, ResourceType.Fuerza, 2,
+                Equipment("cascote", "Cascote", M, 2,
                           "El fierro más democrático: gratis, abundante y siempre a mano.",
                           new[] { DamageMod(4) }, NoPassives),
-                Equipment("parrilla", "Parrilla Portátil", M, ResourceType.Dinero, 3,
+                Equipment("parrilla", "Parrilla Portátil", M, 3,
                           "Media parrilla, una bolsa de carbón y olor a asado. Cura lo que ninguna obra social.",
                           NoMods, new[] { Regen(2) }),
-                Equipment("miguelitos", "Miguelitos", M, ResourceType.Fuerza, 3,
+                Equipment("miguelitos", "Miguelitos", M, 3,
                           "Tres clavos soldados con saña. El patrullero los encuentra tarde, siempre.",
                           NoMods, new[] { Espinas(4) }),
             };
@@ -109,77 +112,77 @@ namespace PiqueteDefend.Core
             const Faction P = Faction.Policias;
             return new List<CardData>
             {
-                // ── Unidades (9) ──
-                Unit("infante", "Infante", P, UnitSubtype.Atacante, ResourceType.Fuerza, 5,
+                // ── Unidades (9) — cuestan $ Dinero (spec §3) ──
+                Unit("infante", "Infante", P, UnitSubtype.Atacante, 5,
                      24, NoSlots, Atk(TargetMode.Frontmost, 1, 14),
                      "Casco, escudo y cara de pocas pulgas. Va al frente porque es lo que mejor hace: plantarse y no moverse ni con grúa."),
-                Unit("itakero", "Itakero", P, UnitSubtype.Atacante, ResourceType.Fuerza, 4,
+                Unit("itakero", "Itakero", P, UnitSubtype.Atacante, 4,
                      20, Medio, Atk(TargetMode.Frontmost, 3, 4),
                      "Escopeta Itaka y postas de goma para todos. Apunta al montón y reza, total alguno cae."),
-                Unit("halcon", "Halcón", P, UnitSubtype.Atacante, ResourceType.Fuerza, 6,
+                Unit("halcon", "Halcón", P, UnitSubtype.Atacante, 6,
                      8, new[] { 1, 2, 3 }, Atk(TargetMode.Any, 1, 15),
                      "Mira telescópica desde la terraza. Te tiene en la cruz desde antes de que llegaras a la esquina."),
-                Unit("gendarme", "Gendarme", P, UnitSubtype.Defensiva, ResourceType.Dinero, 5,
+                Unit("gendarme", "Gendarme", P, UnitSubtype.Defensiva, 5,
                      26, Frente, Atk(TargetMode.Frontmost, 2, 4),
                      "Lo trajeron de la frontera a cuidar una baldosa, y la cuida con la vida. No se mueve, no se cansa, no afloja.",
                      Blindaje(2)),
-                Unit("carro_hidrante", "Carro Hidrante", P, UnitSubtype.Atacante, ResourceType.Dinero, 4,
+                Unit("carro_hidrante", "Carro Hidrante", P, UnitSubtype.Atacante, 4,
                      18, Medio, Atk(TargetMode.Any, 1, 3),
                      "Diez mil litros a presión. Te despega del asfalto y te deja en la otra cuadra antes de que termines el cántico.",
                      Chorro()),
-                Unit("recaudador", "Recaudador", P, UnitSubtype.Productora, ResourceType.Dinero, 3,
+                Unit("recaudador", "Recaudador", P, UnitSubtype.Productora, 3,
                      12, Retaguardia, Atk(TargetMode.Frontmost, 1, 3),
                      "La plata sale de algún lado y mejor no preguntes. Reparte sobres y se queda con el vuelto.",
                      Produce(ResourceType.Dinero, 2)),
-                Unit("caballeria", "Caballería", P, UnitSubtype.Atacante, ResourceType.Social, 6,
+                Unit("caballeria", "Caballería", P, UnitSubtype.Atacante, 6,
                      16, Medio, Atk(TargetMode.All, 0, 2),
                      "Entran al galope y a lo que venga. El comunicado oficial lo tituló \"reordenamiento dinámico del espacio público\"."),
-                Unit("trol", "Trol Oficial", P, UnitSubtype.Productora, ResourceType.Social, 3,
+                Unit("trol", "Trol Oficial", P, UnitSubtype.Productora, 3,
                      14, Retaguardia, Atk(TargetMode.Frontmost, 1, 2),
                      "Diez cuentas, un solo sueldo del Estado y cero ortografía. Inventa la tendencia antes del café.",
                      Produce(ResourceType.Social, 2)),
-                Unit("gasero", "Gasero", P, UnitSubtype.Atacante, ResourceType.Social, 5,
+                Unit("gasero", "Gasero", P, UnitSubtype.Atacante, 5,
                      15, Medio, Atk(TargetMode.Frontmost, 1, 2),
                      "Granada de gas en una mano, pañuelo en la otra. \"Es para dispersar\", avisa, y la nube no lee carteles: dispersa la plaza, la esquina y el kiosco de paso.",
                      Gas(2)),
 
-                // ── Acciones (8) ──
-                Action("partida", "Partida Presupuestaria", P, ActionCategory.Boost, ResourceType.Social, 2,
+                // ── Acciones (8) — cuestan 📣 Social (spec §3) ──
+                Action("partida", "Partida Presupuestaria", P, ActionCategory.Boost, 2,
                        "Existe en el papel. Se aprobó a las 3 de la mañana y nadie sabe para qué.",
                        ModRes(TargetType.Self, ResourceType.Dinero, 7)),
-                Action("licitacion", "Licitación Express", P, ActionCategory.Boost, ResourceType.Dinero, 3,
+                Action("licitacion", "Licitación Express", P, ActionCategory.Boost, 3,
                        "Una empresa, un sobre y 48 horas. El pliego lo hicieron el lunes a la tarde.",
                        ModRes(TargetType.Self, ResourceType.Fuerza, 10)),
-                Action("cadena", "Cadena Nacional", P, ActionCategory.Boost, ResourceType.Dinero, 2,
+                Action("cadena", "Cadena Nacional", P, ActionCategory.Boost, 2,
                        "Interrumpe la novela. El presidente habla 40 minutos. Nadie pidió que arranque.",
                        ModRes(TargetType.Self, ResourceType.Social, 4)),
-                Action("operativo", "Operativo Apretón", P, ActionCategory.Ataque, ResourceType.Dinero, 6,
+                Action("operativo", "Operativo Apretón", P, ActionCategory.Ataque, 6,
                        "Cuatro camiones, veinte efectivos y un drone. Todo para un jubilado con un cartel.",
                        ModHP(TargetType.Opponent, -27)),
-                Action("causa_judicial", "Causa Judicial", P, ActionCategory.Sabotaje, ResourceType.Dinero, 4,
+                Action("causa_judicial", "Causa Judicial", P, ActionCategory.Sabotaje, 4,
                        "Te arman un expediente. Te va comiendo de a poco, durante años.",
                        ApplyStatus(TargetType.Opponent, Poison(3, 2))),
-                Action("apriete", "Apriete", P, ActionCategory.Sabotaje, ResourceType.Fuerza, 2,
+                Action("apriete", "Apriete", P, ActionCategory.Sabotaje, 2,
                        "Una charla en voz baja contra la pared. Se te van las ganas solas.",
                        ApplyStatus(TargetType.Opponent, Desmor(4, 2))),
-                Action("toque_queda", "Toque de Queda", P, ActionCategory.EfectoEspecial, ResourceType.Dinero, 5,
+                Action("toque_queda", "Toque de Queda", P, ActionCategory.EfectoEspecial, 5,
                        "A las 22 todos adentro. El que se manda afuera, va en cana.",
                        ApplyStatus(TargetType.Opponent, Skip())),
-                Action("reubicacion", "Reubicación Forzosa", P, ActionCategory.EfectoEspecial, ResourceType.Dinero, 2,
+                Action("reubicacion", "Reubicación Forzosa", P, ActionCategory.EfectoEspecial, 2,
                        "Los suben a un patrullero, los bajan en la otra punta. Protocolo, dicen.",
                        Swap()),
 
-                // ── Equipo ──
-                Equipment("chaleco", "Chaleco Antibalas", P, ResourceType.Dinero, 3,
+                // ── Equipo (4) — cuestan 📣 Social (spec §3) ──
+                Equipment("chaleco", "Chaleco Antibalas", P, 3,
                           "Importado. Al menos figura en el inventario, que ya es algo.",
                           new[] { MaxHpMod(12) }, NoPassives),
-                Equipment("tonfa", "Tonfa", P, ResourceType.Fuerza, 2,
+                Equipment("tonfa", "Tonfa", P, 2,
                           "Reglamentaria. El uso, a criterio del que la empuña.",
                           new[] { DamageMod(4) }, NoPassives),
-                Equipment("escudo_antimotin", "Escudo Antimotín", P, ResourceType.Dinero, 3,
+                Equipment("escudo_antimotin", "Escudo Antimotín", P, 3,
                           "Policarbonato y reglamento. El palazo que da, no el que recibe.",
                           NoMods, new[] { Blindaje(2) }),
-                Equipment("hidrante_mano", "Hidrante de Mano", P, ResourceType.Social, 3,
+                Equipment("hidrante_mano", "Hidrante de Mano", P, 3,
                           "Versión de bolsillo del carro. Igual te despeina el cántico.",
                           NoMods, new[] { Chorro() }),
             };
@@ -203,7 +206,7 @@ namespace PiqueteDefend.Core
         private static readonly StatModifier[] NoMods = Array.Empty<StatModifier>();
 
         private static UnitCardData Unit(string id, string name, Faction faction, UnitSubtype sub,
-                                         ResourceType costResource, int cost, int maxHp, int[] allowed,
+                                         int cost, int maxHp, int[] allowed,
                                          UnitAttack attack, string flavor, params PassiveEffect[] passives)
         {
             var card = ScriptableObject.CreateInstance<UnitCardData>();
@@ -212,7 +215,7 @@ namespace PiqueteDefend.Core
             card.cardName = name;
             card.faction = faction;
             card.unitSubtype = sub;
-            card.costs = SingleCost(costResource, cost);
+            card.costs = SingleCost(ResourceType.Dinero, cost);   // Unidad → $ Dinero (spec §3)
             card.maxHp = maxHp;
             card.allowedSlots = allowed;
             card.attack = attack;
@@ -227,8 +230,7 @@ namespace PiqueteDefend.Core
         }
 
         private static ActionCardData Action(string id, string name, Faction faction, ActionCategory cat,
-                                             ResourceType costResource, int cost, string flavor,
-                                             params CardEffect[] effects)
+                                             int cost, string flavor, params CardEffect[] effects)
         {
             var card = ScriptableObject.CreateInstance<ActionCardData>();
             card.name = id;
@@ -236,7 +238,7 @@ namespace PiqueteDefend.Core
             card.cardName = name;
             card.faction = faction;
             card.actionCategory = cat;
-            card.costs = SingleCost(costResource, cost);
+            card.costs = SingleCost(ResourceType.Social, cost);   // Poder → 📣 Social (spec §3)
             card.flavorText = flavor;
             card.effects = new List<CardEffect>(effects);
             // Las cartas de producción (boost de recurso propio) pesan 2 en el robo. Espejo de cards.py.
@@ -248,7 +250,7 @@ namespace PiqueteDefend.Core
         }
 
         private static EquipmentCardData Equipment(string id, string name, Faction faction,
-                                                   ResourceType costResource, int cost, string flavor,
+                                                   int cost, string flavor,
                                                    StatModifier[] mods, PassiveEffect[] passives)
         {
             var card = ScriptableObject.CreateInstance<EquipmentCardData>();
@@ -256,7 +258,7 @@ namespace PiqueteDefend.Core
             card.id = id;
             card.cardName = name;
             card.faction = faction;
-            card.costs = SingleCost(costResource, cost);
+            card.costs = SingleCost(ResourceType.Social, cost);   // Equipo → 📣 Social (spec §3)
             card.flavorText = flavor;
             card.statModifiers = new List<StatModifier>(mods);
             card.grantedPassives = new List<PassiveEffect>(passives);

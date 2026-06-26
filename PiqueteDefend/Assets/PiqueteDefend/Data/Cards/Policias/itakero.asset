@@ -16,7 +16,7 @@ MonoBehaviour:
   cardName: Itakero
   faction: 1
   costs:
-  - resource: 1
+  - resource: 0
     amount: 5
   drawWeight: 1
   sprite: {fileID: 0}

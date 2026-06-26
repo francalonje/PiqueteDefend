@@ -16,7 +16,7 @@ MonoBehaviour:
   cardName: "Pechera de Cart\xF3n"
   faction: 0
   costs:
-  - resource: 0
+  - resource: 2
     amount: 4
   drawWeight: 1
   sprite: {fileID: 0}

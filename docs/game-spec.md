@@ -41,6 +41,15 @@ Cada jugador maneja 3 recursos independientes.
 
 > La producción base es **+1 de cada recurso por turno**. Encima de eso, las unidades con pasiva de producción y las cartas de Acción suman extra. Los valores de producción base son configurables desde código en un único lugar (`GameConfig`) para facilitar el balanceo.
 
+> **Cada recurso paga una cosa (regla de oro — define el eje de build, §6.2):**
+> - **$ Dinero** → **comprar unidades** (toda carta de Unidad cuesta Dinero).
+> - **📣 Social** → **poderes y equipo** (toda carta de Acción y de Equipo cuesta Social).
+> - **⚡ Fuerza** → **atacar** (cada ataque de unidad cuesta Fuerza, ver §6/§7.2).
+>
+> El **recurso de costo de una carta lo fija su tipo**, no el diseño per-card (lo per-card es el
+> **monto**). Así, en cuánto producís cada recurso decidís tu plan: Dinero = cuántos cuerpos bajás,
+> Social = cuánta utilidad/control tirás, Fuerza = **cuántos golpes das por turno**.
+
 **Recursos iniciales al inicio de la partida:** 5 de cada recurso (configurable para balanceo).
 
 **Techo de recursos (anti-atesoramiento):** el máximo es **configurable** (`maxResource`). Con el modelo **multi-carta por turno** (§6), gastar varias cartas **drena los recursos solo** — el atesoramiento ya no es el problema estructural que era con "1 carta/turno". El techo pasa a ser un anti-atesoramiento **suave** (evita acumular indefinidamente entre turnos) en vez de la palanca económica central. ⚠️ **Valor a re-derivar al rebalancear el combate (sim/playtest):** el `maxResource=18` actual estaba tuneado contra el modelo viejo; con multi-carta probablemente sube o se afloja. Ver [[feedback-playtest-driven]].
@@ -157,12 +166,14 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
                        carta para ciclar sigue disponible.
                     b) Atacar: CADA unidad propia que NO esté aturdida (Stun) puede atacar UNA
                        vez este turno, en el orden que elija el jugador → afecta slots según su
-                       ataque. Daño efectivo = base + Furia + AuraDamage − Desmoralizar; los
-                       defensores con Retaliate devuelven daño al atacante.
+                       ataque. CADA ataque CUESTA `attackFuerzaCost` de ⚡ Fuerza (§3): sólo podés
+                       atacar si te alcanza, y se descuenta al atacar. Esto hace que la Fuerza module
+                       CUÁNTOS golpes das por turno. Daño efectivo = base + Furia + AuraDamage −
+                       Desmoralizar; los defensores con Retaliate devuelven daño al atacante.
                        EXCEPCIÓN: en el turno 1 de la partida el primer jugador NO puede atacar
                        con unidades (regla de iniciativa, §3/§16); sí puede jugar/desplegar cartas.
-                       CURAR con un healer usa la acción de ataque de la unidad (§7.2): cuenta
-                       como su ataque del turno.
+                       CURAR con un healer usa la acción de ataque de la unidad (§7.2): cuenta como
+                       su ataque del turno y también paga `attackFuerzaCost`.
                   → Evaluar condición de victoria tras cada acción
 
 4. REPONER MANO — Las cartas jugadas/descartadas van al descarte; se rellena la mano hasta
@@ -331,26 +342,26 @@ El tablero de cada jugador es **una única línea de 6 slots**, un **eje de prof
 
 ### 6.2 Eje de build: recurso → arquetipo
 
-La palanca central de la "sensación de builds". **En hotseat 2 jugadores (sin deckbuilding):** la mano se roba del
-mazo barajado de la facción (sin reemplazo, §8.1); *leanear un recurso* no es elegir cartas, es **en qué recurso invertís
-producción** (productoras + boosts) y, por lo tanto, **qué cartas podés pagar de forma fiable**. El
-build es **emergente de la economía**. Para que funcione, el **recurso de costo de cada carta debe
-correlacionar con su rol**:
+La palanca central de la "sensación de builds". El **recurso de costo lo fija el tipo de carta/acción**
+(§3), así que *leanear un recurso* es **en qué recurso invertís producción** (productoras + boosts) y,
+por lo tanto, **qué parte de tu plan podés sostener**. El build es **emergente de la economía**:
 
-| Recurso | Identidad | Arquetipos típicos | Acciones típicas |
-|---------|-----------|----------------------|------------------|
-| **⚡ Fuerza** | **Agresión / tempo de combate** | Escaramuza, Cleave, Sniper, Mártir | daño directo, furia/buffs de daño |
-| **$ Dinero** | **Durabilidad / economía** | Muro, Productora $, Healer, Control | +HP/defensa, boosts económicos |
-| **📣 Social** | **Control / momentum** | Productora 📣, Emisor, Carga | según facción (ver abajo) |
+| Recurso | Paga | Si te sobra / si te falta |
+|---------|------|---------------------------|
+| **$ Dinero** | **Unidades** (cuerpos en el tablero) | mucho $ = inundás de unidades; poco $ = tablero ralo |
+| **📣 Social** | **Poderes (acciones) + Equipo** (utilidad, control, buffs) | mucho 📣 = control/combos; poco 📣 = sólo pegar a lo bruto |
+| **⚡ Fuerza** | **Atacar** (`attackFuerzaCost` por golpe, §6) | mucho ⚡ = atacás con todo el tablero; poco ⚡ = elegís a quién golpear |
 
-> **El eje 📣 se expresa distinto por facción (§6.1 #11):** para **Manifestantes** es *momentum*
-> (rallying: Humo, doble producción, Escrache); para **Policías** es *supresión* (Gas, Veneno,
-> Desmoralizar, Skip-producción, Swap). Mismo recurso, expresión opuesta — buffear vs debuffear.
+> **Por qué funciona.** Antes el costo era per-card; ahora cada recurso es un **dial de plan**: subir
+> producción de ⚡ = más agresión por turno, de $ = más presencia, de 📣 = más utilidad/control. La
+> tensión: producís +1 de cada (§3) y boosts/productoras, pero no alcanza para maximizar las tres a la
+> vez. **Asimetría de facción (§6.1 #11):** Manif y Pol invierten distinto (p. ej. Pol con más control
+> en 📣, Manif con más cuerpos baratos en $), no por el recurso sino por **qué cartas** ofrece cada pool.
 
 > **Producción e ingreso por recurso.** Base = +1 de cada recurso/turno (§3). Una **productora** suma
-> **+2** de su recurso (recurso = 3/turno; dos productoras = 5/turno → leanear se siente). **⚡ no tiene
-> productora pura:** Manif lo **gotea** por combate (cleave +1⚡/turno), Pol lo recibe en **lump** por la
-> Licitación Express (boost grande). Asimetría intencional: ⚡ de Manif sostenido, ⚡ de Pol a golpes.
+> **+2** de su recurso. Las cartas de boost (acciones que dan recurso) convierten/aceleran un eje. ⚠️
+> **Montos a re-derivar al rebalancear el combate** (sim/playtest): el cambio a costo-por-tipo +
+> ataque-cuesta-⚡ corrió toda la economía.
 
 > **Propiedad emergente buscada:** mono-recurso = rápido y enfocado **pero ciego a parte del
 > triángulo RPS** (te falta acceso fiable a tu counter); mixto = flexible pero más lento. Esa es la
@@ -816,14 +827,16 @@ Overlay con:
 |-----------|-------|
 | Cartas visibles en mano (`handSize`) | 6 |
 | **Cartas por turno** | **Varias: tantas como pueda pagar** (limitadas por recursos, §6) |
-| **Ataques por turno** | **Uno por unidad** propia no aturdida (§6) |
+| **Recurso de costo (por tipo, §3)** | Unidad → **$ Dinero** · Acción/Equipo → **📣 Social** |
+| **Ataques por turno** | **Uno por unidad** propia no aturdida (§6), si alcanza la ⚡ |
+| **`attackFuerzaCost`** | ⚡ Fuerza que cuesta cada ataque de unidad. Default **1** (rough, tunear; §6) |
 | **Reposición de mano** | Rellenar a `handSize` al fin del turno (rough, tunear; §6/§8.1) |
 | Slots de unidades por jugador | 6 |
 | Apilamiento de unidades | No activo (punto de extensión [FUTURO], `UnitSlot.count`) |
 | Unidades iniciales por facción | Predefinidas (data por facción) |
 | Recursos iniciales | 5 de cada uno (configurable) |
 | Producción base por turno | +1 de cada recurso ($/⚡/📣); en `GameConfig` (configurable) |
-| Producción de una productora | **+2** de su recurso (recurso = 3/turno; §6.2). ⚡ no tiene productora pura: cleave +1⚡/turno (Manif) o Licitación lump (Pol) |
+| Producción de una productora | **+2** de su recurso (recurso = 3/turno; §6.2) |
 | Factor económico global de costo | **×1.2** sobre el costo base (uniforme, horneado; `knobs.cost_mult`). ⚠️ Re-derivar al rebalancear el combate (multi-carta, §6) |
 | `inflationStartTurn` | Medio-turno **8** (rol = presión anti-stalemate, §3). ⚠️ Re-derivar al rebalancear el combate |
 | `inflationPercentPerTurn` | **+5%** acumulativo por medio-turno. ⚠️ Re-derivar al rebalancear el combate |
