@@ -48,6 +48,7 @@ namespace PiqueteDefend.Core
         NoUnitInSlot,        // no hay unidad propia en el slot atacante
         UnitStunned,         // la unidad está aturdida: no puede actuar este turno
         CannotAttackFirstTurn, // el primer jugador no puede atacar en su turno 1 (spec §3/§16)
-        InvalidTarget
+        InvalidTarget,
+        DiscardLimitReached    // ya descartó una carta este turno (máx 1 por turno, spec §6)
     }
 }

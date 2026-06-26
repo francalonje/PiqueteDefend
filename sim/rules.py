@@ -103,6 +103,7 @@ class PlayerState:
         self.hand: List[CardData] = []
         self.deck: List[CardData] = []       # mazo de robo (se roba del final, pop())
         self.discard: List[CardData] = []    # descarte; vuelve barajado al mazo cuando éste se vacía
+        self.discards_this_turn: int = 0
         self.slots: List[Optional[UnitSlot]] = [None] * BOARD
         self.statuses: List[StatusEffect] = []   # estados de jugador (producción)
 
@@ -328,6 +329,7 @@ class GameEngine:
     def begin_turn(self):
         self.half_turn += 1
         p = self.active_player
+        p.discards_this_turn = 0
 
         # EFECTOS a) estados de jugador (producción): fire-on-expiry
         skip_production = False
@@ -450,7 +452,10 @@ class GameEngine:
         p = self.active_player
         if not (0 <= hand_index < len(p.hand)):
             return False
+        if p.discards_this_turn >= 1:
+            return False
         self._to_discard(p, hand_index)
+        p.discards_this_turn += 1
         return True
 
     def _equip(self, slot: UnitSlot, card: EquipmentCardData):

@@ -30,6 +30,8 @@ namespace PiqueteDefend.Core
 
         public readonly List<StatusEffect> activeStatuses = new List<StatusEffect>();
 
+        public int discardsThisTurn;
+
         public PlayerState(int slotCount)
         {
             unitSlots = new UnitSlot[slotCount];
