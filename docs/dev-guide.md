@@ -407,7 +407,11 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
 
   **[EXTENSIÓN] reliquia / tienda / encuentro:** ver el seam en `RunState` (`[EXTENSIÓN]`) y los tipos
   `Shop`/`Event` reservados en `MapNodeType`.
-- **Presentación (Fase 4 — PENDIENTE):** menú con 2 botones, pantalla de mapa, pantalla de recompensa,
-  HUD de run, combate con turno de IA (delays + indicador + input bloqueado). La presentación corre el
-  loop del `GameEngine` que devuelve `RunManager.BeginCombat`, autojugando el índice `AiIndex` con el
-  `HeuristicAiController`, y al terminar llama `RunManager.ResolveCombat(engine.Outcome.Value)`.
+- **Presentación (Fase 4 — HECHO):** escenas `Map` (`MapController`, mapa 2D por `x/y`) y `Reward`
+  (`RewardController`, 1-de-3 reusando `GameController.BuildCardVisual`). `MainMenu` con 2 modos +
+  Ajustes(disabled)/Salir. `RunSession` (estático) mantiene el `RunManager` y el engine prearmado entre
+  escenas. `GameController`: en modo run consume el engine de `RunSession`, autojugando el índice
+  `RunManager.AiIndex` con `HeuristicAiController` (loop `NextAction→Execute→Render→delay→EndTurn`, input
+  bloqueado por `_aiTurnInProgress`); al terminar llama `RunManager.ResolveCombat` y rutea a Reward /
+  run-ganada / run-perdida. Menú de pausa (ESCAPE) + click-away que cierra popovers.
+  Pendiente de pulido por playtest; el diorama 3D del mapa es mejora futura.

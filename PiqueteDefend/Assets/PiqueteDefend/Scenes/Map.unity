@@ -302,7 +302,7 @@ GameObject:
   - component: {fileID: 1751718238}
   - component: {fileID: 1751718237}
   m_Layer: 0
-  m_Name: FactionSelect
+  m_Name: Map
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -317,9 +317,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1751718236}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 081705b56c0e2bd4a958d462027d3a3c, type: 3}
+  m_Script: {fileID: 11500000, guid: 094ae5d467008d84fb59f6dbaa91f4ff, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: PiqueteDefend.Presentation::PiqueteDefend.Presentation.FactionSelectController
+  m_EditorClassIdentifier: PiqueteDefend.Presentation::PiqueteDefend.Presentation.MapController
 --- !u!114 &1751718238
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -334,7 +334,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
   m_PanelSettings: {fileID: 0}
   m_ParentUI: {fileID: 0}
-  sourceAsset: {fileID: 9197481963319205126, guid: 673f3f7afcd70e54eba132a953f01759, type: 3}
+  sourceAsset: {fileID: 9197481963319205126, guid: 1247a1e49fef0d14ba2e08b55001cae7, type: 3}
   m_SortingOrder: 0
   m_Position: 0
   m_WorldSpaceSizeMode: 1

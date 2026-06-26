@@ -43,12 +43,16 @@ namespace PiqueteDefend.EditorTools
 
             BuildScene("Main", "MainMenu", typeof(MainMenuController));
             BuildScene("FactionSelect", "FactionSelect", typeof(FactionSelectController));
+            BuildScene("Map", "Map", typeof(MapController));            // run: mapa de puntos (spec §17.1)
+            BuildScene("Reward", "Reward", typeof(RewardController));   // run: recompensa 1-de-3 (spec §17.2)
             BuildScene("Game", "Game", typeof(GameController));
 
             EditorBuildSettings.scenes = new[]
             {
                 new EditorBuildSettingsScene(ScenesDir + "/Main.unity", true),
                 new EditorBuildSettingsScene(ScenesDir + "/FactionSelect.unity", true),
+                new EditorBuildSettingsScene(ScenesDir + "/Map.unity", true),
+                new EditorBuildSettingsScene(ScenesDir + "/Reward.unity", true),
                 new EditorBuildSettingsScene(ScenesDir + "/Game.unity", true),
             };
 

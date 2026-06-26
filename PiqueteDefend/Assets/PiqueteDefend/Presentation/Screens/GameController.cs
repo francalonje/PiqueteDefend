@@ -29,6 +29,13 @@ namespace PiqueteDefend.Presentation
         private int _pendingFirstSlot = -1;   // primer slot elegido para efectos de dos slots (Move/Swap)
         private TargetType _pendingEffectSide;
 
+        // Modo run (single-player, spec §17): un índice lo juega la IA. -1 = hotseat (ambos humanos).
+        private bool _runMode;
+        private int _aiPlayerIndex = -1;
+        private IPlayerController _ai;
+        private bool _aiTurnInProgress;        // turno de IA en curso: bloquea TODO input humano
+        private const long AiActionDelayMs = 800;   // pausa entre acciones de la IA (pacing, spec §11.3/§17.5)
+
         // Drag & drop
         private bool _dragging;
         private int _dragIndex = -1;
@@ -57,9 +64,11 @@ namespace PiqueteDefend.Presentation
         private int _animAttackerPlayer = -1;
         private int[] _animOpponentSnap;
         private string _animHitSoundId;
+        private int _animHits = 1;                  // golpes del ataque (multi-hit, spec §7.2)
+        private const long PerHitDelayMs = 200;     // pausa entre los golpes de un ataque multi-hit
 
         // UI refs
-        private VisualElement _root, _screen, _hand, _p0Slots, _p1Slots, _overlay;
+        private VisualElement _root, _screen, _hand, _p0Slots, _p1Slots, _overlay, _pauseOverlay;
         private Button _popover;
         private Label _popIcon, _popVerb, _popValue;   // fila principal del popover de ataque (icono · verbo · valor)
         private Label _popReach, _popCost;             // sub-fila: alcance (palabras) + costo en ⚡
@@ -86,19 +95,34 @@ namespace PiqueteDefend.Presentation
             BuildInfoPopover();
             BuildFirstTurnNotice();
             BuildInflationMeter();
+            BuildPauseOverlay();
 
-            var catalog = Resources.Load<CardCatalog>(CatalogResource);
-            if (catalog == null)
+            // Run (spec §17): el motor lo prearma RunManager.BeginCombat (mazo de run + handicap de IA),
+            // y un índice lo juega la IA. Hotseat: lo armamos acá desde MatchConfig (ambos humanos).
+            GameEngine prebuilt = RunSession.IsActive ? RunSession.TakePendingCombat() : null;
+            if (prebuilt != null)
             {
-                Debug.LogError("[GameController] No se encontró CardCatalog en Resources.");
-                return;
+                _engine = prebuilt;
+                _runMode = true;
+                _aiPlayerIndex = RunSession.Manager.AiIndex;
+                _ai = new HeuristicAiController();
             }
+            else
+            {
+                var catalog = Resources.Load<CardCatalog>(CatalogResource);
+                if (catalog == null)
+                {
+                    Debug.LogError("[GameController] No se encontró CardCatalog en Resources.");
+                    return;
+                }
 
-            _engine = new GameEngine(new GameConfig(), new SystemRandomProvider(), catalog);
-            // Manifestantes = jugador 0 (izquierda), Policías = jugador 1 (derecha). La selección
-            // solo decide quién arranca, no los lados.
-            int firstIndex = MatchConfig.StartingFaction == MatchConfig.Player0 ? 0 : 1;
-            _engine.StartGame(MatchConfig.Player0, MatchConfig.Player1, firstIndex);
+                _engine = new GameEngine(new GameConfig(), new SystemRandomProvider(), catalog);
+                // Manifestantes = jugador 0 (izquierda), Policías = jugador 1 (derecha). La selección
+                // solo decide quién arranca, no los lados.
+                int firstIndex = MatchConfig.StartingFaction == MatchConfig.Player0 ? 0 : 1;
+                _engine.StartGame(MatchConfig.Player0, MatchConfig.Player1, firstIndex);
+                _aiPlayerIndex = -1;
+            }
 
             _endTurnButton.clicked += OnEndTurnButton;
 
@@ -106,6 +130,10 @@ namespace PiqueteDefend.Presentation
             _screen.focusable = true;
             _screen.RegisterCallback<KeyDownEvent>(OnKeyDown);
             _screen.RegisterCallback<KeyUpEvent>(OnKeyUp);   // soltar Ctrl saca el cartel DESCARTAR de la carta hovereada
+            // Click-away: un click en el tablero/fondo cierra los popovers abiertos. En fase de captura
+            // (corre ANTES del handler del slot), así clickear OTRA unidad cierra el popover y reabre el suyo.
+            // El popover de ataque vive en _root (fuera de _screen): clickearlo NO dispara esto.
+            _screen.RegisterCallback<PointerDownEvent>(OnScreenPointerDown, TrickleDown.TrickleDown);
             _screen.Focus();
 
             AudioManager.Instance?.PlayMusic(AudioId.MusicGame);
@@ -233,6 +261,68 @@ namespace PiqueteDefend.Presentation
                 el.styleSheets.Add(_screen.styleSheets[i]);
         }
 
+        // ── Menú de pausa (ESCAPE) ────────────────────────────────────────────────
+
+        /// <summary>Overlay de pausa: backdrop modal (reusa <c>.overlay</c>) + Volver al juego /
+        /// Menú principal / Ajustes (deshabilitado) / Salir del juego.</summary>
+        private void BuildPauseOverlay()
+        {
+            _pauseOverlay = new VisualElement();
+            _pauseOverlay.AddToClassList("overlay");
+            _pauseOverlay.style.display = DisplayStyle.None;
+
+            var panel = new VisualElement();
+            panel.AddToClassList("overlay__panel");
+
+            var title = new Label("Pausa");
+            title.AddToClassList("overlay__title");
+            panel.Add(title);
+
+            var resume = new Button(ClosePause) { text = "Volver al juego" };
+            resume.AddToClassList("btn"); resume.AddToClassList("btn--primary");
+            panel.Add(resume);
+
+            var toMenu = new Button(PauseToMainMenu) { text = "Menú principal" };
+            toMenu.AddToClassList("btn");
+            panel.Add(toMenu);
+
+            var settings = new Button { text = "Ajustes" };
+            settings.AddToClassList("btn");
+            settings.SetEnabled(false);   // aún no implementado
+            panel.Add(settings);
+
+            var quit = new Button(MainMenuController.QuitGame) { text = "Salir del juego" };
+            quit.AddToClassList("btn");
+            panel.Add(quit);
+
+            _pauseOverlay.Add(panel);
+            _root.Add(_pauseOverlay);
+            Stylize(_pauseOverlay);
+        }
+
+        private bool IsPauseOpen() => _pauseOverlay != null && _pauseOverlay.style.display == DisplayStyle.Flex;
+
+        private void OpenPause()
+        {
+            AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+            HidePopover();
+            HideInfoPopover();
+            _pauseOverlay.style.display = DisplayStyle.Flex;
+        }
+
+        private void ClosePause()
+        {
+            AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+            if (_pauseOverlay != null) _pauseOverlay.style.display = DisplayStyle.None;
+        }
+
+        private void PauseToMainMenu()
+        {
+            AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+            if (RunSession.IsActive) RunSession.Clear();   // abandona la run en curso
+            SceneManager.LoadScene("Main");
+        }
+
         // ── Flujo de turno ────────────────────────────────────────────────────
 
         private void BeginActiveTurn()
@@ -242,11 +332,63 @@ namespace PiqueteDefend.Presentation
             _mode = Mode.Acting;
             _pendingCard = -1;
             _pendingAttacker = -1;
+
+            // Run: si el turno es de la IA, lo juega ella sola (input humano bloqueado, spec §17.5).
+            if (IsAiTurn)
+            {
+                _aiTurnInProgress = true;
+                Render();              // muestra el tablero del turno de la IA (sin slots clickeables)
+                ScheduleAiStep();
+                return;
+            }
+
+            _aiTurnInProgress = false;
             Render();
+        }
+
+        /// <summary>True si el jugador activo lo controla la IA (modo run).</summary>
+        private bool IsAiTurn => _aiPlayerIndex >= 0 && _engine.ActiveIndex == _aiPlayerIndex;
+
+        // ── Turno de IA (run, spec §17.5) ─────────────────────────────────────────
+
+        private void ScheduleAiStep() => _screen.schedule.Execute(AiStep).StartingIn(AiActionDelayMs);
+
+        /// <summary>Ejecuta UNA acción de la IA y reprograma la siguiente con delay, hasta que decide
+        /// terminar el turno. Re-renderiza entre acciones (con animación de ataque) para que se vea jugar.</summary>
+        private void AiStep()
+        {
+            if (_engine.IsFinished) { _aiTurnInProgress = false; ShowOutcome(); return; }
+
+            PlannedAction action = _ai.NextAction(_engine);
+            if (action.IsEndTurn)
+            {
+                _aiTurnInProgress = false;
+                EndTurnConfirmed();    // EndTurn del motor + (próximo turno) vuelve al humano
+                return;
+            }
+
+            if (action.kind == PlannedActionKind.Attack)
+                PrepareAttackAnimation(action.attackerSlot);
+
+            ActionResult result = action.Execute(_engine);
+            if (result != ActionResult.Success)
+            {
+                // La IA no debería proponer acciones ilegales; si pasa, cerramos su turno (no colgar).
+                Debug.LogWarning($"[GameController] Acción de IA inválida ({result}); termino su turno.");
+                _aiTurnInProgress = false;
+                EndTurnConfirmed();
+                return;
+            }
+
+            if (_engine.IsFinished) { _aiTurnInProgress = false; ShowOutcome(); return; }
+            Render();
+            ScheduleAiStep();
         }
 
         private void OnEndTurnButton()
         {
+            if (_aiTurnInProgress) return;   // input bloqueado durante el turno de la IA
+
             AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
 
             if (_mode != Mode.Acting) { CancelTargeting(); return; }
@@ -385,9 +527,15 @@ namespace PiqueteDefend.Presentation
         {
             if (e.keyCode == KeyCode.Escape)
             {
-                if (_mode != Mode.Acting && _mode != Mode.Finished) { CancelTargeting(); e.StopPropagation(); }
+                e.StopPropagation();
+                // ESCAPE: cierra la pausa si está abierta; si hay una acción armada, la cancela;
+                // si no, abre el menú de pausa (funciona también durante el turno de la IA).
+                if (IsPauseOpen()) ClosePause();
+                else if (!_aiTurnInProgress && _mode != Mode.Acting && _mode != Mode.Finished) CancelTargeting();
+                else if (_mode != Mode.Finished) OpenPause();
                 return;
             }
+            if (_aiTurnInProgress) return;   // resto del input bloqueado durante el turno de la IA
             // Mantener Ctrl con una carta hovereada muestra el cartel DESCARTAR (aunque el mouse no se mueva).
             if (IsControl(e.keyCode) && _hoveredHandEl != null && !_dragging)
                 SetDiscardAffordance(_hoveredHandEl, true);
@@ -401,6 +549,15 @@ namespace PiqueteDefend.Presentation
         {
             if (IsControl(e.keyCode) && _hoveredHandEl != null)
                 SetDiscardAffordance(_hoveredHandEl, false);
+        }
+
+        /// <summary>Click-away: cualquier pointer-down dentro del tablero cierra los popovers abiertos.
+        /// Corre en captura (antes del handler del slot), así clickear otra unidad cierra el anterior y
+        /// reabre el suyo. El popover de ataque vive fuera de _screen, así que clickearlo no lo cierra.</summary>
+        private void OnScreenPointerDown(PointerDownEvent e)
+        {
+            if (_popover != null && _popover.style.display == DisplayStyle.Flex) HidePopover();
+            if (_infoPopover != null && _infoPopover.style.display == DisplayStyle.Flex) HideInfoPopover();
         }
 
         private static bool IsControl(KeyCode key) => key == KeyCode.LeftControl || key == KeyCode.RightControl;
@@ -758,6 +915,8 @@ namespace PiqueteDefend.Presentation
 
         private void WireSlot(VisualElement el, int playerIndex, int activeIdx, int slotIndex, UnitSlot slot)
         {
+            if (_aiTurnInProgress) return;   // sin slots clickeables mientras juega la IA
+
             int captured = slotIndex;
 
             switch (_mode)
@@ -1455,7 +1614,11 @@ namespace PiqueteDefend.Presentation
         /// Construye el visual de una carta (.card con nombre/costo/cuerpo).
         /// Lo comparten la mano y el ghost que acompaña el drag.
         /// </summary>
-        private static VisualElement BuildCardVisual(CardData card, int inflationPercent = 0)
+        /// <summary>Visual completo de una carta (imagen + nombre + costo + pills/efecto), estilo mano.
+        /// Público y estático para reusarlo fuera del combate (p. ej. la pantalla de recompensa de la run,
+        /// spec §17.2). Usa las clases <c>.card*</c> de <c>Game.uss</c>: la escena que lo muestre debe
+        /// importar ese stylesheet.</summary>
+        public static VisualElement BuildCardVisual(CardData card, int inflationPercent = 0)
         {
             var el = new VisualElement();
             el.AddToClassList("card");
@@ -1566,7 +1729,7 @@ namespace PiqueteDefend.Presentation
 
         private void OnDragStart(PointerDownEvent e, int index, VisualElement card)
         {
-            if (_mode == Mode.Finished) return;
+            if (_mode == Mode.Finished || _aiTurnInProgress) return;
 
             // Botón secundario (der/medio) a mitad de arrastre: aborta el drag limpiamente. Antes el
             // PointerDown re-entraba acá y reasignaba _ghost, dejando el ghost anterior clavado en pantalla.
@@ -1808,10 +1971,15 @@ namespace PiqueteDefend.Presentation
         private void ShowOutcome()
         {
             _mode = Mode.Finished;
+            _aiTurnInProgress = false;
             HidePopover();
             _firstTurnNotice.style.display = DisplayStyle.None;
             GameOutcome o = _engine.Outcome.Value;
 
+            // Run (spec §17): el resultado avanza la run (recompensa / run ganada / run perdida).
+            if (_runMode && RunSession.IsActive) { ShowRunOutcome(o); return; }
+
+            // Hotseat: fin de la partida suelta.
             string title = o.IsDraw ? "Empate" : $"Ganó {Display(o.Winner.Value)}";
             string msg = o.IsDraw ? "Muerte simultánea" : $"por {ConditionText(o.Condition)}";
 
@@ -1821,6 +1989,38 @@ namespace PiqueteDefend.Presentation
             WireOverlayButton(_overlayPrimary, "Revancha", () => SceneManager.LoadScene("Game"));
             WireOverlayButton(_overlaySecondary, "Menú principal", () => SceneManager.LoadScene("Main"));
 
+            _overlay.style.display = DisplayStyle.Flex;
+        }
+
+        /// <summary>Resuelve el combate contra la run (spec §17.1/§17.2) y rutea: recompensa 1-de-3,
+        /// run ganada (jefe) o run perdida (permadeath).</summary>
+        private void ShowRunOutcome(GameOutcome o)
+        {
+            RunManager run = RunSession.Manager;
+            run.ResolveCombat(o);
+
+            switch (run.State.status)
+            {
+                case RunStatus.Won:
+                    ShowRunEndOverlay("¡Ganaste la run!", "Tomaste la Casa Rosada. Se picó.");
+                    return;
+                case RunStatus.Lost:
+                    ShowRunEndOverlay("Cayó la run", o.IsDraw ? "Empate: se terminó." : "Te quedaste sin gente.");
+                    return;
+                default:
+                    // Ganaste un combate normal → a elegir la recompensa (1-de-3) y volver al mapa.
+                    SceneManager.LoadScene("Reward");
+                    return;
+            }
+        }
+
+        /// <summary>Overlay de fin de run (ganada/perdida): un solo botón al menú, cierra la run.</summary>
+        private void ShowRunEndOverlay(string title, string msg)
+        {
+            _overlayTitle.text = title;
+            _overlayMsg.text = msg;
+            WireOverlayButton(_overlayPrimary, "Menú principal", () => { RunSession.Clear(); SceneManager.LoadScene("Main"); });
+            _overlaySecondary.style.display = DisplayStyle.None;
             _overlay.style.display = DisplayStyle.Flex;
         }
 
@@ -1841,7 +2041,9 @@ namespace PiqueteDefend.Presentation
         {
             _animAttackerIdx = attackerSlot;
             _animAttackerPlayer = _engine.ActiveIndex;
-            _animHitSoundId = _engine.ActivePlayer.unitSlots[attackerSlot]?.unit.attack.hitSoundId;
+            UnitAttack atk = _engine.ActivePlayer.unitSlots[attackerSlot]?.unit.attack;
+            _animHitSoundId = atk?.hitSoundId;
+            _animHits = atk?.EffectiveHits ?? 1;
             int opp = 1 - _engine.ActiveIndex;
             var p = _engine.PlayerAt(opp);
             _animOpponentSnap = new int[p.unitSlots.Length];
@@ -1858,28 +2060,46 @@ namespace PiqueteDefend.Presentation
             FlashElement(attackerEls[_animAttackerIdx], "slot--flash-attack");
 
             PlayerState opp = _engine.PlayerAt(oppIdx);
-            bool anyHit = false;
+            var hitSlots = new List<int>();
+            var killed = new List<bool>();
             for (int i = 0; i < _animOpponentSnap.Length; i++)
             {
                 int hpBefore = _animOpponentSnap[i];
                 if (hpBefore <= 0) continue;
                 int hpNow = opp.unitSlots[i]?.currentHp ?? 0;
                 if (hpBefore <= hpNow) continue;
-
-                anyHit = true;
-                bool killed = hpNow <= 0;
-                FlashElement(defenderEls[i], killed ? "slot--flash-dead" : "slot--flash-hit");
-                ShakeElement(defenderEls[i]);
+                hitSlots.Add(i);
+                killed.Add(hpNow <= 0);
             }
 
-            // Un solo golpe por ataque cuando efectivamente impacta (un whiff a slot vacío no suena).
-            if (anyHit)
-                AudioManager.Instance?.PlaySfx(Sfx(_animHitSoundId, AudioId.AttackHit));
+            // Multi-hit (spec §7.2): repetimos el golpe `hits` veces, ESPACIADOS, para que se vean los
+            // pegues por separado en vez de todos a la vez. El último round marca la muerte si la hubo.
+            // hits=1 → un solo golpe (comportamiento clásico). Un whiff a slot vacío no suena ni sacude.
+            int hits = _animHits < 1 ? 1 : _animHits;
+            string soundId = _animHitSoundId;
+            if (hitSlots.Count > 0)
+            {
+                for (int h = 0; h < hits; h++)
+                {
+                    bool last = h == hits - 1;
+                    _screen.schedule.Execute(() =>
+                    {
+                        for (int k = 0; k < hitSlots.Count; k++)
+                        {
+                            bool dead = last && killed[k];
+                            FlashElement(defenderEls[hitSlots[k]], dead ? "slot--flash-dead" : "slot--flash-hit");
+                            ShakeElement(defenderEls[hitSlots[k]]);
+                        }
+                        AudioManager.Instance?.PlaySfx(Sfx(soundId, AudioId.AttackHit));
+                    }).StartingIn(h * PerHitDelayMs);
+                }
+            }
 
             _animAttackerIdx = -1;
             _animAttackerPlayer = -1;
             _animOpponentSnap = null;
             _animHitSoundId = null;
+            _animHits = 1;
         }
 
         private static void FlashElement(VisualElement el, string cls)
