@@ -241,6 +241,7 @@ namespace PiqueteDefend.Core
             // Cada unidad del jugador activo puede atacar una vez este turno (spec §6).
             foreach (UnitSlot s in active.unitSlots)
                 if (s != null) s.attackedThisTurn = false;
+            active.discardsThisTurn = 0;
 
             CheckVictory();
             if (IsFinished) return;
@@ -358,10 +359,14 @@ namespace PiqueteDefend.Core
 
             PlayerState active = ActivePlayer;
             if (handIndex < 0 || handIndex >= active.hand.Count) return ActionResult.IndexOutOfRange;
+            if (active.discardsThisTurn >= 1) return ActionResult.DiscardLimitReached;
 
             MoveToDiscard(active, handIndex);
+            active.discardsThisTurn++;
             return ActionResult.Success;
         }
+
+        public bool CanDiscard => Phase == GamePhase.AwaitingAction && ActivePlayer.discardsThisTurn < 1;
 
         public ActionResult AttackWithUnit(int attackerSlot, int[] chosenTargets = null)
         {

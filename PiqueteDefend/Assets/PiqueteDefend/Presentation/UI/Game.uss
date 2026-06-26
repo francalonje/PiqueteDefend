@@ -708,9 +708,10 @@
     -unity-text-align: middle-center;
 }
 
-.card__pill--hp   { background-color: rgba(70, 150, 80, 0.95); }
-.card__pill--atk  { background-color: rgba(200, 60, 50, 0.95); }
-.card__pill--heal { background-color: rgba(70, 175, 110, 0.95); }
+.card__pill--hp      { background-color: rgba(70, 150, 80, 0.95); }
+.card__pill--atk     { background-color: rgba(200, 60, 50, 0.95); }
+.card__pill--heal    { background-color: rgba(70, 175, 110, 0.95); }
+.card__pill--passive { background-color: rgba(130, 75, 175, 0.95); }
 /* Objetivos de un ataque múltiple ("2 obj." / "todos"): chip neutro, convención sin "×N". */
 .card__pill--targets { background-color: rgba(70, 76, 92, 0.95); font-size: 11px; }
 

@@ -586,6 +586,7 @@ namespace PiqueteDefend.Presentation
         // playedCard != null → se reproduce el sonido de jugar carta (propio de la carta o el default).
         private void ResolveCardPlay(ActionResult result, CardData playedCard = null)
         {
+            if (result == ActionResult.DiscardLimitReached) { _hint.text = "Solo podés descartar una carta por turno"; return; }
             if (result != ActionResult.Success) { _hint.text = "No se pudo jugar la carta"; return; }
             if (playedCard != null)
                 AudioManager.Instance?.PlaySfx(Sfx(playedCard.playSoundId, AudioId.CardPlay));
@@ -1618,9 +1619,10 @@ namespace PiqueteDefend.Presentation
         private void SetDiscardAffordance(VisualElement el, bool on)
         {
             if (el == null) return;
-            el.EnableInClassList("card--discard", on);
+            bool show = on && (_engine == null || _engine.CanDiscard);
+            el.EnableInClassList("card--discard", show);
             var banner = el.Q<Label>(className: "card__discard-banner");
-            if (banner != null) banner.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
+            if (banner != null) banner.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         /// <summary>
@@ -1681,6 +1683,8 @@ namespace PiqueteDefend.Presentation
                 foreach (StatModifier m in eq.statModifiers)
                     row.Add(CardPill($"+{m.value} {(m.stat == StatType.MaxHp ? "❤" : "⚔")}",
                                      m.stat == StatType.MaxHp ? "card__pill--hp" : "card__pill--atk"));
+                foreach (PassiveEffect pe in eq.grantedPassives)
+                    row.Add(CardPill(EquipPassivePillText(pe), "card__pill--passive"));
                 return row;
             }
             var body = new Label(EffectText(card)); body.AddToClassList("card__body");
@@ -2317,6 +2321,17 @@ namespace PiqueteDefend.Presentation
         }
 
         /// <summary>Descripción legible de una pasiva (para el popover de info).</summary>
+        private static string EquipPassivePillText(PassiveEffect pe) => pe.passiveType switch
+        {
+            PassiveType.Regeneration => $"♥ +{pe.value}",
+            PassiveType.Retaliate    => $"🛡 ×{pe.value}",
+            PassiveType.Armor        => $"⛊ {pe.value}",
+            PassiveType.TurnDamage   => $"🔥 {pe.value}",
+            PassiveType.AuraDamage   => $"✦ +{pe.value}",
+            PassiveType.PushBack     => "»",
+            _                        => "•"
+        };
+
         private static string PassiveText(PassiveEffect pe) => pe.passiveType switch
         {
             PassiveType.ProduceResource => $"Produce +{pe.value}{ResSym(pe.resource)} por turno",
