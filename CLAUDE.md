@@ -51,6 +51,9 @@ Recibe una abstracción de RNG, para que los tests sean deterministas y reproduc
 ## Flujo de trabajo
 
 - Foundation-first: núcleo + tests antes que UI.
+- **Spec al final:** actualizar `docs/game-spec.md` (y `dev-guide.md`) **una sola vez, cuando el
+  cambio ya está definido** — no editarlo a cada iteración mientras se explora/itera. El spec sigue
+  siendo la fuente de verdad, pero se sincroniza al cerrar el cambio (no durante).
 - Después de crear/borrar archivos `.cs` o `.asmdef` con el editor cerrado, abrir Unity una vez
   para que regenere los `.meta` y compile, antes de commitear.
 - Commits: pedir al usuario antes de commitear/pushear.

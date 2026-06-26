@@ -27,9 +27,16 @@ namespace PiqueteDefend.Core
         // así la economía es una decisión y no un colchón infinito. Rough, tunear por playtest (15–20).
         public int maxResource = 18;
 
-        // Costo de atacar (spec §3/§6): cada ataque de unidad cuesta esta cantidad de ⚡ Fuerza.
-        // Hace que la Fuerza module cuántos golpes das por turno. Rough, tunear por playtest.
-        public int attackFuerzaCost = 1;
+        // Costo de atacar en ⚡ Fuerza (spec §3/§6): PROPORCIONAL al daño del ataque — los pegadores
+        // fuertes cuestan más (y absorben el excedente de Fuerza), los chiquitos siguen baratos.
+        // costo = max(minAttackFuerzaCost, ceil(daño_base_por_golpe × attackFuerzaPerDamage)).
+        // Rough, tunear por playtest. Con 0.2 y piso 1: daño 2-4→1, 7→2, 14-15→3.
+        public float attackFuerzaPerDamage = 0.2f;
+        public int minAttackFuerzaCost = 1;
+
+        /// <summary>⚡ que cuesta un ataque de <paramref name="baseDamagePerSlot"/> de daño/cura por golpe.</summary>
+        public int AttackFuerzaCost(int baseDamagePerSlot) =>
+            Math.Max(minAttackFuerzaCost, (int)Math.Ceiling(baseDamagePerSlot * attackFuerzaPerDamage));
 
         // Reglas de iniciativa (spec §3/§16, validadas por simulación): sin ellas el primer
         // jugador gana ~59%; con ambas, ~48% (parejo).

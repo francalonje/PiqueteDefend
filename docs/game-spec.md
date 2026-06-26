@@ -44,11 +44,13 @@ Cada jugador maneja 3 recursos independientes.
 > **Cada recurso paga una cosa (regla de oro — define el eje de build, §6.2):**
 > - **$ Dinero** → **comprar unidades** (toda carta de Unidad cuesta Dinero).
 > - **📣 Social** → **poderes y equipo** (toda carta de Acción y de Equipo cuesta Social).
-> - **⚡ Fuerza** → **atacar** (cada ataque de unidad cuesta Fuerza, ver §6/§7.2).
+> - **⚡ Fuerza** → **atacar** (cada ataque cuesta Fuerza **proporcional a su daño**, ver §6/§7.2:
+>   `max(minAttackFuerzaCost, ceil(daño_base × attackFuerzaPerDamage))`).
 >
 > El **recurso de costo de una carta lo fija su tipo**, no el diseño per-card (lo per-card es el
 > **monto**). Así, en cuánto producís cada recurso decidís tu plan: Dinero = cuántos cuerpos bajás,
-> Social = cuánta utilidad/control tirás, Fuerza = **cuántos golpes das por turno**.
+> Social = cuánta utilidad/control tirás, Fuerza = **cuánto daño repartís por turno** (pegar fuerte
+> cuesta más ⚡ que pegar flojo).
 
 **Recursos iniciales al inicio de la partida:** 5 de cada recurso (configurable para balanceo).
 
@@ -166,14 +168,15 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
                        carta para ciclar sigue disponible.
                     b) Atacar: CADA unidad propia que NO esté aturdida (Stun) puede atacar UNA
                        vez este turno, en el orden que elija el jugador → afecta slots según su
-                       ataque. CADA ataque CUESTA `attackFuerzaCost` de ⚡ Fuerza (§3): sólo podés
-                       atacar si te alcanza, y se descuenta al atacar. Esto hace que la Fuerza module
-                       CUÁNTOS golpes das por turno. Daño efectivo = base + Furia + AuraDamage −
-                       Desmoralizar; los defensores con Retaliate devuelven daño al atacante.
+                       ataque. CADA ataque CUESTA ⚡ Fuerza PROPORCIONAL a su daño (§3): los pegadores
+                       fuertes cuestan más, los chiquitos siguen baratos. Sólo podés atacar si te
+                       alcanza, y se descuenta al atacar. Esto hace que la Fuerza module CUÁNTO daño
+                       repartís por turno. Daño efectivo = base + Furia + AuraDamage − Desmoralizar;
+                       los defensores con Retaliate devuelven daño al atacante.
                        EXCEPCIÓN: en el turno 1 de la partida el primer jugador NO puede atacar
                        con unidades (regla de iniciativa, §3/§16); sí puede jugar/desplegar cartas.
                        CURAR con un healer usa la acción de ataque de la unidad (§7.2): cuenta como
-                       su ataque del turno y también paga `attackFuerzaCost`.
+                       su ataque del turno y también paga su costo de ⚡.
                   → Evaluar condición de victoria tras cada acción
 
 4. REPONER MANO — Las cartas jugadas/descartadas van al descarte; se rellena la mano hasta
