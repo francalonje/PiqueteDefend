@@ -1,7 +1,13 @@
 # PiqueteDefend
 
-Juego de cartas por turnos, 2 jugadores en local (hotseat). Manifestantes vs Policías,
-humor político argentino. Inspirado en Castle Wars / Arcomage. Unity 6 (6000.5.0f1) + URP.
+Juego de cartas por turnos, Manifestantes vs Policías, humor político argentino.
+Inspirado en Castle Wars / Arcomage. Unity 6 (6000.5.0f1) + URP.
+
+**Norte actual: single player = run roguelike-deckbuilder.** El jugador atraviesa una run
+(mapa de puntos a elección, ver spec §17) encadenando combates 1v1 contra la IA, mejorando su
+mazo entre combates. El combate base sigue siendo 1v1 por turnos (multi-acción, economía de
+recurso-por-tipo donde atacar cuesta ⚡). El modo hotseat 2 jugadores en local fue el origen del
+proyecto y el combate lo sigue soportando, pero el desarrollo apunta a la run single player.
 
 ## Fuente de verdad
 
@@ -22,15 +28,23 @@ El proyecto Unity vive en `PiqueteDefend/`. Separación estricta en tres ensambl
 
 ```
 Assets/PiqueteDefend/
-  Core/         PiqueteDefend.Core         — C# de dominio. Enums, modelo (CardEffect,
-                                              StatusEffect, UnitSlot, PlayerState, CardData),
-                                              y el motor de juego (GameEngine). SIN MonoBehaviours,
-                                              SIN GameObjects, SIN dependencias de escena.
-                                              Puede usar UnityEngine sólo para ScriptableObject/Sprite.
-  Presentation/ PiqueteDefend.Presentation — MonoBehaviours, UI, controladores de escena.
-                                              Depende de Core. Toda la capa visual va acá.
+  Core/         PiqueteDefend.Core         — C# de dominio. Enums, modelo (CardEffect, StatusEffect,
+                                              UnitSlot, PlayerState, CardData), el motor (GameEngine),
+                                              la IA (AI/HeuristicAiController : IPlayerController) y la
+                                              capa de run (Run/: RunState, RunManager, RunMap — spec §17).
+                                              SIN MonoBehaviours, SIN GameObjects, SIN dependencias de
+                                              escena. Puede usar UnityEngine sólo para ScriptableObject/Sprite.
+  Presentation/ PiqueteDefend.Presentation — MonoBehaviours, UI (UI Toolkit), controladores de escena.
+                                              Depende de Core. Toda la capa visual va acá. Escenas:
+                                              Main → FactionSelect → Map → Reward → Game.
   Tests/EditMode/ PiqueteDefend.Tests.EditMode — Tests unitarios del núcleo (NUnit).
 ```
+
+**Run vs combate:** el combate (`GameEngine`) es **agnóstico del modo**. La **run** single-player
+(`Core/Run/`) orquesta el mapa de puntos + mazo persistente + recompensas, e inyecta el mazo y el handicap
+de IA vía `PlayerSetup` en `GameEngine.StartGame`. La IA del rival es `HeuristicAiController`, el mismo
+cerebro que el bot del sim. En presentación, `RunSession` (estático) mantiene el estado de la run entre
+escenas y el combate de la run autojuega el turno de la IA. Detalle en spec §17 y dev-guide §8.
 
 **Regla de oro:** la lógica del juego nunca vive en un MonoBehaviour. El núcleo es C# puro y
 determinista, testeable sin abrir el editor. La presentación sólo lee estado del núcleo y le
