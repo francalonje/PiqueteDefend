@@ -157,6 +157,8 @@ calcula `GameEngine.EffectiveAttackDamage(...)`.
    vía `PassiveTargets(...)` → `ResolveTargets(...)`. `Frontmost`/`Backmost` están anclados a la
    formación (deterministas; ver spec §7.3). Las pasivas de **equipo** también cuentan: `UnitSlot.AllPassives()`.
 4. Espejá en `sim/rules.py` + `sim/policy.py` (`_passive_value` para que el bot la valore). Test.
+5. UI: sumá su caso en `PassiveIcon(...)` (badge) **y** en `PassiveText(...)` (texto del popover) — ver
+   §5.3. Si te olvidás del texto, el popover muestra un renglón en blanco.
 
 ### 4.5 Agregar un estado / debuff (StatusType)
 
@@ -278,18 +280,27 @@ Para **agregar/ampliar** animaciones dentro de este modelo:
 ### 5.3 Iconos de stat/estado/pasiva/equipo y popover de info
 
 - **Anatomía del slot** (`GameController.RenderSlotColumn`): cada unidad se dibuja como "carta":
-  **área de arte** (`slot__art`, hueco del sprite — ver §5.1) → **barra de HP con valor superpuesto**
-  (`slot__hp-bar-outer` + `slot__hp-label`) → **fila de iconos** (`slot__icons`).
+  **área de arte** (`slot__art`, hueco del sprite — ver §5.1) con el **badge de daño/cura** overlay
+  arriba-derecha → **barra de HP con valor superpuesto** (`slot__hp-bar-outer` + `slot__hp-label`) →
+  **fila de iconos** (`slot__icons`).
+- **Badge de daño/cura** (`BuildAttackBadge(...)`, clases `slot__atk-badge[--heal]`): chip prominente
+  anclado arriba-derecha del arte con el **daño efectivo** (`EffectiveAttackDamage`) o la cura, y
+  `daño×objetivos` si pega a más de uno (objetivos = `AttackTargetCount(ua)`). Es decorativo: el detalle
+  de alcance vive en el popover de la unidad. **No** va en la fila de iconos (se sacó de `BuildSlotIcons`).
 - **Iconos** por unidad: un **único registro**. `BuildSlotIcons(...)` traduce el slot a una
-  `List<SlotIcon>` (stat de acción ⚔/✚, pasivas, estados, equipo) y `MakeIcon(...)` los renderiza
-  todos igual. El icono de acción muestra el **daño efectivo** (`EffectiveAttackDamage`) y, si pega a
-  más de un objetivo, `daño×objetivos` (objetivos = `AttackTargetCount(ua)`, según `mode`/`count`). Para
-  un **estado** nuevo (`StatusType`) sumá su caso en `StatusIcon(...)`; para una **pasiva** nueva
-  (`PassiveType`), en `PassiveIcon(...)` — un solo lugar cada uno. Cada `SlotIcon` lleva `title`
-  (categoría corta) + `tip` (detalle): el `tip` de estado sale de `StatusBadge(...)` (reusado), el de
-  pasiva de `PassiveText(...)`, el de equipo de `EquipmentText(...)`, el de acción de `AttackShape(...)`.
-  Clases `slot-icon--atk/heal/produce/regen/aura/thorns/turndmg/turnstatus/poison/stun/furia/desmor/
-  equip` en `Game.uss`.
+  `List<SlotIcon>` (pasivas, estados, equipo — ya **no** el stat de acción) y `MakeIcon(...)` los renderiza
+  todos igual. Para un **estado** nuevo (`StatusType`) sumá su caso en `StatusIcon(...)`; para una
+  **pasiva** nueva (`PassiveType`), en `PassiveIcon(...)` **y** en `PassiveText(...)` — si te olvidás del
+  segundo, el popover muestra un renglón en blanco (era el bug del Jubilado/OnDeath). Cada `SlotIcon` lleva
+  `title` (categoría corta) + `tip` (detalle): el `tip` de estado sale de `StatusBadge(...)` (reusado), el de
+  pasiva de `PassiveText(...)`, el de equipo de `EquipmentText(...)`.
+  Clases `slot-icon--atk/heal/produce/regen/aura/thorns/turndmg/turnstatus/ondeath/armor/pushback/poison/
+  stun/furia/desmor/equip` en `Game.uss`.
+- **Picking del slot:** arte y barra de HP se marcan **no-pickables** (`SetPickingIgnore`), así toda la
+  caja es una sola región de hover (sin bordes internos). Los **iconos sí** son pickables (se agregan
+  después). El `_infoPopover` y **todos sus hijos** también ignoran el puntero (`SetPickingIgnore` en
+  `PositionInfoPopover`): si una etiqueta interna fuera pickable y el popover se solapara con el slot,
+  robaría el hover y parpadearía.
 - **Hover en dos niveles:** cada icono registra `PointerEnter → ShowIconInfo(...)` (popover con el
   detalle de ese efecto) y `PointerLeave → ShowInfoPopover(...)` (re-muestra el popover completo de la
   unidad, porque el slot sigue hovereado). Ambos comparten el `_infoPopover` estilizado (no el tooltip
