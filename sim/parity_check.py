@@ -22,7 +22,7 @@ from model import (ActionCardData, EquipmentCardData, Faction, PassiveType, Stat
 
 # id -> (maxHp, atk_amount, {passiveType: value})   — campos escalados por knobs (rework: mults 1.0)
 UNITS = {
-    "piquetero":       (20, 14, {PassiveType.AURA_DAMAGE: 2}),
+    "piquetero":       (20, 7,  {PassiveType.AURA_DAMAGE: 2}),  # multi-hit: 7 ×2 golpes (ver UNIT_HITS)
     "fisura":          (18, 7,  {PassiveType.PRODUCE_RESOURCE: 1}),
     "jubilado":        (6,  2,  {}),  # OnDeath: value vive en el status Furia (abajo)
     "mortero":         (8,  14, {}),  # Backmost
@@ -31,7 +31,7 @@ UNITS = {
     "choripanero":     (15, 3,  {}),
     "tuitero":         (10, 2,  {PassiveType.PRODUCE_RESOURCE: 2}),
     "quema_cubiertas": (15, 2,  {PassiveType.TURN_DAMAGE: 2}),
-    "infante":         (24, 14, {}),  # vainilla
+    "infante":         (24, 7,  {}),  # multi-hit: 7 ×2 golpes (ver UNIT_HITS)
     "itakero":         (20, 4,  {}),  # vainilla
     "halcon":          (8,  15, {}),
     "gendarme":        (26, 4,  {PassiveType.ARMOR: 2}),
@@ -41,6 +41,9 @@ UNITS = {
     "trol":            (14, 2,  {PassiveType.PRODUCE_RESOURCE: 2}),
     "gasero":          (15, 2,  {PassiveType.TURN_STATUS: 0}),  # value vive en el status (abajo)
 }
+
+# Golpes por objetivo (multi-hit). El resto de las unidades pega 1 vez (default).
+UNIT_HITS = {"piquetero": 2, "infante": 2}
 
 # Magnitud del status que algunas unidades aplican (TurnStatus/OnDeath) — value del StatusEffect
 UNIT_STATUS_VALUE = {"gasero": 2, "jubilado": 4}
@@ -80,6 +83,7 @@ def check():
             continue
         eq(cid, "maxHp", u.max_hp, hp)
         eq(cid, "atk", u.attack.amount_per_slot, amt)
+        eq(cid, "hits", u.attack.effective_hits, UNIT_HITS.get(cid, 1))
         for pt, val in passives.items():
             got = next((p.value for p in u.passive_effects if p.passive_type == pt), None)
             eq(cid, f"pasiva {pt.value}", got, val)

@@ -126,15 +126,22 @@ El ataque de una unidad es un `UnitAttack` (`Model/UnitAttack.cs`):
 
 - `mode` (`TargetMode`): a quién pega, **anclado a la formación rival** (no a slots fijos) — `Frontmost`
   (la más adelantada), `Backmost` (la del fondo), `Any` (elige; snipe), `All` (AoE). Ver §6.
-- `count`: profundidad/alcance (`Frontmost`/`Backmost`: 1 = sólo la del frente, N = penetra N posiciones)
-  o cuántas elegir (`Any`). Ignorado en `All`.
-- `damagePerSlot`: daño (o curación si `effect = HealAllies`).
+- `count`: **objetivos** — profundidad/alcance (`Frontmost`/`Backmost`: 1 = sólo la del frente, N = penetra
+  N posiciones) o cuántas elegir (`Any`). Ignorado en `All`.
+- `hits`: **golpes por objetivo** (multi-hit). `>1` aplica el daño/cura `hits` veces al MISMO objetivo, en
+  golpes separados → mantiene el total pero dispara Espinas/Blindaje **por golpe**. En el builder:
+  `Atk(mode, count, dmg, hits: 2)`. Leer siempre `ua.EffectiveHits` (≤0 → 1; assets viejos sin el campo
+  deserializan a 0). **Ojo:** `count` (a cuántas unidades) y `hits` (cuántas veces a cada una) son ejes
+  distintos — ej. Piquetero `Frontmost count=1 hits=2 dmg=7` = 2 golpes de 7 al de adelante.
+- `damagePerSlot`: daño (o curación si `effect = HealAllies`) **por golpe**.
 - `effect`: `DamageEnemies` (default) o `HealAllies` (cura sobre el tablero propio).
 
 Vocabulario de modos en **spec §6**. La resolución de objetivos es
 `GameEngine.ResolveTargets(mode, count, targetBoard, origin)` (devuelve unidades ocupadas; el slot ancla
 nunca whiffea → sin deadlock). El daño **efectivo** (base + equipo + Furia + Aura − Desmoralizar) lo
-calcula `GameEngine.EffectiveAttackDamage(...)`.
+calcula `GameEngine.EffectiveAttackDamage(...)`; el multi-hit lo aplica el loop de `AttackWithUnit`. El
+**costo en ⚡** es proporcional al daño **total por objetivo** (`damagePerSlot × hits`, `AttackCostFor`).
+Espejá `hits` en `sim/` (`model.py`, `rules.py`, `cards.py`) + la tabla de `parity_check.py`.
 
 ### 4.3 Agregar un tipo de efecto de carta (CardEffectType)
 
@@ -279,14 +286,19 @@ Para **agregar/ampliar** animaciones dentro de este modelo:
 
 ### 5.3 Iconos de stat/estado/pasiva/equipo y popover de info
 
-- **Anatomía del slot** (`GameController.RenderSlotColumn`): cada unidad se dibuja como "carta":
-  **área de arte** (`slot__art`, hueco del sprite — ver §5.1) con el **badge de daño/cura** overlay
-  arriba-derecha → **barra de HP con valor superpuesto** (`slot__hp-bar-outer` + `slot__hp-label`) →
-  **fila de iconos** (`slot__icons`).
-- **Badge de daño/cura** (`BuildAttackBadge(...)`, clases `slot__atk-badge[--heal]`): chip prominente
-  anclado arriba-derecha del arte con el **daño efectivo** (`EffectiveAttackDamage`) o la cura, y
-  `daño×objetivos` si pega a más de uno (objetivos = `AttackTargetCount(ua)`). Es decorativo: el detalle
-  de alcance vive en el popover de la unidad. **No** va en la fila de iconos (se sacó de `BuildSlotIcons`).
+- **Anatomía del slot** (`GameController.RenderSlotColumn`): el **sprite llena toda la caja** (`slot__art`,
+  cover — ver §5.1) y la info va **superpuesta abajo** en `slot__footer` (overlay, por encima del sprite):
+  nombre → **barra de HP con valor** (`slot__hp-bar-outer` + `slot__hp-label`) → **fila de iconos**
+  (`slot__icons`). El **badge de daño/cura** va arriba-derecha del arte.
+- **Badge de daño/cura** (`BuildAttackBadge(...)`, clases `slot__atk-badge[--heal]`): muestra el **daño POR
+  GOLPE** (`EffectiveAttackDamage`) o la cura. La multiplicidad usa una **convención sin `×N`** (que se leía
+  como "pega N veces"): etiquetas aparte (`slot__atk-badge-targets`) — `TargetsTag(ua)` → `"N obj."`/`"todos"`
+  (varios objetivos, `count>1`/AoE) y `HitsTag(ua)` → `"N golpes"` (multi-hit, `ua.EffectiveHits>1`). El badge
+  es **pickable**: su hover abre `ShowAttackInfo(...)` (daño + alcance/golpes + **costo en ⚡**, `AttackCostFor`).
+  El stat de daño **no** va en la fila de iconos (se sacó de `BuildSlotIcons`).
+- **Texto del alcance (un solo lugar):** `AttackShape(ua)` = forma; `AttackReachWords(ua)` = golpes+forma
+  (popover de ataque); `AttackLine(ua, dmg)` = "Pega 7 en 2 golpes · …" (popovers de info/carta). Usar
+  `ua.EffectiveHits` (nunca el campo `hits` crudo: assets viejos sin el campo deserializan a 0).
 - **Iconos** por unidad: un **único registro**. `BuildSlotIcons(...)` traduce el slot a una
   `List<SlotIcon>` (pasivas, estados, equipo — ya **no** el stat de acción) y `MakeIcon(...)` los renderiza
   todos igual. Para un **estado** nuevo (`StatusType`) sumá su caso en `StatusIcon(...)`; para una
@@ -372,9 +384,30 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
   `CardLibrary` + tests). Invalida el balance previo: re-derivar economía/inflación/`maxResource`.
 - **IA (Fase 2):** `IPlayerController` en `Core` (impl `Human` en Presentation, `AI` en Core portando
   `policy.py`). El motor consulta al controller; testeable sin escena.
-- **Run/meta (Fase 3):** `RunState` en `Core` (mapa temático = data, mazo persistente, reliquias,
-  estado). El combate roba del **mazo de la run inyectado** (no de la facción). Recompensa 1-de-3,
-  reliquias como pasivas que enganchan eventos. Acá vivirán las recetas: **nodo de mapa**, **reliquia**,
-  **recompensa de carta**.
-- **Presentación (Fase 4):** menú con 2 botones, pantalla de mapa, pantalla de recompensa, HUD de run,
-  combate con turno de IA (delays + indicador + input bloqueado).
+- **Run/meta (Fase 3 — HECHO, Core puro):** la capa de run vive en `Core/Run/`:
+  - `RunMap`/`MapNode`/`MapNodeType`/`RunMapLibrary` — el grafo de puntos como **data**.
+  - `RunState` — `map`, `currentNodeId`, `deck` persistente, `clearedNodeIds`, `faction`, `status`.
+  - `RunManager` — orquesta: `AvailableNodes`, `BeginCombat`, `ResolveCombat`, recompensas. `RunConfig` = params.
+  - `PlayerSetup` + `GameEngine.StartGame(PlayerSetup, PlayerSetup, firstIndex)` — inyección del mazo + handicap.
+  - Tests en `Tests/EditMode/RunTests.cs`. Reliquias = **diferidas** (seam en `RunState`).
+
+  **Receta — agregar/editar un punto del mapa:** en `RunMapLibrary.BuildDefaultMap` agregá un `new
+  MapNode(id, type, "título", x, y).ConnectTo(idsDestino…)` y enganchalo desde algún punto previo con
+  `.ConnectTo(nuevoId)`. La **dificultad la da la distancia** (BFS): no se setea a mano. `type` =
+  `Combat` o `Boss` (un solo `Boss`, el más lejano). Las conexiones deben apuntar a ids existentes (el
+  ctor de `RunMap` valida). `x/y` son sólo hint visual para Fase 4 (Core los ignora). Es data: no toca
+  el motor ni el sim.
+
+  **Receta — handicap de dificultad:** se ajusta en `RunConfig` (`aiResourceBonusPerLevel`,
+  `bossExtraStartingUnits`) o, para una palanca nueva, agregá un campo a `PlayerSetup` + su lectura en
+  `GameEngine.NewPlayer`. No es regla de combate (default-cero ⇒ no afecta hotseat/sim ⇒ no toca parity).
+
+  **Receta — recompensa de carta:** `RunManager.GenerateReward` toma `RunConfig.rewardCount` cartas del
+  pool de la facción vía `IRandomProvider`; `ChooseReward`/`SkipReward` resuelven la oferta.
+
+  **[EXTENSIÓN] reliquia / tienda / encuentro:** ver el seam en `RunState` (`[EXTENSIÓN]`) y los tipos
+  `Shop`/`Event` reservados en `MapNodeType`.
+- **Presentación (Fase 4 — PENDIENTE):** menú con 2 botones, pantalla de mapa, pantalla de recompensa,
+  HUD de run, combate con turno de IA (delays + indicador + input bloqueado). La presentación corre el
+  loop del `GameEngine` que devuelve `RunManager.BeginCombat`, autojugando el índice `AiIndex` con el
+  `HeuristicAiController`, y al terminar llama `RunManager.ResolveCombat(engine.Outcome.Value)`.

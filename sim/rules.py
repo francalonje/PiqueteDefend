@@ -536,7 +536,8 @@ class GameEngine:
         if attacker is None or attacker.is_stunned or attacker.attacked_this_turn:
             return False
         # Atacar cuesta ⚡ Fuerza proporcional al daño (spec §3/§6): rechaza si no alcanza.
-        attack_cost = self.attack_cost(attacker.unit.attack.amount_per_slot)
+        _ua_cost = attacker.unit.attack
+        attack_cost = self.attack_cost(_ua_cost.amount_per_slot * _ua_cost.effective_hits)
         if p.get(ResourceType.FUERZA) < attack_cost:
             return False
 
@@ -559,28 +560,34 @@ class GameEngine:
         attacker.attacked_this_turn = True   # consume el ataque de esta unidad (spec §6)
         p.add(ResourceType.FUERZA, -attack_cost, self.max_resource)   # atacar cuesta ⚡ proporcional
 
+        # Multi-hit (spec §7.2): el golpe se aplica `hits` veces al MISMO objetivo (dispara Espinas/Blindaje
+        # por cada uno). hits=1 = comportamiento clásico.
+        hits = ua.effective_hits
+
         if ua.effect == AttackEffect.HEAL_ALLIES:
-            for t in targets:
-                u = p.slots[t]
-                if u and u.current_hp < u.max_hp:
-                    u.current_hp = min(u.max_hp, u.current_hp + ua.amount_per_slot)
+            for _ in range(hits):
+                for t in targets:
+                    u = p.slots[t]
+                    if u and u.current_hp < u.max_hp:
+                        u.current_hp = min(u.max_hp, u.current_hp + ua.amount_per_slot)
             return True
 
-        # Daño a enemigos + Retaliate
+        # Daño a enemigos + Retaliate (acumulado por cada golpe)
         dmg = self.effective_attack_damage(p.slots, attacker_slot)
         retaliation = 0
-        for t in targets:
-            if not (0 <= t < BOARD):
-                continue
-            d = opp.slots[t]
-            if d is None:
-                continue  # whiff
-            retaliation += sum(pe.value for pe in d.all_passives()
-                               if pe.passive_type == PassiveType.RETALIATE)
-            taken = max(0, dmg - self._armor_of(d))   # Blindaje mitiga el golpe de ataque (spec §7.3)
-            d.current_hp -= taken
-            if d.is_dead:
-                self._remove(opp, t)
+        for _ in range(hits):
+            for t in targets:
+                if not (0 <= t < BOARD):
+                    continue
+                d = opp.slots[t]
+                if d is None:
+                    continue  # whiff (slot vacío o ya muerto en un golpe previo)
+                retaliation += sum(pe.value for pe in d.all_passives()
+                                   if pe.passive_type == PassiveType.RETALIATE)
+                taken = max(0, dmg - self._armor_of(d))   # Blindaje mitiga CADA golpe (spec §7.3)
+                d.current_hp -= taken
+                if d.is_dead:
+                    self._remove(opp, t)
         # Chorro (PushBack): empuja a los objetivos sobrevivientes al fondo del rival (antes del Retaliate).
         if p.slots[attacker_slot] is not None and self._has_passive(attacker, PassiveType.PUSHBACK):
             for t in targets:

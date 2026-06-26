@@ -61,7 +61,8 @@ namespace PiqueteDefend.Presentation
         // UI refs
         private VisualElement _root, _screen, _hand, _p0Slots, _p1Slots, _overlay;
         private Button _popover;
-        private Label _popIcon, _popVerb, _popValue;   // partes del popover de ataque (icono · verbo · valor)
+        private Label _popIcon, _popVerb, _popValue;   // fila principal del popover de ataque (icono · verbo · valor)
+        private Label _popReach, _popCost;             // sub-fila: alcance (palabras) + costo en ⚡
         private VisualElement _infoPopover, _infoHeader, _infoBody, _inflationMeter;
         private Label _turnChip, _hint, _overlayTitle, _overlayMsg, _firstTurnNotice;
         private Label _inflationPct, _inflationSub;
@@ -148,14 +149,20 @@ namespace PiqueteDefend.Presentation
             _popover.style.display = DisplayStyle.None;
             _popover.clicked += OnPopoverClicked;
 
-            // Layout: [icono] verbo [valor en chip] + un caret que apunta a la unidad. Las partes
-            // ignoran el puntero (el click lo recibe el botón).
+            // Layout en columna: fila principal [icono · verbo · valor] + sub-fila [alcance · ⚡costo]
+            // + un caret que apunta a la unidad. Las partes ignoran el puntero (el click lo recibe el botón).
+            var main = new VisualElement(); main.AddToClassList("attack-popover__main"); main.pickingMode = PickingMode.Ignore;
             _popIcon = new Label("⚔"); _popIcon.AddToClassList("attack-popover__icon"); _popIcon.pickingMode = PickingMode.Ignore;
             _popVerb = new Label("Atacar"); _popVerb.AddToClassList("attack-popover__verb"); _popVerb.pickingMode = PickingMode.Ignore;
             _popValue = new Label("0"); _popValue.AddToClassList("attack-popover__value"); _popValue.pickingMode = PickingMode.Ignore;
-            _popover.Add(_popIcon);
-            _popover.Add(_popVerb);
-            _popover.Add(_popValue);
+            main.Add(_popIcon); main.Add(_popVerb); main.Add(_popValue);
+            _popover.Add(main);
+
+            var sub = new VisualElement(); sub.AddToClassList("attack-popover__sub"); sub.pickingMode = PickingMode.Ignore;
+            _popReach = new Label(""); _popReach.AddToClassList("attack-popover__reach"); _popReach.pickingMode = PickingMode.Ignore;
+            _popCost = new Label(""); _popCost.AddToClassList("attack-popover__cost"); _popCost.pickingMode = PickingMode.Ignore;
+            sub.Add(_popReach); sub.Add(_popCost);
+            _popover.Add(sub);
 
             var caret = new VisualElement(); caret.AddToClassList("attack-popover__caret"); caret.pickingMode = PickingMode.Ignore;
             _popover.Add(caret);
@@ -465,7 +472,7 @@ namespace PiqueteDefend.Presentation
 
         private void OnOwnUnitClicked(int slot, VisualElement slotEl)
         {
-            if (!_engine.UnitCanAttack(slot)) { _hint.text = "Esa unidad ya atacó este turno"; return; }
+            // Se permite clickear aunque no alcance la ⚡: el popover se muestra deshabilitado con el costo.
             AudioManager.Instance?.PlaySfx(AudioId.CardClick);
             ShowPopover(slot, slotEl);
         }
@@ -483,9 +490,18 @@ namespace PiqueteDefend.Presentation
                 ? ua.damagePerSlot
                 : _engine.EffectiveAttackDamage(_engine.ActivePlayer.unitSlots, attackerSlot);
             _popIcon.text = icon;
-            _popVerb.text = ua.RequiresChoice ? $"{verb} (elegí {ua.count})" : verb;
+            _popVerb.text = verb;
             _popValue.text = amount.ToString();
+            // Alcance en palabras (convención clara, sin "×N"): "2 golpes · a la de adelante", etc.
+            _popReach.text = Capitalize(AttackReachWords(ua));
+            // Costo en ⚡ del ataque; si no alcanza, el popover queda deshabilitado y el costo en rojo.
+            int cost = _engine.AttackCost(attackerSlot);
+            bool affordable = _engine.CanAffordAttack(attackerSlot);
+            _popCost.text = ua.IsHeal ? $"cuesta ⚡{cost}" : $"⚡{cost}";
+            _popover.SetEnabled(affordable);
             _popover.EnableInClassList("attack-popover--heal", ua.IsHeal);
+            _popover.EnableInClassList("attack-popover--disabled", !affordable);
+            _popCost.EnableInClassList("attack-popover__cost--short", !affordable);
 
             // Muestra a qué slots llega ESTE ataque (preview), del lado correcto (propio si cura).
             HighlightReach(attackerSlot, ua);
@@ -683,28 +699,26 @@ namespace PiqueteDefend.Presentation
                 }
                 else
                 {
-                    // Anatomía tipo "carta de unidad" (spec §11.3): arte → barra de HP con número → iconos.
-                    // El área de arte deja el hueco del sprite preparado: hoy es un panel tinte-facción con
-                    // el nombre; cuando exista el sprite (CardData.sprite) se pinta de fondo (dev-guide §5.1).
+                    // Anatomía tipo "carta de unidad" (spec §11.3): el SPRITE llena toda la caja (cover) y
+                    // la info (nombre + barra de HP + pills) va superpuesta abajo, POR ENCIMA del sprite.
+                    // El badge de daño va arriba-derecha. El espejado (mirar al rival) va en la capa del
+                    // sprite, no en el nombre (dev-guide §5.1).
                     var art = new VisualElement();
                     art.AddToClassList("slot__art");
                     art.AddToClassList(playerIndex == 0 ? "slot__art--manif" : "slot__art--polis");
-                    // Capa propia para el sprite: así el espejado (mirar al rival) no voltea el nombre.
-                    // El arte se autoría "mirando a la derecha"; el lado derecho del tablero mira a la
-                    // izquierda → se espeja (dev-guide §5.1).
+
                     var sprite = new VisualElement();
                     sprite.AddToClassList("slot__sprite");
                     ApplyUnitArt(sprite, slot.unit, faceLeft: playerIndex == 1);
                     art.Add(sprite);
+
+                    // Footer superpuesto abajo: nombre + barra de HP + fila de iconos, sobre el sprite.
+                    var footer = new VisualElement();
+                    footer.AddToClassList("slot__footer");
                     var nameLabel = new Label(slot.unit.cardName);
                     nameLabel.AddToClassList("slot__name");
-                    art.Add(nameLabel);
-                    // Badge de daño/cura: overlay estilizado arriba-derecha del arte (spec §11.3).
-                    VisualElement atkBadge = BuildAttackBadge(p, i);
-                    if (atkBadge != null) art.Add(atkBadge);
-                    el.Add(art);
+                    footer.Add(nameLabel);
 
-                    // Barra de HP con el valor de vida superpuesto y centrado (como la referencia).
                     float ratio = Mathf.Clamp01((float)slot.currentHp / slot.MaxHp);
                     var barOuter = new VisualElement();
                     barOuter.AddToClassList("slot__hp-bar-outer");
@@ -716,16 +730,20 @@ namespace PiqueteDefend.Presentation
                     var hpLabel = new Label($"{slot.currentHp}/{slot.MaxHp}");
                     hpLabel.AddToClassList("slot__hp-label");
                     barOuter.Add(hpLabel);
-                    el.Add(barOuter);
+                    footer.Add(barOuter);
 
-                    // Arte y barra son decorativos: no deben capturar el puntero. Así toda la caja de la
-                    // unidad es UNA sola región de hover (el slot), sin bordes internos que rompan el
-                    // popover al pasar por zonas sin sprite (los iconos sí son pickables: se agregan después).
-                    SetPickingIgnore(art);
-                    SetPickingIgnore(barOuter);
+                    // Sprite, nombre y barra son decorativos (no capturan el puntero): toda la caja es UNA
+                    // región de hover. Los iconos SÍ son pickables → se agregan DESPUÉS del SetPickingIgnore.
+                    SetPickingIgnore(sprite);
+                    SetPickingIgnore(footer);
+                    AddSlotIcons(footer, el, p, playerIndex, i);   // fila de pills (pickable), por encima del sprite
+                    art.Add(footer);
 
-                    // Fila de iconos: producción + pasivas + estados + equipo (el daño va en el badge).
-                    AddSlotIcons(el, p, playerIndex, i);
+                    // Badge de daño/cura: overlay arriba-derecha, pickable (hover = detalle del ataque).
+                    VisualElement atkBadge = BuildAttackBadge(p, playerIndex, i, el);
+                    if (atkBadge != null) art.Add(atkBadge);
+
+                    el.Add(art);
 
                     // Hover → popover informativo (alcance, pasivas, estados, descripción).
                     int capturedHover = i;
@@ -745,12 +763,13 @@ namespace PiqueteDefend.Presentation
             switch (_mode)
             {
                 case Mode.Acting:
-                    // "Puede actuar": unidad propia que NO atacó aún este turno (cada unidad ataca una
-                    // vez, spec §6), la regla del turno 1 lo permite, y no está aturdida. Los healers también.
-                    if (playerIndex == activeIdx && slot != null && !slot.attackedThisTurn
-                        && _engine.CanAttackThisTurn && !slot.IsStunned)
+                    // "Podría actuar" (cost-blind): unidad propia que NO atacó aún este turno (cada unidad
+                    // ataca una vez, spec §6), la regla del turno 1 lo permite, y no está aturdida. Es
+                    // clickeable SIEMPRE; si no le alcanza la ⚡ se resalta distinto (slot--no-fuerza) y el
+                    // popover de ataque sale deshabilitado (mostrando el costo).
+                    if (playerIndex == activeIdx && _engine.UnitCouldAttack(slotIndex))
                     {
-                        el.AddToClassList("slot--can-act");
+                        el.AddToClassList(_engine.CanAffordAttack(slotIndex) ? "slot--can-act" : "slot--no-fuerza");
                         el.RegisterCallback<ClickEvent>(ev => { ev.StopPropagation(); OnOwnUnitClicked(captured, el); });
                     }
                     break;
@@ -926,7 +945,8 @@ namespace PiqueteDefend.Presentation
                 sprite.style.scale = new Scale(new Vector2(-1f, 1f));
         }
 
-        private void AddSlotIcons(VisualElement slotEl, PlayerState owner, int playerIndex, int slotIndex)
+        // parent = contenedor donde va la fila de pills (el footer del slot); slotEl = el slot (ancla del popover).
+        private void AddSlotIcons(VisualElement parent, VisualElement slotEl, PlayerState owner, int playerIndex, int slotIndex)
         {
             List<SlotIcon> icons = BuildSlotIcons(owner, slotIndex);
             if (icons.Count == 0) return;
@@ -943,7 +963,7 @@ namespace PiqueteDefend.Presentation
                 iconEl.RegisterCallback<PointerLeaveEvent>(ev => { ev.StopPropagation(); ShowInfoPopover(slotIndex, playerIndex, slotEl); });
                 row.Add(iconEl);
             }
-            slotEl.Add(row);
+            parent.Add(row);
         }
 
         /// <summary>Popover estilizado con el detalle de un solo icono (estado/pasiva/stat/equipo).</summary>
@@ -955,19 +975,17 @@ namespace PiqueteDefend.Presentation
             PositionInfoPopover(anchorEl);
         }
 
-        /// <summary>Badge de daño (o cura) efectivo: overlay prominente arriba-derecha del arte (spec §11.3).
-        /// Reemplaza al viejo pill de ataque en la fila de iconos. Decorativo (no pickable): el detalle de
-        /// alcance vive en el popover de la unidad. Devuelve null si la unidad no pega ni cura.</summary>
-        private VisualElement BuildAttackBadge(PlayerState owner, int slotIndex)
+        /// <summary>Badge de daño (o cura) efectivo: overlay compacto arriba-derecha del arte (spec §11.3).
+        /// Muestra el daño POR GOLPE y, si pega a varios, la cantidad de objetivos como etiqueta aparte
+        /// ("2 obj." / "todos") — NO "daño×N", que se confunde con "pega N veces". Pickable: el hover
+        /// muestra el detalle del ataque (alcance + costo). Devuelve null si la unidad no pega ni cura.</summary>
+        private VisualElement BuildAttackBadge(PlayerState owner, int playerIndex, int slotIndex, VisualElement slotEl)
         {
             UnitSlot slot = owner.unitSlots[slotIndex];
             UnitAttack ua = slot.unit.attack;
             if (ua == null || ua.damagePerSlot == 0) return null;
 
-            bool aoe = ua.mode == TargetMode.All;
-            int targets = AttackTargetCount(ua);  // golpes potenciales (Frontmost/Backmost/Any)
             int amount = ua.IsHeal ? ua.damagePerSlot : _engine.EffectiveAttackDamage(owner.unitSlots, slotIndex);
-            string val = (!aoe && targets > 1) ? $"{amount}×{targets}" : amount.ToString();
 
             var badge = new VisualElement();
             badge.AddToClassList("slot__atk-badge");
@@ -975,11 +993,68 @@ namespace PiqueteDefend.Presentation
 
             var glyph = new Label(ua.IsHeal ? "✚" : "⚔");
             glyph.AddToClassList("slot__atk-badge-glyph");
-            var value = new Label(val);
+            var value = new Label(amount.ToString());
             value.AddToClassList("slot__atk-badge-value");
             badge.Add(glyph);
             badge.Add(value);
+
+            // Etiquetas claras (sin "×N", que se confunde): objetivos ("2 obj."/"todos") y/o golpes ("2 golpes").
+            foreach (string tag in new[] { TargetsTag(ua), HitsTag(ua) })
+            {
+                if (string.IsNullOrEmpty(tag)) continue;
+                var t = new Label(tag);
+                t.AddToClassList("slot__atk-badge-targets");
+                badge.Add(t);
+            }
+
+            // Hover sobre el daño → detalle del ataque (alcance + costo); al salir, vuelve el popover de la unidad.
+            badge.RegisterCallback<PointerEnterEvent>(ev => { ev.StopPropagation(); ShowAttackInfo(owner, slotIndex, badge); });
+            badge.RegisterCallback<PointerLeaveEvent>(ev => { ev.StopPropagation(); ShowInfoPopover(slotIndex, playerIndex, slotEl); });
             return badge;
+        }
+
+        /// <summary>Etiqueta corta de objetivos para el badge (convención clara, sin "×"): "" si pega a uno,
+        /// "N obj." si pega a varios fijos, "todos"/"todas" si es AoE.</summary>
+        private static string TargetsTag(UnitAttack ua)
+        {
+            if (ua.mode == TargetMode.All) return ua.IsHeal ? "todas" : "todos";
+            int t = AttackTargetCount(ua);
+            return t > 1 ? $"{t} obj." : "";
+        }
+
+        /// <summary>Popover del HOVER sobre el daño: título + daño + alcance/golpes (en palabras) + costo en ⚡.</summary>
+        private void ShowAttackInfo(PlayerState owner, int slotIndex, VisualElement anchorEl)
+        {
+            if (_dragging) return;
+            UnitSlot slot = owner.unitSlots[slotIndex];
+            UnitAttack ua = slot.unit.attack;
+            int amount = ua.IsHeal ? ua.damagePerSlot : _engine.EffectiveAttackDamage(owner.unitSlots, slotIndex);
+
+            BeginInfoPanel(ua.IsHeal ? "Curación" : "Ataque", amount.ToString());
+            AddInfoLine(AttackLine(ua, amount));
+            if (ua.EffectiveHits > 1)
+                AddInfoLine($"{ua.EffectiveHits} golpes de {amount} = {amount * ua.EffectiveHits} al mismo objetivo");
+            // El costo en ⚡ sólo aplica al jugador activo (atacar gasta su Fuerza); en el rival es informativo.
+            AddInfoLine($"Cuesta ⚡{_engine.AttackCostFor(ua)} al atacar");
+            PositionInfoPopover(anchorEl);
+        }
+
+        /// <summary>"N golpes" si el ataque es multi-hit, "" si pega una sola vez (convención clara para el badge).</summary>
+        private static string HitsTag(UnitAttack ua) => ua.EffectiveHits > 1 ? $"{ua.EffectiveHits} golpes" : "";
+
+        /// <summary>Alcance en palabras para el popover de ataque (golpes + forma; sin el número de daño).</summary>
+        private static string AttackReachWords(UnitAttack ua)
+        {
+            string shape = AttackShape(ua);
+            return ua.EffectiveHits > 1 ? $"{ua.EffectiveHits} golpes · {shape}" : shape;
+        }
+
+        /// <summary>Línea daño+golpes+forma para popovers (separador "·"): "Pega 7 en 2 golpes · a la de adelante".</summary>
+        private static string AttackLine(UnitAttack ua, int dmg)
+        {
+            string verb = ua.IsHeal ? "Cura" : "Pega";
+            string hits = ua.EffectiveHits > 1 ? $" en {ua.EffectiveHits} golpes" : "";
+            return $"{verb} {dmg}{hits} · {AttackShape(ua)}";
         }
 
         /// <summary>Marca un subárbol como no-pickable (decorativo), para que el hover lo maneje el ancestro.</summary>
@@ -1093,8 +1168,13 @@ namespace PiqueteDefend.Presentation
             BeginInfoPanel(slot.unit.cardName, $"HP {slot.currentHp}/{slot.MaxHp}");
             AddInfoDesc(!string.IsNullOrEmpty(slot.unit.flavorText) ? slot.unit.flavorText : slot.unit.descriptionText);
 
-            AddInfoSection("Alcance");
-            AddInfoLine(ReachText(owner, slotIndex));
+            UnitAttack ua = slot.unit.attack;
+            if (ua != null && ua.damagePerSlot != 0)
+            {
+                AddInfoSection(ua.IsHeal ? "Curación" : "Ataque");
+                AddInfoLine(ReachText(owner, slotIndex));
+                AddInfoLine($"Cuesta ⚡{_engine.AttackCostFor(ua)} por usarlo");
+            }
 
             var passives = new List<PassiveEffect>(slot.AllPassives());
             if (passives.Count > 0)
@@ -1140,6 +1220,8 @@ namespace PiqueteDefend.Presentation
                 AddInfoSection("Unidad");
                 AddInfoLine($"HP {u.maxHp}");
                 AddInfoLine(AttackInfoText(u.attack));
+                if (u.attack != null && u.attack.damagePerSlot != 0)
+                    AddInfoLine($"{(u.attack.IsHeal ? "Curar" : "Atacar")} cuesta ⚡{_engine.AttackCostFor(u.attack)}");
                 AddInfoLine($"Deploy: {DeployZoneText(u.allowedSlots)}");
                 if (u.passiveEffects.Count > 0)
                 {
@@ -1410,10 +1492,11 @@ namespace PiqueteDefend.Presentation
             {
                 var row = new VisualElement(); row.AddToClassList("card__pills");
                 row.Add(CardPill($"❤ {u.maxHp}", "card__pill--hp"));   // ❤ HP
-                int cnt = AttackTargetCount(u.attack);
-                string val = cnt > 1 ? $"{u.attack.damagePerSlot}×{cnt}" : u.attack.damagePerSlot.ToString();
-                row.Add(CardPill($"{(u.attack.IsHeal ? "✚" : "⚔")} {val}",
+                // Daño POR GOLPE + (si aplica) objetivos / golpes como pills aparte (convención clara, sin "×N").
+                row.Add(CardPill($"{(u.attack.IsHeal ? "✚" : "⚔")} {u.attack.damagePerSlot}",
                                  u.attack.IsHeal ? "card__pill--heal" : "card__pill--atk"));
+                foreach (string tag in new[] { TargetsTag(u.attack), HitsTag(u.attack) })
+                    if (!string.IsNullOrEmpty(tag)) row.Add(CardPill(tag, "card__pill--targets"));
                 return row;
             }
             if (card is EquipmentCardData eq)
@@ -1830,6 +1913,9 @@ namespace PiqueteDefend.Presentation
             return TargetType.Opponent;
         }
 
+        private static string Capitalize(string s) =>
+            string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
+
         private static string Display(Faction f) => f == Faction.Manifestantes ? "Manifestantes" : "Policías";
 
         private static string StatusText(PlayerState p)
@@ -1989,11 +2075,12 @@ namespace PiqueteDefend.Presentation
                 nums = "slots " + string.Join(", ", parts);
             }
 
+            string hits = ua.EffectiveHits > 1 ? $" en {ua.EffectiveHits} golpes" : "";
             if (ua.IsHeal)
-                return $"Cura {ua.damagePerSlot} HP · {AttackShape(ua)} ({nums})";
+                return $"Cura {ua.damagePerSlot}{hits} HP · {AttackShape(ua)} ({nums})";
 
             int dmg = _engine.EffectiveAttackDamage(owner.unitSlots, slotIndex);
-            return $"Pega {dmg} · {AttackShape(ua)} ({nums})";
+            return $"Pega {dmg}{hits} · {AttackShape(ua)} ({nums})";
         }
 
         /// <summary>Descripción legible de una pasiva (para el popover de info).</summary>
@@ -2083,11 +2170,7 @@ namespace PiqueteDefend.Presentation
         };
 
         /// <summary>Descripción del ataque/cura de una carta de unidad (sin slot concreto, es preview).</summary>
-        private static string AttackInfoText(UnitAttack ua)
-        {
-            string verb = ua.IsHeal ? "Cura" : "Pega";
-            return $"{verb} {ua.damagePerSlot} · {AttackShape(ua)}";
-        }
+        private static string AttackInfoText(UnitAttack ua) => AttackLine(ua, ua.damagePerSlot);
 
         private static string DeployZoneText(int[] allowed)
         {

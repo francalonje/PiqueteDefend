@@ -23,6 +23,14 @@ namespace PiqueteDefend.Core
         public int count = 1;
 
         /// <summary>
+        /// Golpes por objetivo (multi-hit, spec §7.2): el daño/cura se aplica <see cref="hits"/> veces al
+        /// MISMO objetivo, en golpes separados. Reparte el daño total en varios pegues más chicos: mantiene
+        /// el total pero dispara las reacciones por golpe (p. ej. <b>Espinas</b>/Retaliate y Blindaje cuentan
+        /// por cada hit). Default 1 (golpe único). Valor ≤0 se trata como 1 (ver <see cref="EffectiveHits"/>).
+        /// </summary>
+        public int hits = 1;
+
+        /// <summary>
         /// Magnitud por golpe: <b>daño</b> si <see cref="effect"/> es DamageEnemies,
         /// <b>curación</b> (tope maxHp) si es HealAllies (spec §7.2).
         /// </summary>
@@ -47,6 +55,9 @@ namespace PiqueteDefend.Core
             this.damagePerSlot = damagePerSlot;
             this.effect = effect;
         }
+
+        /// <summary>Golpes efectivos por objetivo: nunca menos de 1 (cubre assets viejos sin el campo → 0).</summary>
+        public int EffectiveHits => hits < 1 ? 1 : hits;
 
         /// <summary>True si el atacante debe elegir objetivo(s): sólo el modo Any (snipe).</summary>
         public bool RequiresChoice => mode == TargetMode.Any;

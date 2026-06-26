@@ -55,9 +55,9 @@ def unit(id, name, faction, archetype, cost, max_hp, allowed, attack,
 
 
 def atk(mode, count, amount, k: GlobalKnobs,
-        effect=AttackEffect.DAMAGE_ENEMIES) -> UnitAttack:
+        effect=AttackEffect.DAMAGE_ENEMIES, hits=1) -> UnitAttack:
     mult = k.hp_mult if effect == AttackEffect.HEAL_ALLIES else k.dmg_mult
-    return UnitAttack(mode, count, scale(amount, mult, minimum=1), effect)
+    return UnitAttack(mode, count, scale(amount, mult, minimum=1), effect, hits=hits)
 
 
 def produce(res, value, k: GlobalKnobs) -> PassiveEffect:
@@ -167,7 +167,7 @@ def build_manifestantes(k: GlobalKnobs) -> List[CardData]:
     return [
         # Unidades (9) — cuestan $ Dinero (spec §3)
         unit("piquetero", "Piquetero", M, "Escaramuza", 4, 20, [],
-             atk(TargetMode.FRONTMOST, 1, 14, k), [aura(2, k)], k),
+             atk(TargetMode.FRONTMOST, 1, 7, k, hits=2), [aura(2, k)], k),
         unit("fisura", "Fisura", M, "Cleave", 5, 18, [1, 2, 3, 4],
              atk(TargetMode.FRONTMOST, 3, 7, k), [produce(FZA, 1, k)], k),
         unit("jubilado", "Jubilado", M, "Martir", 2, 6, [],
@@ -212,7 +212,7 @@ def build_policias(k: GlobalKnobs) -> List[CardData]:
     return [
         # Unidades (9) — cuestan $ Dinero (spec §3)
         unit("infante", "Infante", P, "Escaramuza", 5, 24, [],
-             atk(TargetMode.FRONTMOST, 1, 14, k), [], k),
+             atk(TargetMode.FRONTMOST, 1, 7, k, hits=2), [], k),
         unit("itakero", "Itakero", P, "Cleave", 4, 20, [1, 2, 3, 4],
              atk(TargetMode.FRONTMOST, 3, 4, k), [], k),
         unit("halcon", "Halcón", P, "Sniper", 6, 8, [1, 2, 3],
