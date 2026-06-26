@@ -45,6 +45,8 @@ namespace PiqueteDefend.Presentation
         private float[] _handBaseRot = System.Array.Empty<float>();
         private float[] _handBaseBottom = System.Array.Empty<float>();
         private IVisualElementScheduledItem _cardInfoPending;   // popover de info diferido hasta terminar el hover
+        private int _hoveredHandIndex = -1;                     // carta de la mano bajo el puntero (para el cartel DESCARTAR con Ctrl)
+        private VisualElement _hoveredHandEl;
 
         // Slot element refs (rebuilt each Render — used for animations)
         private readonly VisualElement[] _p0SlotEls = new VisualElement[6];
@@ -59,6 +61,7 @@ namespace PiqueteDefend.Presentation
         // UI refs
         private VisualElement _root, _screen, _hand, _p0Slots, _p1Slots, _overlay;
         private Button _popover;
+        private Label _popIcon, _popVerb, _popValue;   // partes del popover de ataque (icono · verbo · valor)
         private VisualElement _infoPopover, _infoHeader, _infoBody, _inflationMeter;
         private Label _turnChip, _hint, _overlayTitle, _overlayMsg, _firstTurnNotice;
         private Label _inflationPct, _inflationSub;
@@ -101,6 +104,7 @@ namespace PiqueteDefend.Presentation
             // Teclado: Ctrl + 1..6 descarta la carta n (alternativa al Ctrl+Click del mouse).
             _screen.focusable = true;
             _screen.RegisterCallback<KeyDownEvent>(OnKeyDown);
+            _screen.RegisterCallback<KeyUpEvent>(OnKeyUp);   // soltar Ctrl saca el cartel DESCARTAR de la carta hovereada
             _screen.Focus();
 
             AudioManager.Instance?.PlayMusic(AudioId.MusicGame);
@@ -138,11 +142,24 @@ namespace PiqueteDefend.Presentation
 
         private void BuildPopover()
         {
-            _popover = new Button { text = "⚔ Atacar" };
+            _popover = new Button();
             _popover.AddToClassList("attack-popover");
             _popover.style.position = Position.Absolute;
             _popover.style.display = DisplayStyle.None;
             _popover.clicked += OnPopoverClicked;
+
+            // Layout: [icono] verbo [valor en chip] + un caret que apunta a la unidad. Las partes
+            // ignoran el puntero (el click lo recibe el botón).
+            _popIcon = new Label("⚔"); _popIcon.AddToClassList("attack-popover__icon"); _popIcon.pickingMode = PickingMode.Ignore;
+            _popVerb = new Label("Atacar"); _popVerb.AddToClassList("attack-popover__verb"); _popVerb.pickingMode = PickingMode.Ignore;
+            _popValue = new Label("0"); _popValue.AddToClassList("attack-popover__value"); _popValue.pickingMode = PickingMode.Ignore;
+            _popover.Add(_popIcon);
+            _popover.Add(_popVerb);
+            _popover.Add(_popValue);
+
+            var caret = new VisualElement(); caret.AddToClassList("attack-popover__caret"); caret.pickingMode = PickingMode.Ignore;
+            _popover.Add(caret);
+
             _root.Add(_popover);
             Stylize(_popover);
         }
@@ -364,10 +381,22 @@ namespace PiqueteDefend.Presentation
                 if (_mode != Mode.Acting && _mode != Mode.Finished) { CancelTargeting(); e.StopPropagation(); }
                 return;
             }
+            // Mantener Ctrl con una carta hovereada muestra el cartel DESCARTAR (aunque el mouse no se mueva).
+            if (IsControl(e.keyCode) && _hoveredHandEl != null && !_dragging)
+                SetDiscardAffordance(_hoveredHandEl, true);
             if (_mode != Mode.Acting || !e.ctrlKey) return;
             int n = DigitIndex(e.keyCode);
             if (n >= 0 && n < _engine.ActivePlayer.hand.Count) { DoDiscard(n); e.StopPropagation(); }
         }
+
+        /// <summary>Soltar Ctrl saca el cartel DESCARTAR de la carta hovereada.</summary>
+        private void OnKeyUp(KeyUpEvent e)
+        {
+            if (IsControl(e.keyCode) && _hoveredHandEl != null)
+                SetDiscardAffordance(_hoveredHandEl, false);
+        }
+
+        private static bool IsControl(KeyCode key) => key == KeyCode.LeftControl || key == KeyCode.RightControl;
 
         /// <summary>Mapea KeyCode 1..6 (fila numérica o teclado numérico) a índice 0..5; -1 si no aplica.</summary>
         private static int DigitIndex(KeyCode key)
@@ -447,15 +476,16 @@ namespace PiqueteDefend.Presentation
             _pendingAttacker = attackerSlot;
             UnitAttack ua = _engine.ActivePlayer.unitSlots[attackerSlot].unit.attack;
             string verb = ua.IsHeal ? "Curar" : "Atacar";
-            string icon = ua.IsHeal ? "+" : "⚔";
+            string icon = ua.IsHeal ? "✚" : "⚔";
             // Daño EFECTIVO (base + equipo + Furia + Aura − Desmoralizar), igual que el icono del slot.
             // La cura usa el valor base (las auras/Furia son de ataque, no de cura).
             int amount = ua.IsHeal
                 ? ua.damagePerSlot
                 : _engine.EffectiveAttackDamage(_engine.ActivePlayer.unitSlots, attackerSlot);
-            _popover.text = ua.RequiresChoice
-                ? $"{icon} {verb} (elegí {ua.count}) · {amount}"
-                : $"{icon} {verb} · {amount}";
+            _popIcon.text = icon;
+            _popVerb.text = ua.RequiresChoice ? $"{verb} (elegí {ua.count})" : verb;
+            _popValue.text = amount.ToString();
+            _popover.EnableInClassList("attack-popover--heal", ua.IsHeal);
 
             // Muestra a qué slots llega ESTE ataque (preview), del lado correcto (propio si cura).
             HighlightReach(attackerSlot, ua);
@@ -669,6 +699,9 @@ namespace PiqueteDefend.Presentation
                     var nameLabel = new Label(slot.unit.cardName);
                     nameLabel.AddToClassList("slot__name");
                     art.Add(nameLabel);
+                    // Badge de daño/cura: overlay estilizado arriba-derecha del arte (spec §11.3).
+                    VisualElement atkBadge = BuildAttackBadge(p, i);
+                    if (atkBadge != null) art.Add(atkBadge);
                     el.Add(art);
 
                     // Barra de HP con el valor de vida superpuesto y centrado (como la referencia).
@@ -685,7 +718,13 @@ namespace PiqueteDefend.Presentation
                     barOuter.Add(hpLabel);
                     el.Add(barOuter);
 
-                    // Fila de iconos: stats + producción + pasivas + estados + equipo (un único registro).
+                    // Arte y barra son decorativos: no deben capturar el puntero. Así toda la caja de la
+                    // unidad es UNA sola región de hover (el slot), sin bordes internos que rompan el
+                    // popover al pasar por zonas sin sprite (los iconos sí son pickables: se agregan después).
+                    SetPickingIgnore(art);
+                    SetPickingIgnore(barOuter);
+
+                    // Fila de iconos: producción + pasivas + estados + equipo (el daño va en el badge).
                     AddSlotIcons(el, p, playerIndex, i);
 
                     // Hover → popover informativo (alcance, pasivas, estados, descripción).
@@ -916,52 +955,59 @@ namespace PiqueteDefend.Presentation
             PositionInfoPopover(anchorEl);
         }
 
-        /// <summary>Traduce un slot a sus iconos: stat de acción + pasivas + estados + equipo.</summary>
+        /// <summary>Badge de daño (o cura) efectivo: overlay prominente arriba-derecha del arte (spec §11.3).
+        /// Reemplaza al viejo pill de ataque en la fila de iconos. Decorativo (no pickable): el detalle de
+        /// alcance vive en el popover de la unidad. Devuelve null si la unidad no pega ni cura.</summary>
+        private VisualElement BuildAttackBadge(PlayerState owner, int slotIndex)
+        {
+            UnitSlot slot = owner.unitSlots[slotIndex];
+            UnitAttack ua = slot.unit.attack;
+            if (ua == null || ua.damagePerSlot == 0) return null;
+
+            bool aoe = ua.mode == TargetMode.All;
+            int targets = AttackTargetCount(ua);  // golpes potenciales (Frontmost/Backmost/Any)
+            int amount = ua.IsHeal ? ua.damagePerSlot : _engine.EffectiveAttackDamage(owner.unitSlots, slotIndex);
+            string val = (!aoe && targets > 1) ? $"{amount}×{targets}" : amount.ToString();
+
+            var badge = new VisualElement();
+            badge.AddToClassList("slot__atk-badge");
+            badge.AddToClassList(ua.IsHeal ? "slot__atk-badge--heal" : "slot__atk-badge--atk");
+
+            var glyph = new Label(ua.IsHeal ? "✚" : "⚔");
+            glyph.AddToClassList("slot__atk-badge-glyph");
+            var value = new Label(val);
+            value.AddToClassList("slot__atk-badge-value");
+            badge.Add(glyph);
+            badge.Add(value);
+            return badge;
+        }
+
+        /// <summary>Marca un subárbol como no-pickable (decorativo), para que el hover lo maneje el ancestro.</summary>
+        private static void SetPickingIgnore(VisualElement root)
+        {
+            root.pickingMode = PickingMode.Ignore;
+            foreach (VisualElement child in root.Children())
+                SetPickingIgnore(child);
+        }
+
+        /// <summary>Traduce un slot a sus iconos: pasivas + estados + equipo (el daño va en el badge del arte).</summary>
         private List<SlotIcon> BuildSlotIcons(PlayerState owner, int slotIndex)
         {
             UnitSlot slot = owner.unitSlots[slotIndex];
             var icons = new List<SlotIcon>();
 
-            // 1) Stat principal: daño (o cura) efectivo + cuántos objetivos.
-            // AoE (mode == All) usa un icono propio (estallido / cruz-en-anillo): la cantidad de
-            // objetivos depende de la formación, así que no se muestra ×N — el icono ya dice "a todas".
-            UnitAttack ua = slot.unit.attack;
-            if (ua != null && ua.damagePerSlot != 0)
-            {
-                bool aoe = ua.mode == TargetMode.All;
-                int targets = AttackTargetCount(ua);  // golpes potenciales (Frontmost/Backmost/Any)
-                bool multi = aoe || targets > 1;
-                if (ua.IsHeal)
-                {
-                    string val = (!aoe && targets > 1) ? $"{ua.damagePerSlot}×{targets}" : ua.damagePerSlot.ToString();
-                    string tip = multi
-                        ? $"Cura {ua.damagePerSlot} a cada una · {AttackShape(ua)}"
-                        : $"Cura {ua.damagePerSlot} · {AttackShape(ua)}";
-                    icons.Add(new SlotIcon("✚", val, "slot-icon--heal", "Curación", tip, aoe ? "heal-aoe" : null));
-                }
-                else
-                {
-                    int dmg = _engine.EffectiveAttackDamage(owner.unitSlots, slotIndex);
-                    string val = (!aoe && targets > 1) ? $"{dmg}×{targets}" : dmg.ToString();
-                    string tip = multi
-                        ? $"Pega {dmg} a cada uno · {AttackShape(ua)}"
-                        : $"Pega {dmg} · {AttackShape(ua)}";
-                    icons.Add(new SlotIcon("⚔", val, "slot-icon--atk", "Ataque", tip, aoe ? "atk-aoe" : null));
-                }
-            }
-
-            // 2) Pasivas efectivas (propias + de equipo): producción, regen, aura, espinas, daño/estado por turno.
+            // 1) Pasivas efectivas (propias + de equipo): producción, regen, aura, espinas, daño/estado por turno…
             foreach (PassiveEffect pe in slot.AllPassives())
                 icons.Add(PassiveIcon(pe));
 
-            // 3) Estados activos por unidad (Veneno/Aturdir/Furia/Desmoralizar).
+            // 2) Estados activos por unidad (Veneno/Aturdir/Furia/Desmoralizar).
             foreach (StatusEffect s in slot.activeStatuses)
             {
                 SlotIcon? ic = StatusIcon(s);
                 if (ic.HasValue) icons.Add(ic.Value);
             }
 
-            // 4) Equipo adjunto: señala su presencia (los stats que aporta ya van en HP/ATK; detalle en hover).
+            // 3) Equipo adjunto: señala su presencia (los stats que aporta ya van en HP/ATK; detalle en hover).
             foreach (EquipmentCardData eq in slot.attachedEquipment)
                 icons.Add(new SlotIcon("⚙", null, "slot-icon--equip", "Equipo", EquipmentText(eq)));
 
@@ -1012,6 +1058,9 @@ namespace PiqueteDefend.Presentation
             PassiveType.Retaliate       => new SlotIcon("🛡", pe.value.ToString(), "slot-icon--thorns", "Espinas", PassiveText(pe)),
             PassiveType.TurnDamage      => new SlotIcon("🔥", pe.value.ToString(), "slot-icon--turndmg", "Daño por turno", PassiveText(pe)),
             PassiveType.TurnStatus      => new SlotIcon("☣", null, "slot-icon--turnstatus", "Estado por turno", PassiveText(pe)),
+            PassiveType.OnDeath         => new SlotIcon("✝", pe.status != null ? null : pe.value.ToString(), "slot-icon--ondeath", "Al morir", PassiveText(pe)),
+            PassiveType.Armor           => new SlotIcon("🛡", pe.value.ToString(), "slot-icon--armor", "Blindaje", PassiveText(pe)),
+            PassiveType.PushBack        => new SlotIcon("»", null, "slot-icon--pushback", "Empuje", PassiveText(pe)),
             _                           => new SlotIcon("•", pe.value.ToString(), "slot-icon--passive", "Pasiva", PassiveText(pe)),
         };
 
@@ -1189,6 +1238,10 @@ namespace PiqueteDefend.Presentation
 
         private void PositionInfoPopover(VisualElement anchorEl)
         {
+            // El popover y TODO su contenido deben ignorar el puntero: si una etiqueta interna fuera
+            // pickable y el popover se solapara con el slot (cajas bajas / unidades arriba de todo),
+            // robaría el hover y el popover parpadearía (aparece/desaparece en loop).
+            SetPickingIgnore(_infoPopover);
             Rect wb = anchorEl.worldBound;
             Vector2 local = _root.WorldToLocal(wb.position);
             ClampPopover(_infoPopover, local.x, wb.width, local.y);
@@ -1215,9 +1268,17 @@ namespace PiqueteDefend.Presentation
 
                 MakeDraggable(el, i);
 
+                // Cartel "DESCARTAR": overlay que aparece al hacer Ctrl+hover (Ctrl+Click descarta).
+                var discardBanner = new Label("DESCARTAR");
+                discardBanner.AddToClassList("card__discard-banner");
+                discardBanner.pickingMode = PickingMode.Ignore;
+                discardBanner.style.display = DisplayStyle.None;
+                el.Add(discardBanner);
+
                 int captured = i;  // hover → sube/crece (abanico) + popover informativo de la carta
-                el.RegisterCallback<PointerEnterEvent>(_ => OnCardHoverEnter(captured, el));
+                el.RegisterCallback<PointerEnterEvent>(e => OnCardHoverEnter(captured, el, e.ctrlKey));
                 el.RegisterCallback<PointerLeaveEvent>(_ => OnCardHoverLeave(captured, el));
+                el.RegisterCallback<PointerMoveEvent>(e => { if (!_dragging) SetDiscardAffordance(el, e.ctrlKey); });
 
                 _hand.Add(el);
                 _handEls.Add(el);
@@ -1265,14 +1326,17 @@ namespace PiqueteDefend.Presentation
         }
 
         /// <summary>Hover: la carta sube, se endereza, crece y se trae al frente (prominencia).</summary>
-        private void OnCardHoverEnter(int i, VisualElement el)
+        private void OnCardHoverEnter(int i, VisualElement el, bool ctrl)
         {
             if (_dragging) return;   // durante un drag no levantamos cartas ni mostramos el popover
+            _hoveredHandIndex = i;
+            _hoveredHandEl = el;
             el.BringToFront();
             el.AddToClassList("card--hovered");
             el.style.rotate = new Rotate(new Angle(0f, AngleUnit.Degree));
             el.style.scale = new Scale(new Vector3(1.4f, 1.4f, 1f));
             el.style.bottom = -8f;
+            SetDiscardAffordance(el, ctrl);   // si ya venís con Ctrl apretado, mostrá el cartel de una
 
             // El popover de info se muestra recién al terminar la animación de hover (la carta ya
             // está enderezada y crecida), no de entrada. Se cancela si el puntero sale antes.
@@ -1286,11 +1350,23 @@ namespace PiqueteDefend.Presentation
             _cardInfoPending?.Pause();   // cancela el popover diferido si el puntero salió antes de tiempo
             _cardInfoPending = null;
             HideInfoPopover();
+            if (_hoveredHandEl == el) { _hoveredHandIndex = -1; _hoveredHandEl = null; }
+            SetDiscardAffordance(el, false);
             if (i >= _handBaseRot.Length) return;
             el.RemoveFromClassList("card--hovered");
             el.style.rotate = new Rotate(new Angle(_handBaseRot[i], AngleUnit.Degree));
             el.style.scale = new Scale(Vector3.one);
             el.style.bottom = _handBaseBottom[i];
+        }
+
+        /// <summary>Ctrl + hover sobre una carta: la tiñe de "descarte" y muestra el cartel DESCARTAR
+        /// (Ctrl+Click la descarta). Sin Ctrl, vuelve al look normal.</summary>
+        private void SetDiscardAffordance(VisualElement el, bool on)
+        {
+            if (el == null) return;
+            el.EnableInClassList("card--discard", on);
+            var banner = el.Q<Label>(className: "card__discard-banner");
+            if (banner != null) banner.style.display = on ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         /// <summary>
@@ -1409,15 +1485,26 @@ namespace PiqueteDefend.Presentation
         {
             if (_mode == Mode.Finished) return;
 
+            // Botón secundario (der/medio) a mitad de arrastre: aborta el drag limpiamente. Antes el
+            // PointerDown re-entraba acá y reasignaba _ghost, dejando el ghost anterior clavado en pantalla.
+            if (e.button != 0)
+            {
+                if (_dragging) CancelDrag(card, e.pointerId);
+                return;
+            }
+
             // Ctrl+Click (botón izq) = descartar (sin botón DESCARTAR). Vale también con cartas que no
             // podés pagar y aunque haya una carta armada (en ese caso, primero cancela el targeting).
             // No inicia drag.
-            if (e.button == 0 && e.ctrlKey)
+            if (e.ctrlKey)
             {
                 if (_mode != Mode.Acting) CancelTargeting();
                 DoDiscard(index);
                 return;
             }
+
+            // Re-entrancy: si ya hay un drag en curso, ignorar este PointerDown (evita ghosts huérfanos).
+            if (_dragging) return;
 
             // Si hay una carta "armada" (esperando objetivo/confirmación), un click en la mano cancela.
             if (_mode != Mode.Acting) { CancelTargeting(); return; }
@@ -1426,6 +1513,7 @@ namespace PiqueteDefend.Presentation
             _dragIndex = index;
             _dragStartPos = e.position;
             card.CapturePointer(e.pointerId);
+            SetDiscardAffordance(card, false);   // al agarrar la carta, sacá el cartel DESCARTAR del hover
             AudioManager.Instance?.PlaySfx(AudioId.CardClick);
             HidePopover();
             HideInfoPopover();
@@ -1455,6 +1543,17 @@ namespace PiqueteDefend.Presentation
         {
             if (!_dragging) return;
             PositionGhost(e.position);
+        }
+
+        /// <summary>Aborta el drag en curso (p.ej. click derecho a mitad de arrastre): suelta el puntero,
+        /// quita el ghost y limpia los resaltados. No juega ni descarta la carta.</summary>
+        private void CancelDrag(VisualElement card, int pointerId)
+        {
+            _dragging = false;
+            _dragIndex = -1;
+            if (card != null && card.HasPointerCapture(pointerId)) card.ReleasePointer(pointerId);
+            if (_ghost != null) { _ghost.RemoveFromHierarchy(); _ghost = null; }
+            ClearDropHighlights();
         }
 
         private void OnDragEnd(PointerUpEvent e, int index, VisualElement card)
@@ -1906,8 +2005,39 @@ namespace PiqueteDefend.Presentation
             PassiveType.Retaliate => $"Espinas: devuelve {pe.value} de daño al atacante",
             PassiveType.TurnDamage => $"Daña {pe.value} a la vanguardia enemiga por turno",
             PassiveType.TurnStatus => $"Aplica {UnitStatusName(pe.status)} a la vanguardia enemiga por turno",
+            PassiveType.OnDeath => OnDeathText(pe),
+            PassiveType.Armor => $"Blindaje: −{pe.value} al daño de cada ataque recibido",
+            PassiveType.PushBack => "Empuje: tras atacar, manda al objetivo al fondo de su formación",
             _ => ""
         };
+
+        /// <summary>Texto de una pasiva OnDeath (death-rattle): aplica un estado o pega daño al morir.</summary>
+        private static string OnDeathText(PassiveEffect pe)
+        {
+            string targets = PassiveTargetText(pe);
+            return pe.status != null
+                ? $"Al morir: aplica {UnitStatusName(pe.status)} a {targets}"
+                : $"Al morir: {pe.value} de daño a {targets}";
+        }
+
+        /// <summary>Describe el conjunto objetivo de una pasiva dirigida (target + mode) para los textos.</summary>
+        private static string PassiveTargetText(PassiveEffect pe)
+        {
+            string who = pe.target switch
+            {
+                PassiveTarget.Allies => "aliados",
+                PassiveTarget.Enemies => "enemigos",
+                _ => "sí misma"
+            };
+            string scope = pe.mode switch
+            {
+                TargetMode.Adjacent => " adyacentes",
+                TargetMode.Frontmost => " del frente",
+                TargetMode.Backmost => " del fondo",
+                _ => ""   // All/Any/Self: "aliados"/"enemigos" ya alcanza
+            };
+            return who + scope;
+        }
 
         /// <summary>(texto del badge, clase USS, tooltip) de un estado por unidad. null = estado de jugador.</summary>
         private static (string, string, string) StatusBadge(StatusEffect s) => s.statusType switch

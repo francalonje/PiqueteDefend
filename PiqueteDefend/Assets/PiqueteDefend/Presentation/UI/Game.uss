@@ -357,6 +357,39 @@
     background-color: rgba(18, 20, 28, 0.55);
 }
 
+/* Badge de daño/cura: chip prominente anclado arriba-derecha del arte de la unidad.
+   Reemplaza al viejo pill de ataque en la fila de iconos (queda más legible y mejor estilado). */
+.slot__atk-badge {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    flex-direction: row;
+    align-items: center;
+    padding: 1px 6px 2px 5px;
+    border-radius: 9px;
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.55);
+    background-color: rgba(200, 60, 50, 0.96);
+}
+
+.slot__atk-badge--heal {
+    background-color: rgba(60, 170, 90, 0.96);
+}
+
+.slot__atk-badge-glyph {
+    font-size: 12px;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-center;
+}
+
+.slot__atk-badge-value {
+    font-size: 15px;
+    -unity-font-style: bold;
+    margin-left: 3px;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-center;
+}
+
 /* Barra de HP con el número de vida superpuesto y centrado */
 .slot__hp-bar-outer {
     height: 16px;
@@ -403,16 +436,16 @@
     flex-direction: row;
     flex-shrink: 0;
     align-items: center;
-    min-height: 18px;
-    padding: 1px 5px;
-    margin: 2px;
-    border-radius: 9px;
+    min-height: 14px;
+    padding: 0 4px;
+    margin: 1.5px;
+    border-radius: 7px;
     background-color: rgba(60, 64, 78, 0.95);
 }
 
 /* Glifo y valor: no se encogen ni wrappean → quedan en una línea, lado a lado. */
 .slot-icon__glyph {
-    font-size: 11px;
+    font-size: 9px;
     flex-shrink: 0;
     white-space: nowrap;
     color: rgb(245, 246, 250);
@@ -420,17 +453,17 @@
 }
 
 .slot-icon__value {
-    font-size: 11px;
+    font-size: 9px;
     -unity-font-style: bold;
     flex-shrink: 0;
     white-space: nowrap;
-    margin-left: 3px;
+    margin-left: 2px;
     color: rgb(245, 246, 250);
 }
 
 .slot-icon__img {
-    width: 14px;
-    height: 14px;
+    width: 11px;
+    height: 11px;
     background-size: cover;
 }
 
@@ -448,6 +481,9 @@
 .slot-icon--furia      { background-color: rgba(225, 120, 60, 0.95); }
 .slot-icon--desmor     { background-color: rgba(130, 120, 165, 0.95); }
 .slot-icon--equip      { background-color: rgba(140, 115, 45, 0.95); }
+.slot-icon--ondeath    { background-color: rgba(120, 70, 130, 0.95); }
+.slot-icon--armor      { background-color: rgba(80, 110, 150, 0.95); }
+.slot-icon--pushback   { background-color: rgba(60, 130, 140, 0.95); }
 
 /* Animaciones de combate */
 .slot--flash-attack {
@@ -531,6 +567,33 @@
 
 .card--used {
     opacity: 0.3;
+}
+
+/* Ctrl + hover: la carta se tiñe de "descarte" (rojo) para anticipar que el click la descarta. */
+.card--discard {
+    border-color: rgb(232, 96, 80);
+    background-color: rgba(74, 38, 40, 0.98);
+}
+
+/* Cartel DESCARTAR superpuesto sobre la carta mientras se mantiene Ctrl. */
+.card__discard-banner {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 44%;
+    padding: 5px 0;
+    rotate: -8deg;
+    font-size: 22px;
+    -unity-font-style: bold;
+    letter-spacing: 2px;
+    color: rgb(255, 236, 232);
+    white-space: nowrap;
+    background-color: rgba(196, 52, 44, 0.92);
+    border-top-width: 2px;
+    border-bottom-width: 2px;
+    border-top-color: rgba(255, 200, 190, 0.85);
+    border-bottom-color: rgba(255, 200, 190, 0.85);
+    -unity-text-align: middle-center;
 }
 
 /* Header: nombre (izq, ocupa el ancho) + badge de costo arriba a la derecha. */
@@ -629,20 +692,84 @@
 }
 
 /* ── Popover de ataque ────────────────────────────────────────────────── */
+/* Píldora [⚔][verbo][valor] con un caret que apunta a la unidad. Layout en fila,
+   el daño resaltado en su propio chip para leerse de un vistazo. */
 .attack-popover {
     position: absolute;
-    padding: 8px 14px;
-    border-radius: 8px;
+    flex-direction: row;
+    align-items: center;
+    padding: 7px 9px 7px 11px;
+    border-radius: 10px;
     border-width: 2px;
     border-color: rgb(120, 180, 235);
     background-color: rgb(30, 40, 56);
-    color: rgb(235, 240, 248);
-    font-size: 18px;
-    -unity-font-style: bold;
+    transition-property: background-color, scale;
+    transition-duration: 0.1s;
 }
 
 .attack-popover:hover {
     background-color: rgb(44, 58, 80);
+    scale: 1.05;
+}
+
+.attack-popover__icon {
+    font-size: 19px;
+    color: rgb(220, 232, 248);
+    margin-right: 7px;
+    -unity-text-align: middle-center;
+}
+
+.attack-popover__verb {
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: rgb(235, 240, 248);
+    -unity-text-align: middle-center;
+}
+
+/* Daño/cura en un chip propio (contraste alto) → es el dato que más mira el jugador. */
+.attack-popover__value {
+    min-width: 26px;
+    margin-left: 9px;
+    padding: 1px 8px;
+    border-radius: 8px;
+    background-color: rgb(214, 74, 62);
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-center;
+}
+
+.attack-popover--heal .attack-popover__value {
+    background-color: rgb(60, 170, 90);
+}
+
+.attack-popover--heal {
+    border-color: rgb(120, 220, 150);
+}
+
+/* Caret: cuadradito rotado 45° anclado abajo-centro, hace de "pico" hacia la unidad. */
+.attack-popover__caret {
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    translate: -50% 0;
+    width: 12px;
+    height: 12px;
+    rotate: 45deg;
+    background-color: rgb(30, 40, 56);
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-right-color: rgb(120, 180, 235);
+    border-bottom-color: rgb(120, 180, 235);
+}
+
+.attack-popover:hover .attack-popover__caret {
+    background-color: rgb(44, 58, 80);
+}
+
+.attack-popover--heal .attack-popover__caret {
+    border-right-color: rgb(120, 220, 150);
+    border-bottom-color: rgb(120, 220, 150);
 }
 
 /* ── Popover informativo (hover sobre una unidad) ─────────────────────── */
