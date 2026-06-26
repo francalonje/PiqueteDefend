@@ -294,8 +294,10 @@ def best_attack(engine: GameEngine, p: PlayerState, opp: PlayerState):
         s = p.slots[i]
         if s is None or s.is_stunned or s.attacked_this_turn:
             continue
-        if p.get(ResourceType.FUERZA) < engine.attack_cost(s.unit.attack.amount_per_slot):
-            continue   # no alcanza la ⚡ para este ataque (costo proporcional, spec §6)
+        if p.get(ResourceType.FUERZA) < engine.attack_cost(
+                s.unit.attack.amount_per_slot * s.unit.attack.effective_hits):
+            continue   # no alcanza la ⚡: mismo costo que cobra el motor (daño TOTAL = daño × golpes,
+                       # multi-hit incluido, spec §6/§7.2 — espejo de HeuristicAiController)
         a = s.unit.attack
         target_board = p.slots if a.effect == AttackEffect.HEAL_ALLIES else opp.slots
         candidates = engine.resolve_targets(a.mode, a.count, target_board, i)

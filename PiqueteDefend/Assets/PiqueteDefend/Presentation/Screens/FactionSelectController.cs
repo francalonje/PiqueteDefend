@@ -14,6 +14,7 @@ namespace PiqueteDefend.Presentation
     public sealed class FactionSelectController : MonoBehaviour
     {
         private const string PanelSettingsResource = "UIPanelSettings";
+        private const string CatalogResource = "CardCatalog";
 
         private void OnEnable()
         {
@@ -29,7 +30,10 @@ namespace PiqueteDefend.Presentation
             AudioManager.Instance?.PlayMusic(AudioId.MusicFactionSelect);
 
             Label prompt = root.Q<Label>("prompt");
-            if (prompt != null) prompt.text = "Elegí la facción que juega primero";
+            if (prompt != null)
+                prompt.text = MatchConfig.Mode == GameMode.Run
+                    ? "Elegí tu facción"                       // run: el rival lo juega la IA
+                    : "Elegí la facción que juega primero";    // hotseat: sólo decide la iniciativa
 
             Button manif = root.Q<Button>("manifestantes-button");
             Button pol = root.Q<Button>("policias-button");
@@ -40,8 +44,31 @@ namespace PiqueteDefend.Presentation
         private void Pick(Faction faction)
         {
             AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+
+            if (MatchConfig.Mode == GameMode.Run)
+            {
+                StartRun(faction);
+                return;
+            }
+
+            // Hotseat: sólo decide quién arranca; los lados son fijos.
             MatchConfig.StartingFaction = faction;
             SceneManager.LoadScene("Game");
+        }
+
+        /// <summary>Arranca una run con la facción elegida y abre el mapa (spec §17).</summary>
+        private void StartRun(Faction faction)
+        {
+            var catalog = Resources.Load<CardCatalog>(CatalogResource);
+            if (catalog == null)
+            {
+                Debug.LogError("[FactionSelect] No se encontró CardCatalog en Resources.");
+                return;
+            }
+
+            var run = new RunManager(catalog, new GameConfig(), new SystemRandomProvider(), faction);
+            RunSession.Start(run);
+            SceneManager.LoadScene("Map");
         }
     }
 }

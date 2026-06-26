@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="root" class="screen screen--map">
+        <Style src="Common.uss" />
+        <Style src="Map.uss" />
+        <ui:VisualElement name="bg" class="scene-bg" picking-mode="Ignore" />
+        <ui:VisualElement class="map__header">
+            <ui:Label name="map-title" text="El camino a la Casa Rosada" class="map__title" />
+            <ui:Label name="map-subtitle" text="Elegí tu próximo punto" class="map__subtitle" />
+        </ui:VisualElement>
+        <ui:VisualElement name="map-area" class="map__area" />
+        <ui:Button name="map-abandon" text="Abandonar run" class="btn map__abandon" />
+    </ui:VisualElement>
+</ui:UXML>

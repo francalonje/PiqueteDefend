@@ -12,6 +12,12 @@ EditorBuildSettings:
     path: Assets/PiqueteDefend/Scenes/FactionSelect.unity
     guid: cf3a5061c45e35a46b193422855ab7cb
   - enabled: 1
+    path: Assets/PiqueteDefend/Scenes/Map.unity
+    guid: 438e2cb2127349842a3b37f58b62c5c6
+  - enabled: 1
+    path: Assets/PiqueteDefend/Scenes/Reward.unity
+    guid: e5b08e9cea155194ba79773fc7c22631
+  - enabled: 1
     path: Assets/PiqueteDefend/Scenes/Game.unity
     guid: 09fd89bc9dca4ac448e266e36b0f8bb0
   m_configObjects:

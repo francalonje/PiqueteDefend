@@ -1,0 +1,110 @@
+/* Pantalla de mapa de la run (spec §17.1). Puntos posicionados por x/y, conexiones como líneas.
+   2D UI Toolkit (MVP). */
+
+.screen--map {
+    flex-direction: column;
+}
+
+.map__header {
+    margin-top: 18px;
+    align-items: center;
+}
+
+.map__title {
+    font-size: 30px;
+    -unity-font-style: bold;
+    color: rgb(235, 237, 242);
+}
+
+.map__subtitle {
+    font-size: 16px;
+    color: rgb(170, 176, 190);
+    margin-top: 2px;
+}
+
+/* Lienzo donde se posicionan los puntos (contexto de posicionamiento absoluto). El padre
+   (.screen) centra en horizontal con align-items:center, así que SIN align-self:stretch el área
+   quedaría del ancho de su contenido (0, porque los hijos son absolutos) y los left% colapsarían
+   todos los nodos al centro. stretch = ocupa el ancho real → los x se reparten bien. */
+.map__area {
+    flex-grow: 1;
+    align-self: stretch;
+    margin: 12px 40px;
+    position: relative;
+}
+
+.map__abandon {
+    position: absolute;
+    left: 20px;
+    bottom: 20px;
+    min-width: 0;
+    width: 160px;
+    height: 40px;
+    font-size: 15px;
+}
+
+/* ── Punto del mapa ───────────────────────────────────────────────────────── */
+.map-node {
+    position: absolute;
+    width: 150px;
+    height: 56px;
+    min-width: 0;
+    translate: -50% -50%;            /* centrar el botón sobre su coordenada */
+    border-radius: 10px;
+    border-width: 2px;
+    border-color: rgb(70, 76, 92);
+    background-color: rgb(45, 49, 61);
+    color: rgb(225, 228, 236);
+    font-size: 15px;
+    -unity-font-style: bold;
+    white-space: normal;
+}
+
+/* Disponible: el jugador puede ir acá AHORA. Resaltado y clickeable. */
+.map-node--available {
+    border-color: rgb(214, 92, 56);
+    background-color: rgb(70, 58, 52);
+}
+.map-node--available:hover {
+    background-color: rgb(96, 78, 68);
+    scale: 1.05 1.05;
+}
+
+/* Punto actual: dónde está parado el jugador. */
+.map-node--current {
+    border-color: rgb(110, 200, 120);
+    background-color: rgb(48, 66, 52);
+}
+
+/* Combate ya ganado (camino recorrido). */
+.map-node--cleared {
+    opacity: 0.5;
+    border-color: rgb(110, 200, 120);
+}
+
+/* Jefe (el más lejano). */
+.map-node--boss {
+    border-color: rgb(214, 64, 64);
+    height: 64px;
+    width: 168px;
+    font-size: 17px;
+}
+.map-node--boss.map-node--available:hover {
+    background-color: rgb(110, 58, 58);
+}
+
+/* Inalcanzable por ahora (no es sucesor del actual). */
+.map-node--locked {
+    opacity: 0.32;
+}
+
+/* ── Línea de conexión entre puntos (dibujada por código) ─────────────────── */
+.map-edge {
+    position: absolute;
+    height: 3px;
+    background-color: rgb(86, 92, 110);
+    transform-origin: left center;
+}
+.map-edge--open {
+    background-color: rgb(214, 92, 56);   /* arista hacia un punto disponible */
+}

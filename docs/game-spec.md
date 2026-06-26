@@ -1020,10 +1020,11 @@ progresión, inspirada en Slay the Spire (progresión + recompensas) y The King 
 Reusa íntegro el motor de combate (§6) — el rival lo controla la **IA** (§16, vía `IPlayerController`,
 §7.8). El hotseat 2-jugadores comparte el mismo motor.
 
-> **Estado:** diseño aprobado; **capa de run implementada en `Core` (Fase 3)** — `RunState`/`RunManager`/
-> `RunMap` + inyección del mazo de la run y handicap de IA por distancia (§17.5). Falta la **presentación
-> (Fase 4)**: menú, pantalla de mapa, recompensa 1-de-3, turno de IA con delays. Esta sección es la
-> fuente de verdad del modo. Toma de StS las **recompensas de carta** y el **permadeath**, pero el
+> **Estado:** diseño aprobado; **run jugable end-to-end** — capa de `Core` (Fase 3: `RunState`/`RunManager`/
+> `RunMap` + inyección del mazo y handicap de IA por distancia) + **presentación (Fase 4)**: menú de 2
+> modos, pantalla de **mapa 2D**, **recompensa 1-de-3**, combate con **turno de IA** (delays + input
+> bloqueado) y **menú de pausa**. Pendiente: pulido por playtest (feel) y el diorama 3D del mapa. Esta
+> sección es la fuente de verdad del modo. Toma de StS las **recompensas de carta** y el **permadeath**, pero el
 > **mapa NO es por carriles**: es de **puntos a elección con dificultad por distancia** (§17.1).
 > Valores concretos (largo de run, nº de puntos, handicap) son **rough, a iterar por playtest** ([[feedback-playtest-driven]]).
 

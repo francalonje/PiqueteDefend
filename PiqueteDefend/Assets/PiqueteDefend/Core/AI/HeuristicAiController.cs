@@ -418,8 +418,9 @@ namespace PiqueteDefend.Core
             {
                 UnitSlot s = p.unitSlots[i];
                 if (s == null || s.IsStunned || s.attackedThisTurn) continue;
-                if (p.GetResource(ResourceType.Fuerza) < engine.Config.AttackFuerzaCost(s.unit.attack.damagePerSlot))
-                    continue;   // no alcanza la ⚡ para este ataque (costo proporcional, spec §6)
+                if (p.GetResource(ResourceType.Fuerza) < engine.AttackCost(i))
+                    continue;   // no alcanza la ⚡: mismo costo que cobra el motor (proporcional al
+                                // daño TOTAL por objetivo = daño × golpes, multi-hit incluido, spec §6/§7.2)
                 UnitAttack a = s.unit.attack;
                 UnitSlot[] targetBoard = a.IsHeal ? p.unitSlots : opp.unitSlots;
                 List<int> candidates = GameEngine.ResolveTargets(a.mode, a.count, targetBoard, i);

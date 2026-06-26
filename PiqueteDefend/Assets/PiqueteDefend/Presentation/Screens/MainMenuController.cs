@@ -27,25 +27,37 @@ namespace PiqueteDefend.Presentation
 
             SceneBackground.Apply(root, "bg-menu");
 
-            Button play = root.Q<Button>("play-button");
-            if (play != null) play.clicked += OnPlay;
+            // Dos modos (spec §17.5/§11.1): "La Marcha" = run single-player vs IA; "Picado local" = hotseat.
+            Button marcha = root.Q<Button>("la-marcha-button");
+            Button picado = root.Q<Button>("picado-button");
+            if (marcha != null) marcha.clicked += () => StartMode(GameMode.Run);
+            if (picado != null) picado.clicked += () => StartMode(GameMode.Hotseat);
 
-            // v1: sin Ajustes ni Créditos
-            SetDisabled(root.Q<Button>("settings-button"));
-            SetDisabled(root.Q<Button>("credits-button"));
+            // Ajustes: aún no implementado (deshabilitado). Salir: cierra el juego.
+            Button settings = root.Q<Button>("settings-button");
+            if (settings != null) settings.SetEnabled(false);
+            Button quit = root.Q<Button>("quit-button");
+            if (quit != null) quit.clicked += QuitGame;
 
             AudioManager.Instance?.PlayMusic(AudioId.MusicMain);
         }
 
-        private static void SetDisabled(Button button)
-        {
-            if (button != null) button.SetEnabled(false);
-        }
-
-        private void OnPlay()
+        private void StartMode(GameMode mode)
         {
             AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+            MatchConfig.Mode = mode;
             SceneManager.LoadScene("FactionSelect");
+        }
+
+        /// <summary>Cierra el juego. En el editor, frena el Play mode (para poder probarlo).</summary>
+        public static void QuitGame()
+        {
+            AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
     }
 }

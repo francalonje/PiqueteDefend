@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="root" class="screen screen--reward">
+        <Style src="Common.uss" />
+        <Style src="Game.uss" />
+        <Style src="Reward.uss" />
+        <ui:VisualElement name="bg" class="scene-bg" picking-mode="Ignore" />
+        <ui:VisualElement class="reward__panel">
+            <ui:Label text="Ganaste el combate" class="reward__title" />
+            <ui:Label name="reward-prompt" text="Sumá una carta al mazo" class="reward__subtitle" />
+            <ui:VisualElement name="reward-cards" class="reward__cards" />
+            <ui:Button name="reward-skip" text="Saltear (no sumar)" class="btn reward__skip" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,42 @@
+/* Pantalla de recompensa de la run (spec §17.2): elegí 1 de 3 cartas para sumar al mazo. */
+
+.reward__panel {
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.reward__title {
+    font-size: 32px;
+    -unity-font-style: bold;
+    color: rgb(235, 237, 242);
+}
+
+.reward__subtitle {
+    font-size: 17px;
+    color: rgb(170, 176, 190);
+    margin-top: 2px;
+    margin-bottom: 22px;
+}
+
+.reward__cards {
+    flex-direction: row;
+    justify-content: center;
+}
+
+/* Contenedor clickeable de cada recompensa: adentro va el MISMO visual de carta que en la mano
+   (.card, definido en Game.uss). El hover la levanta y resalta. */
+.reward-pick {
+    margin: 0 16px;
+    border-radius: 14px;
+    transition-duration: 0.1s;
+}
+
+.reward-pick:hover {
+    scale: 1.06 1.06;
+    translate: 0 -8px;
+}
+
+.reward__skip {
+    margin-top: 30px;
+}
