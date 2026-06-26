@@ -28,6 +28,7 @@ from model import (
 )
 
 BOARD = 6
+HAND_SIZE = 6   # mano objetivo; se rellena al fin del turno (REPONER MANO, spec §6/§8.1)
 
 
 def inflated_amount(amount: int, inflation_pct: int) -> int:
@@ -59,6 +60,7 @@ class UnitSlot:
         self.equipment: List[EquipmentCardData] = []
         self.statuses: List[StatusEffect] = []
         self.current_hp = self.max_hp
+        self.attacked_this_turn = False   # cada unidad ataca una vez por turno (spec §6)
 
     # ── Stats efectivos ──
     @property
@@ -168,9 +170,6 @@ class GameEngine:
         self.active = 0
         self.first = 0
         self.outcome: Optional[Outcome] = None
-        # flags por turno
-        self.card_used = False
-        self.attack_used = False
         # telemetría
         self.cards_played: Dict[str, int] = {}
         self.starved_turns = 0     # turnos donde no pudo pagar ninguna carta de la mano
@@ -194,7 +193,7 @@ class GameEngine:
                     self._record_deploy(unit)
             p.deck = list(build_deck(p.faction, self.k))
             self.rng.shuffle(p.deck)
-            for _ in range(6):
+            for _ in range(HAND_SIZE):
                 card = self._draw_card(p)
                 if card is not None:
                     p.hand.append(card)
@@ -364,8 +363,10 @@ class GameEngine:
                     if pe.passive_type == PassiveType.PRODUCE_RESOURCE:
                         p.add(pe.resource, pe.value * production_mult, self.max_resource)
 
-        self.card_used = False
-        self.attack_used = False
+        # Cada unidad del jugador activo puede atacar una vez este turno (spec §6).
+        for s in p.slots:
+            if s is not None:
+                s.attacked_this_turn = False
 
     def _resolve_turn_start_passives(self, owner: PlayerState):
         opp = self.players[1 - self.players.index(owner)]
@@ -402,7 +403,7 @@ class GameEngine:
     def play_card(self, hand_index: int, deploy_slot: int = -1,
                   effect_slot: int = -1, effect_slot_b: int = -1,
                   equip_slot: int = -1) -> bool:
-        if self.card_used or self.is_finished:
+        if self.is_finished:
             return False
         p, opp = self.active_player, self.opponent
         if not (0 <= hand_index < len(p.hand)):
@@ -429,20 +430,18 @@ class GameEngine:
             for eff in card.effects:
                 self._resolve_effect(eff, p, opp, effect_slot, effect_slot_b)
 
-        self._replace_card(p, hand_index)
-        self.card_used = True
+        self._to_discard(p, hand_index)
         self.cards_played[card.id] = self.cards_played.get(card.id, 0) + 1
         self._check_victory()
         return True
 
     def discard_card(self, hand_index: int) -> bool:
-        if self.card_used or self.is_finished:
+        if self.is_finished:
             return False
         p = self.active_player
         if not (0 <= hand_index < len(p.hand)):
             return False
-        self._replace_card(p, hand_index)
-        self.card_used = True
+        self._to_discard(p, hand_index)
         return True
 
     def _equip(self, slot: UnitSlot, card: EquipmentCardData):
@@ -515,7 +514,7 @@ class GameEngine:
         return False
 
     def attack_with_unit(self, attacker_slot: int, chosen_targets: Optional[List[int]] = None) -> bool:
-        if self.attack_used or self.is_finished:
+        if self.is_finished:
             return False
         # Regla opcional: el primer jugador no ataca en su turno 1 (compensa la iniciativa)
         if self.k.first_no_attack_t1 and self.half_turn == 1:
@@ -524,7 +523,8 @@ class GameEngine:
         if not (0 <= attacker_slot < BOARD):
             return False
         attacker = p.slots[attacker_slot]
-        if attacker is None or attacker.is_stunned:
+        # Cada unidad ataca una vez por turno (spec §6): rechaza si ya atacó o está aturdida.
+        if attacker is None or attacker.is_stunned or attacker.attacked_this_turn:
             return False
 
         ua = attacker.unit.attack
@@ -543,13 +543,13 @@ class GameEngine:
         # Cancela (sin gastar el ataque) si no afecta a ningún objetivo válido (spec §6).
         if not self._has_valid_target(ua, targets, p, opp):
             return False
+        attacker.attacked_this_turn = True   # consume el ataque de esta unidad (spec §6)
 
         if ua.effect == AttackEffect.HEAL_ALLIES:
             for t in targets:
                 u = p.slots[t]
                 if u and u.current_hp < u.max_hp:
                     u.current_hp = min(u.max_hp, u.current_hp + ua.amount_per_slot)
-            self.attack_used = True
             return True
 
         # Daño a enemigos + Retaliate
@@ -576,7 +576,6 @@ class GameEngine:
             if attacker.is_dead:
                 self._remove(p, attacker_slot)
 
-        self.attack_used = True
         self._check_victory()
         return True
 
@@ -584,6 +583,8 @@ class GameEngine:
     def end_turn(self):
         if self.is_finished:
             return
+        # REPONER MANO (spec §6 paso 4): rellenar la mano del activo a HAND_SIZE.
+        self._refill_hand(self.active_player)
         # decrementar estados por unidad de AMBOS dueños? No: sólo del jugador activo (su turno).
         self._tick_unit_statuses(self.active_player)
 
@@ -664,11 +665,20 @@ class GameEngine:
             self.rng.shuffle(p.deck)
         return p.deck.pop()
 
-    def _replace_card(self, p: PlayerState, hand_index: int):
-        """Manda la carta jugada/descartada al descarte y roba reemplazo. Como el descarte recibe la
-        carta antes de robar, _draw_card nunca devuelve None acá."""
-        p.discard.append(p.hand[hand_index])
-        p.hand[hand_index] = self._draw_card(p)
+    def _to_discard(self, p: PlayerState, hand_index: int):
+        """Saca la carta de la mano (jugada/descartada) y la manda al descarte. NO roba: la mano se
+        rellena recién al fin del turno (REPONER MANO, spec §6/§8.1), así no se cicla el mazo entero
+        en un turno encadenando jugar→robar→jugar."""
+        p.discard.append(p.hand.pop(hand_index))
+
+    def _refill_hand(self, p: PlayerState):
+        """Rellena la mano hasta HAND_SIZE robando del tope del mazo (rebaraja el descarte si el mazo
+        se vacía). Para si no quedan cartas para robar (mazo y descarte vacíos)."""
+        while len(p.hand) < HAND_SIZE:
+            c = self._draw_card(p)
+            if c is None:
+                break
+            p.hand.append(c)
 
     # ── Victoria ──
     def _check_victory(self):

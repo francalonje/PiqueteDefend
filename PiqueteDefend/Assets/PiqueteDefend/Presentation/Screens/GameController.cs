@@ -244,7 +244,7 @@ namespace PiqueteDefend.Presentation
 
         private bool CanStillPlayCard()
         {
-            if (_engine.CardActionUsed) return false;
+            // Multi-carta (spec §6): podés jugar mientras te alcance alguna carta de la mano.
             for (int i = 0; i < _engine.ActivePlayer.hand.Count; i++)
                 if (_engine.CanAfford(i)) return true;
             return false;
@@ -252,9 +252,10 @@ namespace PiqueteDefend.Presentation
 
         private bool CanStillAttack()
         {
-            if (_engine.AttackUsed || !_engine.CanAttackThisTurn) return false;
-            foreach (UnitSlot s in _engine.ActivePlayer.unitSlots)
-                if (s != null && !s.IsStunned) return true;
+            // Cada unidad ataca una vez (spec §6): quedan ataques si alguna unidad puede actuar.
+            if (!_engine.CanAttackThisTurn) return false;
+            for (int i = 0; i < _engine.ActivePlayer.unitSlots.Length; i++)
+                if (_engine.UnitCanAttack(i)) return true;
             return false;
         }
 
@@ -299,7 +300,6 @@ namespace PiqueteDefend.Presentation
 
         private void TryPlayCard(int index)
         {
-            if (_engine.CardActionUsed) return;
             if (!_engine.CanAfford(index)) { _hint.text = "No te alcanzan los recursos"; return; }
 
             // Unidad: elegir un slot propio libre y permitido (sin reemplazo, §8.3).
@@ -353,7 +353,6 @@ namespace PiqueteDefend.Presentation
 
         private void DoDiscard(int index)
         {
-            if (_engine.CardActionUsed) return;
             ResolveCardPlay(_engine.DiscardCard(index));   // descartar no es "jugar": sin sonido de jugada
         }
 
@@ -365,7 +364,7 @@ namespace PiqueteDefend.Presentation
                 if (_mode != Mode.Acting && _mode != Mode.Finished) { CancelTargeting(); e.StopPropagation(); }
                 return;
             }
-            if (_mode != Mode.Acting || _engine.CardActionUsed || !e.ctrlKey) return;
+            if (_mode != Mode.Acting || !e.ctrlKey) return;
             int n = DigitIndex(e.keyCode);
             if (n >= 0 && n < _engine.ActivePlayer.hand.Count) { DoDiscard(n); e.StopPropagation(); }
         }
@@ -437,7 +436,7 @@ namespace PiqueteDefend.Presentation
 
         private void OnOwnUnitClicked(int slot, VisualElement slotEl)
         {
-            if (_engine.AttackUsed) { _hint.text = "Ya atacaste este turno"; return; }
+            if (!_engine.UnitCanAttack(slot)) { _hint.text = "Esa unidad ya atacó este turno"; return; }
             AudioManager.Instance?.PlaySfx(AudioId.CardClick);
             ShowPopover(slot, slotEl);
         }
@@ -521,7 +520,7 @@ namespace PiqueteDefend.Presentation
 
         private void OnPopoverClicked()
         {
-            if (_pendingAttacker < 0 || _engine.AttackUsed) { HidePopover(); return; }
+            if (_pendingAttacker < 0 || !_engine.UnitCanAttack(_pendingAttacker)) { HidePopover(); return; }
 
             if (_engine.AttackRequiresTarget(_pendingAttacker))
             {
@@ -707,9 +706,9 @@ namespace PiqueteDefend.Presentation
             switch (_mode)
             {
                 case Mode.Acting:
-                    // "Puede actuar": unidad propia, no se atacó aún este turno, la regla del turno 1
-                    // lo permite, y no está aturdida. Los healers también "actúan" (curan).
-                    if (playerIndex == activeIdx && slot != null && !_engine.AttackUsed
+                    // "Puede actuar": unidad propia que NO atacó aún este turno (cada unidad ataca una
+                    // vez, spec §6), la regla del turno 1 lo permite, y no está aturdida. Los healers también.
+                    if (playerIndex == activeIdx && slot != null && !slot.attackedThisTurn
                         && _engine.CanAttackThisTurn && !slot.IsStunned)
                     {
                         el.AddToClassList("slot--can-act");
@@ -1205,7 +1204,6 @@ namespace PiqueteDefend.Presentation
             _hand.Clear();
             _handEls.Clear();
             PlayerState active = _engine.ActivePlayer;
-            bool cardUsed = _engine.CardActionUsed;
             _handBaseRot = new float[active.hand.Count];
             _handBaseBottom = new float[active.hand.Count];
 
@@ -1214,9 +1212,8 @@ namespace PiqueteDefend.Presentation
                 CardData card = active.hand[i];
                 var el = BuildCardVisual(card, _engine.InflationPercent);
                 if (!active.CanAfford(card, _engine.InflationPercent)) el.AddToClassList("card--unaffordable");
-                if (cardUsed) el.AddToClassList("card--used");
 
-                if (!cardUsed) MakeDraggable(el, i);
+                MakeDraggable(el, i);
 
                 int captured = i;  // hover → sube/crece (abanico) + popover informativo de la carta
                 el.RegisterCallback<PointerEnterEvent>(_ => OnCardHoverEnter(captured, el));
@@ -1412,12 +1409,11 @@ namespace PiqueteDefend.Presentation
         {
             if (_mode == Mode.Finished) return;
 
-            // Ctrl+Click (botón izq) = descartar (sin botón DESCARTAR). Vale SIEMPRE que quede acción
-            // de carta este turno: también con cartas que no podés pagar y aunque haya una carta armada
-            // (en ese caso, primero cancela el targeting). No inicia drag.
+            // Ctrl+Click (botón izq) = descartar (sin botón DESCARTAR). Vale también con cartas que no
+            // podés pagar y aunque haya una carta armada (en ese caso, primero cancela el targeting).
+            // No inicia drag.
             if (e.button == 0 && e.ctrlKey)
             {
-                if (_engine.CardActionUsed) return;
                 if (_mode != Mode.Acting) CancelTargeting();
                 DoDiscard(index);
                 return;
@@ -1425,8 +1421,6 @@ namespace PiqueteDefend.Presentation
 
             // Si hay una carta "armada" (esperando objetivo/confirmación), un click en la mano cancela.
             if (_mode != Mode.Acting) { CancelTargeting(); return; }
-
-            if (_engine.CardActionUsed) return;
 
             _dragging = true;
             _dragIndex = index;

@@ -292,7 +292,7 @@ def best_attack(engine: GameEngine, p: PlayerState, opp: PlayerState):
     best = None
     for i in range(BOARD):
         s = p.slots[i]
-        if s is None or s.is_stunned:
+        if s is None or s.is_stunned or s.attacked_this_turn:
             continue
         a = s.unit.attack
         target_board = p.slots if a.effect == AttackEffect.HEAL_ALLIES else opp.slots
@@ -345,32 +345,43 @@ def _pad_targets(chosen: List[int], candidates: List[int], pick: int) -> List[in
 # ── Turno completo ───────────────────────────────────────────────────────────
 
 def take_turn(engine: GameEngine):
+    """Turno multi-acción (spec §6/§16.2): juega TODAS las cartas que superen el umbral (en bucle,
+    re-evaluando) y ataca con CADA unidad no aturdida. Greedy, determinista (empates por menor índice)."""
     p, opp = engine.active_player, engine.opponent
     engine.action_turns += 1
-    infl = engine.inflation_percent
-    if not any(p.can_afford(c, infl) for c in p.hand):
+    if not any(p.can_afford(c, engine.inflation_percent) for c in p.hand):
         engine.starved_turns += 1
 
-    # 1) Carta: mejor jugada asequible
-    best_plan: Optional[CardPlan] = None
-    for idx in range(len(p.hand)):
-        if not p.can_afford(p.hand[idx], infl):
-            continue
-        plan = evaluate_card(engine, p, opp, idx)
-        if best_plan is None or plan.score > best_plan.score:
-            best_plan = plan
+    # 1) Fase de cartas: en bucle, jugar la mejor asequible que supere el umbral; re-evaluar tras
+    #    cada jugada (un deploy/boost cambia recursos y tablero). Termina cuando nada supera el umbral.
+    played_any = False
+    while not engine.is_finished:
+        best_plan: Optional[CardPlan] = None
+        for idx in range(len(p.hand)):
+            if not p.can_afford(p.hand[idx], engine.inflation_percent):
+                continue
+            plan = evaluate_card(engine, p, opp, idx)
+            if best_plan is None or plan.score > best_plan.score:
+                best_plan = plan
+        if best_plan is None or best_plan.score <= THRESHOLD:
+            break
+        if not engine.play_card(**best_plan.params):
+            break
+        played_any = True
 
-    if best_plan is not None and best_plan.score > THRESHOLD:
-        engine.play_card(**best_plan.params)
-    else:
+    # Si no jugó nada, descarta la de menor potencial para ciclar (la mano se repone al fin del turno).
+    if not played_any and p.hand and not engine.is_finished:
         worst = min(range(len(p.hand)), key=lambda i: _discard_potential(p.hand[i]))
         engine.discard_card(worst)
 
     if engine.is_finished:
         return
 
-    # 2) Ataque: mejor unidad/objetivos
-    atk = best_attack(engine, engine.active_player, engine.opponent)
-    if atk is not None:
+    # 2) Fase de ataques: en bucle, mejor jugada de ataque primero; cada unidad ataca una vez.
+    while not engine.is_finished:
+        atk = best_attack(engine, engine.active_player, engine.opponent)
+        if atk is None:
+            break
         attacker_slot, chosen, _ = atk
-        engine.attack_with_unit(attacker_slot, chosen)
+        if not engine.attack_with_unit(attacker_slot, chosen):
+            break
