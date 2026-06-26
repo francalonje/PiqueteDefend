@@ -16,7 +16,7 @@ MonoBehaviour:
   cardName: Toque de Queda
   faction: 1
   costs:
-  - resource: 0
+  - resource: 2
     amount: 6
   drawWeight: 1
   sprite: {fileID: 0}

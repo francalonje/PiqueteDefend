@@ -16,7 +16,7 @@ MonoBehaviour:
   cardName: "Escudo Antimot\xEDn"
   faction: 1
   costs:
-  - resource: 0
+  - resource: 2
     amount: 4
   drawWeight: 1
   sprite: {fileID: 0}

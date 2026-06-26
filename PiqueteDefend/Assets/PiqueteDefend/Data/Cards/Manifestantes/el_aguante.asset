@@ -16,7 +16,7 @@ MonoBehaviour:
   cardName: El Aguante
   faction: 0
   costs:
-  - resource: 1
+  - resource: 2
     amount: 2
   drawWeight: 1
   sprite: {fileID: 0}

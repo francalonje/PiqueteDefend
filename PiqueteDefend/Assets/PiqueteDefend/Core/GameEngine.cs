@@ -61,7 +61,8 @@ namespace PiqueteDefend.Core
             if (!CanAttackThisTurn) return false;
             if (slot < 0 || slot >= ActivePlayer.unitSlots.Length) return false;
             UnitSlot s = ActivePlayer.unitSlots[slot];
-            return s != null && !s.IsStunned && !s.attackedThisTurn;
+            return s != null && !s.IsStunned && !s.attackedThisTurn
+                   && ActivePlayer.GetResource(ResourceType.Fuerza) >= _config.attackFuerzaCost;  // atacar cuesta ⚡ (spec §3/§6)
         }
 
         /// <summary>% de inflación vigente este medio-turno (spec §3). 0 = inflación no arrancó.</summary>
@@ -335,6 +336,8 @@ namespace PiqueteDefend.Core
             if (attacker == null) return ActionResult.NoUnitInSlot;
             if (attacker.IsStunned) return ActionResult.UnitStunned;
             if (attacker.attackedThisTurn) return ActionResult.AlreadyAttacked;  // una vez por unidad (spec §6)
+            if (active.GetResource(ResourceType.Fuerza) < _config.attackFuerzaCost)
+                return ActionResult.CannotAfford;  // atacar cuesta ⚡ Fuerza (spec §3/§6)
 
             UnitAttack ua = attacker.unit.attack;
             // Targeting anclado a la formación del objetivo (spec §6): rival si daña, propio si cura.
@@ -360,6 +363,7 @@ namespace PiqueteDefend.Core
             // ningún objetivo válido. Si afecta al menos a uno, se permite aunque otros golpes whiffeen.
             if (!HasValidTarget(ua, targets, active, opp)) return ActionResult.InvalidTarget;
             attacker.attackedThisTurn = true;  // consume el ataque de esta unidad (spec §6)
+            active.AddResource(ResourceType.Fuerza, -_config.attackFuerzaCost, _config.maxResource);  // atacar cuesta ⚡
 
             if (ua.IsHeal)
             {

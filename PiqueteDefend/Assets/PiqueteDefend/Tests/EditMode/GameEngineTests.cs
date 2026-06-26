@@ -73,7 +73,8 @@ namespace PiqueteDefend.Tests
         {
             firstNoAttackTurn1 = false, firstProducesTurn1 = false,
             suddenDeathStart = 999, maxTurns = 999,
-            baseProdDinero = 0, baseProdFuerza = 0, baseProdSocial = 0
+            baseProdDinero = 0, baseProdFuerza = 0, baseProdSocial = 0,
+            attackFuerzaCost = 0   // tests de mecánica de combate: sin fricción de ⚡ (se testea aparte)
         };
 
         private static GameEngine NewEngine(GameConfig cfg, out TestCatalog cat, params UnitCardData[] starting)
@@ -201,6 +202,29 @@ namespace PiqueteDefend.Tests
             Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(2));  // pega al foremost, whiff en el vacío
             Assert.AreEqual(15, e.PlayerAt(1).unitSlots[4].currentHp);
             Assert.IsTrue(e.PlayerAt(0).unitSlots[2].attackedThisTurn);  // la unidad consumió su ataque
+        }
+
+        [Test]
+        public void Attack_CostsFuerza_DeductedAndBlockedWhenInsufficient()
+        {
+            var cfg = PlainCfg();
+            cfg.attackFuerzaCost = 2;   // cada ataque cuesta 2 ⚡ (spec §3/§6)
+            var e = NewEngine(cfg, out _);
+            e.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
+            var p0 = e.PlayerAt(0);
+            p0.unitSlots[2] = new UnitSlot(U(10, Duel(4)));
+            p0.unitSlots[1] = new UnitSlot(U(10, Duel(4)));
+            e.PlayerAt(1).unitSlots[5] = new UnitSlot(U(100));  // tanque keepalive
+            e.BeginTurn();
+            p0.SetResource(ResourceType.Fuerza, 3, cfg.maxResource);  // alcanza para UN ataque (cuesta 2)
+
+            Assert.IsTrue(e.UnitCanAttack(2));
+            Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(2));
+            Assert.AreEqual(1, p0.GetResource(ResourceType.Fuerza), "se descuenta el costo de ataque");
+
+            // Con 1 de ⚡ (< 2) la otra unidad NO puede atacar.
+            Assert.IsFalse(e.UnitCanAttack(1));
+            Assert.AreEqual(ActionResult.CannotAfford, e.AttackWithUnit(1));
         }
 
         [Test]

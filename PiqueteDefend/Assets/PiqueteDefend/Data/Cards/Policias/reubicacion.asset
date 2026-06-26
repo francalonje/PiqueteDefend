@@ -16,7 +16,7 @@ MonoBehaviour:
   cardName: "Reubicaci\xF3n Forzosa"
   faction: 1
   costs:
-  - resource: 0
+  - resource: 2
     amount: 2
   drawWeight: 1
   sprite: {fileID: 0}

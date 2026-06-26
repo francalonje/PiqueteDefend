@@ -16,7 +16,7 @@ MonoBehaviour:
   cardName: "Halc\xF3n"
   faction: 1
   costs:
-  - resource: 1
+  - resource: 0
     amount: 7
   drawWeight: 1
   sprite: {fileID: 0}

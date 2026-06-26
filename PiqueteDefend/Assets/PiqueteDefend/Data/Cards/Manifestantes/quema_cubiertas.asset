@@ -16,7 +16,7 @@ MonoBehaviour:
   cardName: Quema de Cubiertas
   faction: 0
   costs:
-  - resource: 2
+  - resource: 0
     amount: 6
   drawWeight: 1
   sprite: {fileID: 0}

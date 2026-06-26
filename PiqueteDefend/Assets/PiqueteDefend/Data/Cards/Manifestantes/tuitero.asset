@@ -16,7 +16,7 @@ MonoBehaviour:
   cardName: Tuitero Militante
   faction: 0
   costs:
-  - resource: 2
+  - resource: 0
     amount: 2
   drawWeight: 2
   sprite: {fileID: 0}

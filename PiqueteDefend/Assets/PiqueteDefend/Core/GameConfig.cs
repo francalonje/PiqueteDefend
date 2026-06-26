@@ -27,6 +27,10 @@ namespace PiqueteDefend.Core
         // así la economía es una decisión y no un colchón infinito. Rough, tunear por playtest (15–20).
         public int maxResource = 18;
 
+        // Costo de atacar (spec §3/§6): cada ataque de unidad cuesta esta cantidad de ⚡ Fuerza.
+        // Hace que la Fuerza module cuántos golpes das por turno. Rough, tunear por playtest.
+        public int attackFuerzaCost = 1;
+
         // Reglas de iniciativa (spec §3/§16, validadas por simulación): sin ellas el primer
         // jugador gana ~59%; con ambas, ~48% (parejo).
         public bool firstProducesTurn1 = true;    // el primer jugador SÍ produce en su turno 1
