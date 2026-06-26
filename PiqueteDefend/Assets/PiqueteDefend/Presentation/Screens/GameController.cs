@@ -130,10 +130,14 @@ namespace PiqueteDefend.Presentation
             _screen.focusable = true;
             _screen.RegisterCallback<KeyDownEvent>(OnKeyDown);
             _screen.RegisterCallback<KeyUpEvent>(OnKeyUp);   // soltar Ctrl saca el cartel DESCARTAR de la carta hovereada
-            // Click-away: un click en el tablero/fondo cierra los popovers abiertos. En fase de captura
-            // (corre ANTES del handler del slot), así clickear OTRA unidad cierra el popover y reabre el suyo.
-            // El popover de ataque vive en _root (fuera de _screen): clickearlo NO dispara esto.
+            // Click-away (cerrar popovers): en fase de CAPTURA (corre ANTES del handler del slot), así
+            // clickear OTRA unidad cierra el popover y reabre el suyo. El popover de ataque vive en _root
+            // (fuera de _screen): clickearlo NO dispara esto.
             _screen.RegisterCallback<PointerDownEvent>(OnScreenPointerDown, TrickleDown.TrickleDown);
+            // Click-away (cancelar acción armada): en fase de BURBUJA (corre DESPUÉS del handler del slot).
+            // Si el click eligió un objetivo válido, el slot ya pasó el modo a Acting; si fue al fondo,
+            // seguimos en targeting → se cancela el ataque/carta armado (mismo efecto que ESCAPE).
+            _screen.RegisterCallback<ClickEvent>(OnScreenClickAway);
             _screen.Focus();
 
             AudioManager.Instance?.PlayMusic(AudioId.MusicGame);
@@ -558,6 +562,15 @@ namespace PiqueteDefend.Presentation
         {
             if (_popover != null && _popover.style.display == DisplayStyle.Flex) HidePopover();
             if (_infoPopover != null && _infoPopover.style.display == DisplayStyle.Flex) HideInfoPopover();
+        }
+
+        /// <summary>Click-away que cancela la acción armada: corre en burbuja (tras el handler del slot).
+        /// Si seguimos en un modo de targeting es porque el click NO eligió un objetivo válido (fue al
+        /// fondo o a un slot inválido) → se cancela, igual que ESCAPE.</summary>
+        private void OnScreenClickAway(ClickEvent e)
+        {
+            if (_aiTurnInProgress || IsPauseOpen()) return;
+            if (_mode != Mode.Acting && _mode != Mode.Finished) CancelTargeting();
         }
 
         private static bool IsControl(KeyCode key) => key == KeyCode.LeftControl || key == KeyCode.RightControl;

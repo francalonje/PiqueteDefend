@@ -49,23 +49,28 @@ PiqueteDefend/                         # raíz del repo
         │   ├── Enums.cs                #   TODOS los enums (CardEffectType, StatusType, PassiveType…)
         │   ├── GameOutcome.cs          #   GamePhase, ActionResult, GameOutcome
         │   ├── IRandomProvider.cs / ICardCatalog.cs
-        │   └── Model/                  #   CardData, UnitCardData, ActionCardData, EquipmentCardData,
-        │                               #   CardEffect, PassiveEffect, StatusEffect, UnitAttack,
-        │                               #   StatModifier, ResourceCost, UnitSlot, PlayerState
+        │   ├── PlayerSetup.cs          #   setup por jugador (StartGame): inyecta mazo de run + handicap de IA
+        │   ├── Model/                  #   CardData, UnitCardData, ActionCardData, EquipmentCardData,
+        │   │                           #   CardEffect, PassiveEffect, StatusEffect, UnitAttack,
+        │   │                           #   StatModifier, ResourceCost, UnitSlot, PlayerState
+        │   ├── AI/                     #   HeuristicAiController : IPlayerController (espejo de sim/policy.py)
+        │   └── Run/                    #   run single-player (spec §17): RunState, RunManager, RunMap,
+        │                               #   RunMapLibrary (mapa default), RunConfig
         ├── Presentation/               # === UI / AUDIO (MonoBehaviours, UI Toolkit) ===
-        │   ├── Screens/GameController.cs   # puente motor↔UI: render, drag&drop, popovers, animaciones
+        │   ├── Screens/GameController.cs   # puente motor↔UI: render, drag&drop, popovers, animaciones, turno IA, pausa
         │   ├── Screens/MainMenuController.cs, FactionSelectController.cs
+        │   ├── Screens/MapController.cs, RewardController.cs   # run: mapa de puntos 2D + recompensa 1-de-3
         │   ├── UI/Game.uxml, Game.uss   # layout y estilos de la pantalla de juego
-        │   ├── UI/MainMenu.*, FactionSelect.*, Common.uss
+        │   ├── UI/MainMenu.*, FactionSelect.*, Map.*, Reward.*, Common.uss
         │   ├── App/AudioManager.cs, AudioId.cs   # audio (clips desde Resources/Audio/)
-        │   ├── App/SceneBackground.cs, MatchConfig.cs
+        │   ├── App/SceneBackground.cs, MatchConfig.cs (hotseat), RunSession.cs (estado de run cross-escena)
         │   └── Resources/              # UIPanelSettings, CardCatalog, bg-*, Audio/*  (cargados en runtime)
         ├── Editor/                      # === GENERADORES (no entran al build) ===
         │   ├── CardLibraryGenerator.cs  #   menú "PiqueteDefend/Generate Card Library"
         │   └── SceneSetup.cs            #   menú "PiqueteDefend/Setup UI Scenes" + SetupEverything()
         ├── Data/Cards/                  # assets de cartas generados (ScriptableObjects)
-        ├── Scenes/                      # Main, FactionSelect, Game (generadas por SceneSetup)
-        └── Tests/EditMode/GameEngineTests.cs   # tests del núcleo (NUnit)
+        ├── Scenes/                      # Main, FactionSelect, Map, Reward, Game (generadas por SceneSetup)
+        └── Tests/EditMode/             # tests del núcleo (NUnit): GameEngineTests, HeuristicAiTests, RunTests
 ```
 
 ---
