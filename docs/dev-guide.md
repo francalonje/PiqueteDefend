@@ -347,3 +347,23 @@ global (`Sfx(specific, fallback)` en `GameController`).
 - [ ] **UI** si hace falta (badges/popover/targeting en `GameController` + `Game.uss`).
 - [ ] **Spec** (`game-spec.md`) actualizado — es la fuente de verdad.
 - [ ] Compila headless sin errores y los tests pasan.
+
+---
+
+## 8. Modo un jugador (run roguelike) — EN CONSTRUCCIÓN
+
+Diseño en **`game-spec.md` §17** (fuente de verdad). Implementación **por fases** (ver el plan de la
+sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan cuando aterrice cada fase):
+
+- **Rediseño de combate primero (Fase 1):** el motor pasa a **varias cartas/turno + cada unidad ataca
+  una vez** (spec §6). Es regla/mecánica ⇒ pasa por el checklist §7 entero (GameEngine + espejo en
+  `sim/rules.py` + `policy.py` multi-acción + re-tune `knobs.py` + `parity_check.py` + re-hornear
+  `CardLibrary` + tests). Invalida el balance previo: re-derivar economía/inflación/`maxResource`.
+- **IA (Fase 2):** `IPlayerController` en `Core` (impl `Human` en Presentation, `AI` en Core portando
+  `policy.py`). El motor consulta al controller; testeable sin escena.
+- **Run/meta (Fase 3):** `RunState` en `Core` (mapa temático = data, mazo persistente, reliquias,
+  estado). El combate roba del **mazo de la run inyectado** (no de la facción). Recompensa 1-de-3,
+  reliquias como pasivas que enganchan eventos. Acá vivirán las recetas: **nodo de mapa**, **reliquia**,
+  **recompensa de carta**.
+- **Presentación (Fase 4):** menú con 2 botones, pantalla de mapa, pantalla de recompensa, HUD de run,
+  combate con turno de IA (delays + indicador + input bloqueado).
