@@ -294,6 +294,8 @@ def best_attack(engine: GameEngine, p: PlayerState, opp: PlayerState):
         s = p.slots[i]
         if s is None or s.is_stunned or s.attacked_this_turn:
             continue
+        if p.get(ResourceType.FUERZA) < engine.attack_cost(s.unit.attack.amount_per_slot):
+            continue   # no alcanza la ⚡ para este ataque (costo proporcional, spec §6)
         a = s.unit.attack
         target_board = p.slots if a.effect == AttackEffect.HEAL_ALLIES else opp.slots
         candidates = engine.resolve_targets(a.mode, a.count, target_board, i)

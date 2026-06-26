@@ -74,7 +74,8 @@ namespace PiqueteDefend.Tests
             firstNoAttackTurn1 = false, firstProducesTurn1 = false,
             suddenDeathStart = 999, maxTurns = 999,
             baseProdDinero = 0, baseProdFuerza = 0, baseProdSocial = 0,
-            attackFuerzaCost = 0   // tests de mecánica de combate: sin fricción de ⚡ (se testea aparte)
+            // tests de mecánica de combate: ataques gratis (el costo de ⚡ se testea aparte)
+            attackFuerzaPerDamage = 0f, minAttackFuerzaCost = 0
         };
 
         private static GameEngine NewEngine(GameConfig cfg, out TestCatalog cat, params UnitCardData[] starting)
@@ -208,7 +209,7 @@ namespace PiqueteDefend.Tests
         public void Attack_CostsFuerza_DeductedAndBlockedWhenInsufficient()
         {
             var cfg = PlainCfg();
-            cfg.attackFuerzaCost = 2;   // cada ataque cuesta 2 ⚡ (spec §3/§6)
+            cfg.attackFuerzaPerDamage = 0.5f; cfg.minAttackFuerzaCost = 1;  // ataque de 4 daño → ceil(4×0.5)=2 ⚡
             var e = NewEngine(cfg, out _);
             e.StartGame(Faction.Manifestantes, Faction.Policias, firstIndex: 0);
             var p0 = e.PlayerAt(0);

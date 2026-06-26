@@ -38,9 +38,9 @@ namespace PiqueteDefend.Core
             if (best != null && best.score > Threshold)
                 return PlannedAction.PlayCard(best.handIndex, best.deploySlot, best.effectSlot, best.effectSlotB);
 
-            // 2) Fase de ataques: sólo si la regla de iniciativa lo permite (turno 1, §3/§16) y alcanza
-            //    la ⚡ (atacar cuesta, spec §6); mejor jugada primero.
-            if (engine.CanAttackThisTurn && p.GetResource(ResourceType.Fuerza) >= engine.Config.attackFuerzaCost)
+            // 2) Fase de ataques: sólo si la regla de iniciativa lo permite (turno 1, §3/§16); BestAttack
+            //    descarta los ataques que no se pueden pagar en ⚡ (costo proporcional, spec §6).
+            if (engine.CanAttackThisTurn)
             {
                 AttackPlan atk = BestAttack(engine, p, opp);
                 if (atk != null && atk.value > 0)
@@ -418,6 +418,8 @@ namespace PiqueteDefend.Core
             {
                 UnitSlot s = p.unitSlots[i];
                 if (s == null || s.IsStunned || s.attackedThisTurn) continue;
+                if (p.GetResource(ResourceType.Fuerza) < engine.Config.AttackFuerzaCost(s.unit.attack.damagePerSlot))
+                    continue;   // no alcanza la ⚡ para este ataque (costo proporcional, spec §6)
                 UnitAttack a = s.unit.attack;
                 UnitSlot[] targetBoard = a.IsHeal ? p.unitSlots : opp.unitSlots;
                 List<int> candidates = GameEngine.ResolveTargets(a.mode, a.count, targetBoard, i);

@@ -165,7 +165,10 @@ class GameEngine:
         self.k = config
         self.rng = rng
         self.max_resource = 18   # espejo de GameConfig.maxResource (techo bajo anti-atesoramiento)
-        self.attack_fuerza_cost = 1   # espejo de GameConfig.attackFuerzaCost: atacar cuesta ⚡ (spec §3/§6)
+        # Costo de ataque en ⚡ PROPORCIONAL al daño (espejo de GameConfig, spec §3/§6):
+        # costo = max(min, ceil(daño_base × per_damage)). Atacar fuerte cuesta más.
+        self.attack_fuerza_per_damage = 0.2
+        self.min_attack_fuerza_cost = 1
         self.players = [PlayerState(faction0, config), PlayerState(faction1, config)]
         self.half_turn = 0
         self.active = 0
@@ -215,6 +218,11 @@ class GameEngine:
     @property
     def is_finished(self) -> bool:
         return self.outcome is not None
+
+    def attack_cost(self, base_damage: int) -> int:
+        """⚡ que cuesta un ataque de daño/cura base por golpe (proporcional, spec §3/§6)."""
+        return max(self.min_attack_fuerza_cost,
+                   math.ceil(base_damage * self.attack_fuerza_per_damage))
 
     def sample_presence(self):
         """Muestrea el tablero de ambos jugadores (1 muestra-jugador c/u) para las métricas
@@ -527,8 +535,9 @@ class GameEngine:
         # Cada unidad ataca una vez por turno (spec §6): rechaza si ya atacó o está aturdida.
         if attacker is None or attacker.is_stunned or attacker.attacked_this_turn:
             return False
-        # Atacar cuesta ⚡ Fuerza (spec §3/§6): rechaza si no alcanza.
-        if p.get(ResourceType.FUERZA) < self.attack_fuerza_cost:
+        # Atacar cuesta ⚡ Fuerza proporcional al daño (spec §3/§6): rechaza si no alcanza.
+        attack_cost = self.attack_cost(attacker.unit.attack.amount_per_slot)
+        if p.get(ResourceType.FUERZA) < attack_cost:
             return False
 
         ua = attacker.unit.attack
@@ -548,7 +557,7 @@ class GameEngine:
         if not self._has_valid_target(ua, targets, p, opp):
             return False
         attacker.attacked_this_turn = True   # consume el ataque de esta unidad (spec §6)
-        p.add(ResourceType.FUERZA, -self.attack_fuerza_cost, self.max_resource)   # atacar cuesta ⚡
+        p.add(ResourceType.FUERZA, -attack_cost, self.max_resource)   # atacar cuesta ⚡ proporcional
 
         if ua.effect == AttackEffect.HEAL_ALLIES:
             for t in targets:
