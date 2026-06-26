@@ -4,7 +4,7 @@
 
 Juego de cartas por turnos para 2 jugadores en local (hotseat). Dos facciones enfrentadas en el contexto político-cómico argentino: **Manifestantes** vs **Policías**. Inspirado en Castle Wars, The King is Watching, Legends of Runeterra y Slay the Spire.
 
-**[FUTURO]** Soporte para Jugador vs IA y Jugador vs Jugador online.
+**Modos:** **Dos jugadores** (hotseat local, base) y **Un jugador** — una **run roguelike-deckbuilder** contra IA sobre un mapa temático (§17, en desarrollo). **[FUTURO]** Jugador vs Jugador online.
 
 ---
 
@@ -43,15 +43,17 @@ Cada jugador maneja 3 recursos independientes.
 
 **Recursos iniciales al inicio de la partida:** 5 de cada recurso (configurable para balanceo).
 
-**Techo de recursos (anti-atesoramiento):** el máximo es **bajo (18, configurable)** a propósito. Producís +1 de cada recurso por turno (más productoras/boosts) pero gastás un solo tipo por acción; sin un techo bajo, el excedente se atesora sin límite y la economía deja de ser una decisión. Con el techo bajo, el excedente se **desperdicia** (use-it-or-lose-it): empuja a gastar o a convertir (p. ej. Dinero sobrante → Fuerza), y vuelve cada turno una decisión. Complementa a la inflación (abajo). Rough, tunear por playtest (15–20).
+**Techo de recursos (anti-atesoramiento):** el máximo es **configurable** (`maxResource`). Con el modelo **multi-carta por turno** (§6), gastar varias cartas **drena los recursos solo** — el atesoramiento ya no es el problema estructural que era con "1 carta/turno". El techo pasa a ser un anti-atesoramiento **suave** (evita acumular indefinidamente entre turnos) en vez de la palanca económica central. ⚠️ **Valor a re-derivar al rebalancear el combate (sim/playtest):** el `maxResource=18` actual estaba tuneado contra el modelo viejo; con multi-carta probablemente sube o se afloja. Ver [[feedback-playtest-driven]].
 
-**Primer turno (regla de iniciativa, validada por simulación, §16):** el primer jugador **sí produce** en su turno 1, pero **no puede atacar con unidades** en ese turno (sí puede desplegar/jugar carta). Esto compensa la ventaja de la iniciativa: sin ninguna regla el primer jugador ganaba ~59%; con esta combinación queda ~48% (parejo). El segundo jugador juega normal desde su turno 1.
+**Primer turno (regla de iniciativa, §16):** el primer jugador **sí produce** en su turno 1, pero **no puede atacar con unidades** en ese turno (sí puede desplegar/jugar cartas). Esto compensa la ventaja de la iniciativa. El segundo jugador juega normal desde su turno 1. ⚠️ **Los win-rates que validaban esta regla (~59%→~48%) son del modelo viejo (1 carta + 1 ataque); re-validar al rebalancear el combate** — con multi-carta + multi-ataque la ventaja de la iniciativa puede cambiar y la regla quizá necesite ajuste.
 
 **Recursos negativos:** los recursos nunca bajan de 0. El exceso de reducción se descarta.
 
 ### Costo de las cartas: factor global e inflación
 
-Para que los recursos **no sobren** (problema de abundancia: producís +1 de cada recurso pero gastás un solo tipo por turno), el costo de las cartas se sube por dos vías:
+> ⚠️ **Reescritura por el modelo multi-carta (§6):** con varias cartas por turno, gastar drena los recursos y la "abundancia" (recursos que sobran) deja de ser el problema central que motivó ×1.2 + inflación. El **factor global ×1.2** sobrevive como ajuste fino de costo; la **inflación** conserva su rol de *presión anti-stalemate* (encarece en partidas largas y empuja al desenlace), no de anti-atesoramiento. **Magnitudes (×1.2, `inflationStartTurn`, `%/turno`) a re-derivar al rebalancear el combate por sim/playtest.**
+
+Las dos vías siguen vigentes (con el rol reescrito arriba); nacieron con el modelo viejo (1 carta/turno) para que los recursos no sobraran:
 
 1. **Factor económico global (×1.2):** todas las cartas cuestan un ~20% más que su costo *base de diseño* (per-card, balanceado por valor/costo). Es un bump **uniforme** que no descalibra la facción (validado por simulación: facción ~51/49). Se aplica al **hornear** los assets (es el espejo de `knobs.SHIPPED.cost_mult` en el sim); los costos de §9/§10 son los **base** y el juego los muestra ya escalados.
 
@@ -147,21 +149,26 @@ Los recursos nunca bajan de 0. El exceso de reducción se descarta.
                     c) Multiplicar por productionMultiplier (default 1; doble si hay DoubleProduction)
                   → Evaluar condición de victoria
 
-3. ACCIÓN       — El jugador puede hacer ambas, una, o ninguna (en cualquier orden):
-                    a) Jugar 1 carta (si paga su costo, ya ajustado por el factor global e
-                       inflación vigente, §3) O descartar 1 carta
-                    b) Atacar con 1 unidad propia que NO esté aturdida (Stun) → afecta slots
-                       según su ataque. Daño efectivo = base + Furia + AuraDamage − Desmoralizar;
-                       los defensores con Retaliate devuelven daño al atacante.
+3. ACCIÓN       — El jugador actúa libremente, en cualquier orden, hasta terminar el turno:
+                    a) Jugar CUALQUIER cantidad de cartas que pueda pagar (cada una cuesta su
+                       recurso, ya ajustado por el factor global e inflación vigente, §3).
+                       Gastar varias cartas drena los recursos del turno: la economía se
+                       autolimita (es el reemplazo del viejo "1 carta/turno"). Descartar una
+                       carta para ciclar sigue disponible.
+                    b) Atacar: CADA unidad propia que NO esté aturdida (Stun) puede atacar UNA
+                       vez este turno, en el orden que elija el jugador → afecta slots según su
+                       ataque. Daño efectivo = base + Furia + AuraDamage − Desmoralizar; los
+                       defensores con Retaliate devuelven daño al atacante.
                        EXCEPCIÓN: en el turno 1 de la partida el primer jugador NO puede atacar
-                       con unidades (regla de iniciativa, §3/§16); sí puede jugar/desplegar carta.
-                       Esto incluye CURAR con un healer (curar usa la acción de ataque, §7.2);
-                       irrelevante en la práctica (en el turno 1 sólo están las 3 unidades iniciales).
-                       [FUTURO] atacar con más de una unidad por turno o ataques con costo
+                       con unidades (regla de iniciativa, §3/§16); sí puede jugar/desplegar cartas.
+                       CURAR con un healer usa la acción de ataque de la unidad (§7.2): cuenta
+                       como su ataque del turno.
                   → Evaluar condición de victoria tras cada acción
 
-4. REPONER MANO — La carta jugada o descartada va al descarte; se roba la del tope del
-                  mazo barajado (sin reemplazo; rebaraja el descarte si el mazo se vacía) (§8.1)
+4. REPONER MANO — Las cartas jugadas/descartadas van al descarte; se rellena la mano hasta
+                  `handSize` robando del tope del mazo barajado (sin reemplazo; rebaraja el
+                  descarte si el mazo se vacía) (§8.1). [Regla rough, tunear por playtest:
+                  rellenar a mano llena al fin del turno; alternativa = robar N fijo.]
 
 5. FIN DE TURNO — a) Decrementar el counter de los estados por UNIDAD del jugador activo
                      (Poison/Stun/Furia/Desmoralizar); los que llegan a 0 se eliminan.
@@ -279,9 +286,11 @@ El tablero de cada jugador es **una única línea de 6 slots**, un **eje de prof
 
 **Economía / tempo**
 
-8. **La acción es la moneda real.** Con 1 carta + 1 ataque por turno, se valora por **valor-por-
-   acción**, no por stats crudos. La producción es **tempo diferido** ⇒ debe ser **castigable por el
-   agro**. RPS estratégico: *agro > codicia (economía) > midrange > agro*.
+8. **El recurso es la moneda real.** Con **varias cartas por turno limitadas por recursos** (§6), se
+   valora por **valor-por-recurso** (cuánto impacto comprás con tu producción del turno), no por stats
+   crudos ni por "valor-por-acción". La producción es **tempo diferido** ⇒ debe ser **castigable por el
+   agro** (invertir en economía te deja con menos cartas jugables ahora). RPS estratégico: *agro >
+   codicia (economía) > midrange > agro*.
 9. **La inversión debe ser vulnerable.** Unidad cara/equipada/buffeada = huevos en una canasta ⇒
    snipe/remoción/desmoralizar la castigan; el AoE castiga ir ancho. Sin counters no hay meta, hay
    dominante.
@@ -322,7 +331,7 @@ El tablero de cada jugador es **una única línea de 6 slots**, un **eje de prof
 
 ### 6.2 Eje de build: recurso → arquetipo
 
-La palanca central de la "sensación de builds". **Clave (v1 sin deckbuilding):** la mano se roba del
+La palanca central de la "sensación de builds". **En hotseat 2 jugadores (sin deckbuilding):** la mano se roba del
 mazo barajado de la facción (sin reemplazo, §8.1); *leanear un recurso* no es elegir cartas, es **en qué recurso invertís
 producción** (productoras + boosts) y, por lo tanto, **qué cartas podés pagar de forma fiable**. El
 build es **emergente de la economía**. Para que funcione, el **recurso de costo de cada carta debe
@@ -545,9 +554,9 @@ Vive en `activeStatuses` de un **jugador** (estados de producción) o de una **u
 
 Único responsable de resolver `CardEffect`, procesar `activeStatuses`, resolver ataques de unidades, aplicar muerte súbita y manejar transiciones de turno. No usa RNG global: recibe una abstracción de RNG inyectable (coinflip, robo) para que los tests sean deterministas.
 
-**[FUTURO]** Punto de extensión `IPlayerController` para soportar IA y multijugador online sin modificar `GameEngine`.
+**`IPlayerController` (PLANIFICADO — single-player, §17):** abstracción de "controlador de jugador" (impl `Human` y `AI`) para que el motor consulte las acciones del turno sin conocer la escena. Habilita IA y, a futuro, multijugador online, sin modificar `GameEngine`. La IA porta la heurística de `sim/policy.py` (§16) adaptada al turno multi-acción.
 
-**[FUTURO]** Punto de extensión para deckbuilding (pool de cartas configurable por jugador).
+**Deckbuilding (PARCIAL — single-player, §17):** el motor recibe el **mazo del jugador** inyectado (mazo de la run) en vez de derivarlo de la facción. Punto de extensión para mazos configurables (tienda, armado pre-run).
 
 ---
 
@@ -572,9 +581,9 @@ Todo lo visual/audio vive en `PiqueteDefend.Presentation`:
 
 ### 8.1 Pool y mano
 
-- Cada jugador tiene un **mazo barajado** de su facción (Unidades, Acciones, Equipo) del que roba **sin reemplazo**.
+- Cada jugador tiene un **mazo barajado** del que roba **sin reemplazo**. En **hotseat** es el mazo de la facción (Unidades, Acciones, Equipo); en **single-player** es el **mazo de la run** (starter + recompensas, §17), inyectado en el motor.
 - Al inicio: el mazo se baraja y se roban 6 cartas en mano.
-- Al jugar o descartar una carta, va al **descarte** y se roba la del tope del mazo para reponer la mano.
+- Como el turno permite **jugar/descartar varias cartas** (§6), al **final del turno** la mano se **rellena hasta `handSize`** robando del tope del mazo (no "1 por carta jugada").
 - Cuando el mazo se vacía, el **descarte se baraja y vuelve a ser el mazo** (las cartas circulan; nada se pierde). Las 3 unidades iniciales se despliegan gratis **y** su copia también está en el mazo.
 - **Composición del mazo:** cada carta aparece `drawWeight` (int en `CardData`) veces (= **nº de copias**). **Copias actuales** (protagonismo de producción sin tapar la mano de unidades que no se pueden bajar): **productoras y cartas de producción (boost de recurso propio) = 2**, todo lo demás (unidades comunes, acciones, equipo) = **1** → ~27 cartas/facción. Se derivan por tipo en el catálogo (`CardCatalog.GetDeckList` / `cards.build_deck`), no carta por carta. El mazo finito **garantiza el acceso** (las cartas de 1 copia salen seguro en partidas largas — el sniper deja de "no salir nunca") y **auto-corrige el clumping** (lo robado sale del mazo). *Nota: con 3 unidades iniciales el tablero se llena rápido; subir copias de unidades comunes tapa la mano, así que se dejan en 1.* **[FUTURO]** deckbuilding: decklist explícita por jugador. Más afinado por simulación/playtest.
 
@@ -712,7 +721,7 @@ Una carta de Equipo (`EquipmentCardData`, §7.1) se juega **sobre una unidad pro
 
 ### 11.1 Menú principal
 
-Pantalla de inicio con un botón central **Jugar**. Espacio reservado para futuras opciones (Ajustes, Créditos, etc.).
+Pantalla de inicio con **dos botones**: **Un jugador** (run roguelike vs IA, §17) y **Dos jugadores** (hotseat local). Cada uno setea el modo y va a la selección de facción. Espacio reservado para futuras opciones (Ajustes, Créditos, etc.).
 
 ### 11.2 Selección de facción
 
@@ -766,6 +775,8 @@ Los slots van del **1 al 6**. De las **3 unidades iniciales**, el **Muro** arran
 
 **Medidor de inflación:** un cartel central (en el medio de la pantalla) que **aparece cuando arranca la inflación** (medio-turno `inflationStartTurn`, §3) y muestra el **% vigente** ("INFLACIÓN +X%"). El color se intensifica (amarillo → rojo) a mayor inflación. Mientras está activa, el **costo mostrado en las cartas** ya viene inflado (y se tiñe de naranja).
 
+**Turno de la IA (single-player, §17):** durante el turno del oponente IA, el **input del humano se bloquea** y se muestra un indicador **"Turno de la IA"**. La IA juega **con delays** (reusa el `schedule`/animaciones de ataque, §7.10) para que sus jugadas —puede jugar varias cartas y atacar con varias unidades en un turno (§6)— se puedan seguir. Al terminar, el control vuelve al humano.
+
 ### 11.4 Input
 
 | Acción | Mouse | Teclado |
@@ -803,16 +814,19 @@ Overlay con:
 
 | Parámetro | Valor |
 |-----------|-------|
-| Cartas visibles en mano | 6 |
+| Cartas visibles en mano (`handSize`) | 6 |
+| **Cartas por turno** | **Varias: tantas como pueda pagar** (limitadas por recursos, §6) |
+| **Ataques por turno** | **Uno por unidad** propia no aturdida (§6) |
+| **Reposición de mano** | Rellenar a `handSize` al fin del turno (rough, tunear; §6/§8.1) |
 | Slots de unidades por jugador | 6 |
 | Apilamiento de unidades | No activo (punto de extensión [FUTURO], `UnitSlot.count`) |
 | Unidades iniciales por facción | Predefinidas (data por facción) |
 | Recursos iniciales | 5 de cada uno (configurable) |
 | Producción base por turno | +1 de cada recurso ($/⚡/📣); en `GameConfig` (configurable) |
 | Producción de una productora | **+2** de su recurso (recurso = 3/turno; §6.2). ⚡ no tiene productora pura: cleave +1⚡/turno (Manif) o Licitación lump (Pol) |
-| Factor económico global de costo | **×1.2** sobre el costo base (uniforme, horneado; `knobs.cost_mult`) |
-| `inflationStartTurn` | Medio-turno **8**: desde ahí las cartas se encarecen (inflación, §3) |
-| `inflationPercentPerTurn` | **+5%** acumulativo por medio-turno (en revisión por playtest) |
+| Factor económico global de costo | **×1.2** sobre el costo base (uniforme, horneado; `knobs.cost_mult`). ⚠️ Re-derivar al rebalancear el combate (multi-carta, §6) |
+| `inflationStartTurn` | Medio-turno **8** (rol = presión anti-stalemate, §3). ⚠️ Re-derivar al rebalancear el combate |
+| `inflationPercentPerTurn` | **+5%** acumulativo por medio-turno. ⚠️ Re-derivar al rebalancear el combate |
 | Primer jugador: turno 1 | **Produce** pero **no puede atacar** (regla de iniciativa, §3/§16) |
 | Lados de facción | Fijos (por ahora): Manifestantes izquierda, Policías derecha |
 | Primer jugador | Lo elige la selección de facción (la que arranca); coinflip si no se especifica |
@@ -820,9 +834,9 @@ Overlay con:
 | `maxTurns` | 120 (backstop duro, configurable) |
 | Duración ideal de partida | ~30–40 medios-turnos (objetivo; re-validar tras el rework de cartas) |
 | Cartas por facción | 21 (9 unidades + 8 acciones + 4 equipo) |
-| Mazo de robo | Barajado, **sin reemplazo**; descarte que se rebaraja al vaciarse (§8.1) |
+| Mazo de robo | Barajado, **sin reemplazo**; descarte que se rebaraja al vaciarse (§8.1). Hotseat = mazo de facción; single-player = **mazo de la run** (§17) |
 | Copias en el mazo (`drawWeight`) | Productoras y boosts de producción 2 · resto (incl. unidades) 1 → ~27/facción (§8.1) |
-| Techo de recursos (`maxResource`) | **18** (bajo, anti-atesoramiento; rough, tunear 15–20) (§3) |
+| Techo de recursos (`maxResource`) | **18** (anti-atesoramiento **suave** con multi-carta, §3). ⚠️ Re-derivar al rebalancear el combate |
 | Unidades iniciales por facción | **3**: Escaramuza (retag) + Productora (retag) + Muro (frente) |
 
 > **Balance por simulación (`sim/`) — PENDIENTE de re-validar tras el rework de cartas (§9/§10).** El
@@ -842,18 +856,20 @@ Overlay con:
 - **Feedback visual por unidad:** ✅ **implementado** — slot tipo "carta de unidad" (área de arte sprite-ready + barra de HP con valor + fila de iconos para stat de acción/pasivas/estados/equipo, con *tooltip*), más el popover informativo de hover (§11.3). Pendiente sólo, si se quisiera, reemplazar los glifos emoji de los iconos por **iconos dibujados** (asignando el `Sprite` de cada `SlotIcon`) y el **sprite del personaje** en el área de arte.
 - **Tope de equipos por unidad:** hoy sin límite (§8.4); definir si conviene un máximo.
 - **EquipmentCardData:** diseñado e incluido en el catálogo (§7.1 / §8.4 / §9/§10, 4 cartas/facción); falta implementar (capa de stats efectivos, §15 Fase 4).
-- **IPlayerController:** diseño del punto de extensión para IA / online [FUTURO].
-- **Deckbuilding:** diseño del punto de extensión [FUTURO].
+- **IPlayerController:** planificado para el single-player (impl Human + AI, §7.8/§17.5). Online sigue [FUTURO].
+- **Deckbuilding:** mazo de la run (starter + recompensas) en el single-player (§17.2); tienda y armado pre-run = puntos de extensión (§17.4/§17.6).
+- **Combate automático por tempo:** alternativa al combate manual a evaluar en sesión próxima (§17.6).
 
 ---
 
 ## 14. Fuera de scope (v1)
 
-- Construcción de mazos personalizada
+- Construcción de mazos personalizada **pre-run** (el single-player la deja como punto de extensión, §17; el mazo evoluciona por recompensas, no por armado libre todavía)
+- Tienda de cartas en la run (punto de extensión, §17)
+- Meta-progresión entre runs (desbloqueos persistentes; §17 lo deja como extensión)
 - Más de 2 jugadores
 - Online / multijugador en red
 - Animaciones elaboradas (hoy: shake y flash)
-- Progresión / desbloqueo de cartas
 - Más de 2 facciones
 
 ---
@@ -919,11 +935,11 @@ valor_pasiva: ProduceResource → 4·value ; Aura/Retaliate/Regeneration → 3·
 
 ### 16.2 Orden del turno (fase ACCIÓN)
 
-El bot puede jugar/descartar **1 carta** y atacar con **1 unidad** (§6). Resuelve en este orden fijo:
+El bot puede jugar **varias cartas** (mientras pueda pagar) y atacar con **cada unidad** no aturdida (§6). Resuelve en este orden fijo:
 
-1. **Carta primero, ataque después.** Jugar la carta puede mejorar el ataque (buff, deploy, debuff al rival).
-2. **Decisión de carta:** puntúa cada carta de la mano que pueda pagar (§16.3). Si la mejor supera el **umbral de juego** (default `0`, es decir cualquier valor positivo), la juega. Si ninguna supera el umbral, **descarta** la carta de menor valor potencial para ciclar la mano (no desperdicia el reemplazo de mano del turno).
-3. **Decisión de ataque:** entre las unidades propias **no aturdidas** con acción, elige la jugada de mayor valor (§16.4). Si ninguna aporta valor (p. ej. todos los objetivos son whiff), no ataca.
+1. **Cartas primero, ataques después.** Jugar las cartas puede mejorar los ataques (buff, deploy, debuff al rival).
+2. **Fase de cartas (greedy, en bucle):** mientras quede una carta asequible cuyo puntaje (§16.3) supere el **umbral de juego** (default `0`), juega la de **mayor puntaje** y **re-evalúa** (recalcula con los recursos y el tablero ya actualizados). Termina cuando ninguna asequible supera el umbral. Una sola vez por turno, si conviene ciclar, **descarta** la carta de menor valor potencial. (Re-evaluar cada vez evita gastar todo en algo que un deploy previo volvió subóptimo.)
+3. **Fase de ataques (greedy, en bucle):** mientras alguna unidad propia no aturdida y **sin atacar aún** tenga una jugada de valor positivo (§16.4), ejecuta la de **mayor valor** y re-evalúa. Cada unidad ataca a lo sumo una vez. Termina cuando ninguna aporta valor (p. ej. todos los objetivos son whiff).
 
 ### 16.3 Puntaje de cartas (qué jugar)
 
@@ -972,3 +988,72 @@ Al desplegar una unidad sin slot forzado por `allowedSlots`, el bot elige entre 
 ### 16.7 Determinismo
 
 Toda la política es función pura del estado observable + un RNG inyectado (sólo para coinflip inicial y robo de cartas, §7.9). Sin desempates aleatorios: los empates de puntaje se rompen por menor índice. Misma seed + mismos knobs → misma partida, byte a byte.
+
+> **Adaptación al turno multi-acción (§6):** la política de arriba se aplica **en bucle** (§16.2): juega cartas hasta que ninguna supere el umbral y ataca con cada unidad. El `AIPlayerController` del single-player (§17) porta esta misma política a C# en `Core`.
+
+---
+
+## 17. Modo un jugador (run roguelike-deckbuilder)
+
+El single-player **no es un combate suelto**: es una **run** de varios combates encadenados con
+progresión, inspirada en Slay the Spire (progresión + recompensas) y The King is Watching (ritmo).
+Reusa íntegro el motor de combate (§6) — el rival lo controla la **IA** (§16, vía `IPlayerController`,
+§7.8). El hotseat 2-jugadores comparte el mismo motor.
+
+> **Estado:** diseño aprobado; implementación por fases (ver el plan de la sesión). Esta sección es la
+> fuente de verdad del modo. Valores concretos (largo de run, nº de mundos/nodos) son **rough, a
+> iterar por playtest** ([[feedback-playtest-driven]]).
+
+### 17.1 Objetivo y estructura
+
+- **Objetivo:** atravesar un **mapa temático por niveles** (etapas con identidad: p. ej. *el barrio →
+  el centro → la Casa Rosada*) derrotando los combates de cada etapa hasta el **jefe** final.
+- **Mapa:** una secuencia de **nodos** por etapa. Tipo de nodo como **data** (extensible): combate
+  normal, **élite** (más difícil, mejor recompensa), **jefe** (cierra la etapa). Puntos de extensión
+  reservados para **descanso** y **tienda** (§17.4). Arranque rough: pocos nodos por etapa, escalando
+  dificultad; afinar por playtest.
+- **Derrota = fin de la run** (permadeath roguelike): perder un combate corta la run y se vuelve a
+  empezar. (Meta-desbloqueos entre runs = extensión futura, §17.4.)
+
+### 17.2 Mazo de la run (deckbuilding)
+
+- Se arranca con un **mazo starter fijo** (las "cartas default" de la facción del jugador).
+- Tras **ganar** un combate, el jugador elige **1 de 3** cartas ofrecidas (card reward) para sumarla
+  al mazo. El mazo **evoluciona** durante la run.
+- El **mazo de la run es estado persistente** y se **inyecta en el motor** al iniciar cada combate
+  (el combate roba de él, §8.1), en vez de derivarlo de la facción. Es el punto de inyección de
+  deckbuilding del §7.8.
+- **Puntos de extensión (no en la primera versión):** **tienda** (comprar/quitar cartas) y **armado
+  de mazo pre-run** (elegir el starter en vez del fijo). El modelo debe dejar el hueco para ambos.
+
+### 17.3 Persistencia entre combates
+
+- **Persisten:** el **mazo** (evolucionado) y las **reliquias** (§17.4).
+- **Se reinicia cada combate:** el **tablero** (unidades iniciales de nuevo), los **recursos**, los
+  **estados** y la **mano** (se roba fresca del mazo). Encaja con que no hay HP global (§4): no hay un
+  "HP de personaje" que arrastrar entre peleas; lo que progresa es el mazo + las reliquias.
+
+### 17.4 Reliquias
+
+Power-ups **persistentes** durante la run que **tuercen la estrategia** (estilo StS). Se modelan como
+**pasivas que enganchan eventos del motor** (inicio de turno, al jugar carta, al matar, etc.), data y
+extensibles (un puñado simple en la primera versión). Punto de extensión: cómo se obtienen
+(recompensa de élite/jefe, tienda). El sistema debe nacer **extensible** (lista de reliquias activas
+en el `RunState`, no campos sueltos), alineado con [[feedback-buenas-practicas]].
+
+### 17.5 Arquitectura (Core, C# puro)
+
+- **`RunState`** (en `Core`, sin escena): mapa temático (mundos → nodos), posición actual, **mazo
+  persistente**, reliquias activas, estado de la run (en curso / ganada / perdida). Testeable sin Unity.
+- **Mapa y nodos = data** (ScriptableObjects / definición de etapa), extensible sin tocar código.
+- **IA del rival:** `IPlayerController` con impl `Human` (envuelve el input de presentación) y `AI`
+  (porta `sim/policy.py`, §16, al turno multi-acción). Una sola dificultad para empezar, iterar por feel.
+- **Selección:** el humano elige facción, la IA toma la otra (§11.2 reusada). Menú con dos botones (§11.1).
+- **Presentación:** pantalla de **mapa temático**, pantalla de **recompensa (1-de-3)**, **HUD de run**
+  (reliquias, progreso), y el combate con **turno de IA** (delays + indicador + input bloqueado, §11.3).
+
+### 17.6 Puntos de extensión (resumen)
+
+Reservar el hueco, sin implementar todavía: **tienda** de cartas · **armado de mazo pre-run** ·
+**meta-progresión entre runs** (desbloqueos persistentes) · **dificultades** de IA · **combate
+automático por tempo** (alternativa al manual, a evaluar en sesión próxima — §6 quedaría como variante).
