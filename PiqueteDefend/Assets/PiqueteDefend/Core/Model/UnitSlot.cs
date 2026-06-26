@@ -16,6 +16,10 @@ namespace PiqueteDefend.Core
         public readonly UnitCardData unit;
         public int currentHp;
 
+        /// <summary>Cada unidad ataca una vez por turno (spec §6). El motor lo resetea al inicio del
+        /// turno de su dueño (<see cref="GameEngine.BeginTurn"/>) y lo marca al atacar.</summary>
+        public bool attackedThisTurn;
+
         /// <summary>
         /// [FUTURO] apilamiento. Default 1, sin mecánica activa. Al activarlo, el Core ya multiplica
         /// MaxHp y la producción por count; OJO: el simulador (`sim/`) hoy NO lo hace — alinear ambos

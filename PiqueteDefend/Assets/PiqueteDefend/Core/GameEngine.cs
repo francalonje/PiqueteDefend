@@ -27,9 +27,6 @@ namespace PiqueteDefend.Core
         private int _firstIndex;
         private GameOutcome? _outcome;
 
-        private bool _cardActionUsed;
-        private bool _attackUsed;
-
         public GameEngine(GameConfig config, IRandomProvider rng, ICardCatalog catalog)
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
@@ -48,9 +45,6 @@ namespace PiqueteDefend.Core
         public GameOutcome? Outcome => _outcome;
         public bool IsFinished => _outcome.HasValue;
 
-        public bool CardActionUsed => _cardActionUsed;
-        public bool AttackUsed => _attackUsed;
-
         public PlayerState PlayerAt(int index) => _players[index];
         public PlayerState ActivePlayer => _players[_activeIndex];
         public PlayerState OpponentPlayer => _players[1 - _activeIndex];
@@ -58,6 +52,17 @@ namespace PiqueteDefend.Core
 
         /// <summary>True si el jugador activo puede atacar este turno (regla de iniciativa, spec §3/§16).</summary>
         public bool CanAttackThisTurn => !(_config.firstNoAttackTurn1 && HalfTurn == 1);
+
+        /// <summary>True si la unidad del jugador activo en <paramref name="slot"/> puede atacar AHORA
+        /// (ocupada, no aturdida, regla de iniciativa OK y sin haber atacado este turno, spec §6).
+        /// Centraliza la condición "puede actuar" para la UI y los tests.</summary>
+        public bool UnitCanAttack(int slot)
+        {
+            if (!CanAttackThisTurn) return false;
+            if (slot < 0 || slot >= ActivePlayer.unitSlots.Length) return false;
+            UnitSlot s = ActivePlayer.unitSlots[slot];
+            return s != null && !s.IsStunned && !s.attackedThisTurn;
+        }
 
         /// <summary>% de inflación vigente este medio-turno (spec §3). 0 = inflación no arrancó.</summary>
         public int InflationPercent
@@ -192,8 +197,9 @@ namespace PiqueteDefend.Core
                         active.AddResource(r, unitProd[r] * productionMultiplier, _config.maxResource);
             }
 
-            _cardActionUsed = false;
-            _attackUsed = false;
+            // Cada unidad del jugador activo puede atacar una vez este turno (spec §6).
+            foreach (UnitSlot s in active.unitSlots)
+                if (s != null) s.attackedThisTurn = false;
 
             CheckVictory();
             if (IsFinished) return;
@@ -263,7 +269,6 @@ namespace PiqueteDefend.Core
                                      int effectTargetSlotB = -1)
         {
             if (Phase != GamePhase.AwaitingAction) return ActionResult.WrongPhase;
-            if (_cardActionUsed) return ActionResult.AlreadyPlayedCard;
 
             PlayerState active = ActivePlayer;
             PlayerState opp = OpponentPlayer;
@@ -301,8 +306,7 @@ namespace PiqueteDefend.Core
                     ResolveEffect(effect, active, opp, effectTargetSlot, effectTargetSlotB);
             }
 
-            DiscardAndDraw(active, handIndex);
-            _cardActionUsed = true;
+            MoveToDiscard(active, handIndex);
             CheckVictory();
             return ActionResult.Success;
         }
@@ -310,20 +314,17 @@ namespace PiqueteDefend.Core
         public ActionResult DiscardCard(int handIndex)
         {
             if (Phase != GamePhase.AwaitingAction) return ActionResult.WrongPhase;
-            if (_cardActionUsed) return ActionResult.AlreadyPlayedCard;
 
             PlayerState active = ActivePlayer;
             if (handIndex < 0 || handIndex >= active.hand.Count) return ActionResult.IndexOutOfRange;
 
-            DiscardAndDraw(active, handIndex);
-            _cardActionUsed = true;
+            MoveToDiscard(active, handIndex);
             return ActionResult.Success;
         }
 
         public ActionResult AttackWithUnit(int attackerSlot, int[] chosenTargets = null)
         {
             if (Phase != GamePhase.AwaitingAction) return ActionResult.WrongPhase;
-            if (_attackUsed) return ActionResult.AlreadyAttacked;
             if (!CanAttackThisTurn) return ActionResult.CannotAttackFirstTurn;
 
             PlayerState active = ActivePlayer;
@@ -333,6 +334,7 @@ namespace PiqueteDefend.Core
             UnitSlot attacker = active.unitSlots[attackerSlot];
             if (attacker == null) return ActionResult.NoUnitInSlot;
             if (attacker.IsStunned) return ActionResult.UnitStunned;
+            if (attacker.attackedThisTurn) return ActionResult.AlreadyAttacked;  // una vez por unidad (spec §6)
 
             UnitAttack ua = attacker.unit.attack;
             // Targeting anclado a la formación del objetivo (spec §6): rival si daña, propio si cura.
@@ -357,6 +359,7 @@ namespace PiqueteDefend.Core
             // Regla de objetivos (spec §6): la acción se CANCELA (sin gastar el ataque) si no afecta a
             // ningún objetivo válido. Si afecta al menos a uno, se permite aunque otros golpes whiffeen.
             if (!HasValidTarget(ua, targets, active, opp)) return ActionResult.InvalidTarget;
+            attacker.attackedThisTurn = true;  // consume el ataque de esta unidad (spec §6)
 
             if (ua.IsHeal)
             {
@@ -367,7 +370,6 @@ namespace PiqueteDefend.Core
                     if (u != null && u.currentHp < u.MaxHp)
                         u.currentHp = Math.Min(u.MaxHp, u.currentHp + ua.damagePerSlot);  // whiff si vacío/llena
                 }
-                _attackUsed = true;
                 return ActionResult.Success;
             }
 
@@ -397,7 +399,6 @@ namespace PiqueteDefend.Core
                 if (attacker.IsDead) KillUnit(active, attackerSlot);
             }
 
-            _attackUsed = true;
             CheckVictory();
             return ActionResult.Success;
         }
@@ -413,6 +414,9 @@ namespace PiqueteDefend.Core
 
         private void EndOfTurn()
         {
+            // REPONER MANO (spec §6 paso 4): rellenar la mano del activo a handSize.
+            RefillHand(ActivePlayer);
+
             // a) decrementar estados por unidad del jugador activo (active-while-present, spec §7.7).
             TickUnitStatuses(ActivePlayer);
 
@@ -807,14 +811,28 @@ namespace PiqueteDefend.Core
         }
 
         /// <summary>
-        /// Manda la carta jugada/descartada de la mano al descarte y roba una de reemplazo en el mismo
-        /// índice. Como el descarte recibe la carta antes de robar, <see cref="DrawCard"/> nunca devuelve
-        /// null acá (siempre hay al menos esa carta para rebarajar).
+        /// Saca la carta jugada/descartada de la mano y la manda al descarte. NO roba: la mano se
+        /// rellena recién al fin del turno (REPONER MANO, spec §6/§8.1), así no se cicla el mazo entero
+        /// en un turno encadenando jugar→robar→jugar (con multi-carta).
         /// </summary>
-        private void DiscardAndDraw(PlayerState player, int handIndex)
+        private void MoveToDiscard(PlayerState player, int handIndex)
         {
             player.discard.Add(player.hand[handIndex]);
-            player.hand[handIndex] = DrawCard(player);
+            player.hand.RemoveAt(handIndex);
+        }
+
+        /// <summary>
+        /// REPONER MANO (spec §6 paso 4): rellena la mano hasta <see cref="GameConfig.handSize"/> robando
+        /// del tope del mazo (rebaraja el descarte si el mazo se vacía). Para si no quedan cartas para robar.
+        /// </summary>
+        private void RefillHand(PlayerState player)
+        {
+            while (player.hand.Count < _config.handSize)
+            {
+                CardData card = DrawCard(player);
+                if (card == null) break;
+                player.hand.Add(card);
+            }
         }
 
         // ── Victoria / desempate ──────────────────────────────────────────────────

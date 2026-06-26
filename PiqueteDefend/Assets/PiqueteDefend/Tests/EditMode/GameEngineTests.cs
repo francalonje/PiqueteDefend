@@ -186,7 +186,7 @@ namespace PiqueteDefend.Tests
             // Antes esto se trababa (whiff sin objetivo). Ahora Frontmost pega al más adelantado (5).
             Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(2));
             Assert.AreEqual(6, e.PlayerAt(1).unitSlots[5].currentHp);
-            Assert.IsTrue(e.AttackUsed);
+            Assert.IsTrue(e.PlayerAt(0).unitSlots[2].attackedThisTurn);  // la unidad consumió su ataque
         }
 
         [Test]
@@ -200,7 +200,7 @@ namespace PiqueteDefend.Tests
 
             Assert.AreEqual(ActionResult.Success, e.AttackWithUnit(2));  // pega al foremost, whiff en el vacío
             Assert.AreEqual(15, e.PlayerAt(1).unitSlots[4].currentHp);
-            Assert.IsTrue(e.AttackUsed);
+            Assert.IsTrue(e.PlayerAt(0).unitSlots[2].attackedThisTurn);  // la unidad consumió su ataque
         }
 
         [Test]
@@ -589,7 +589,7 @@ namespace PiqueteDefend.Tests
             e.BeginTurn();
 
             Assert.AreEqual(ActionResult.InvalidTarget, e.AttackWithUnit(2));
-            Assert.IsFalse(e.AttackUsed);  // se cancela sin gastar (spec §6)
+            Assert.IsFalse(e.PlayerAt(0).unitSlots[2].attackedThisTurn);  // se cancela sin gastar (spec §6)
         }
 
         [Test]
@@ -921,7 +921,7 @@ namespace PiqueteDefend.Tests
             e.PlayerAt(0).hand[0] = fresh;
             Assert.AreEqual(ActionResult.InvalidTarget, e.PlayCard(0, deploySlot: 0));
             Assert.AreSame(veteran, e.PlayerAt(0).unitSlots[0]);  // no se reemplaza
-            Assert.IsFalse(e.CardActionUsed);                     // acción no consumida
+            Assert.AreSame(fresh, e.PlayerAt(0).hand[0]);         // la carta sigue en la mano (no se jugó)
         }
 
         [Test]
@@ -1043,9 +1043,10 @@ namespace PiqueteDefend.Tests
             {
                 e.BeginTurn();
                 Assert.AreEqual(ActionResult.Success, e.DiscardCard(0));
-                Assert.AreEqual(2, p.hand.Count, "la mano se repone siempre a handSize");
+                Assert.AreEqual(1, p.hand.Count, "tras descartar, la mano no se repone hasta el fin del turno");
+                e.EndTurn();                                   // REPONER MANO acá
+                Assert.AreEqual(2, p.hand.Count, "la mano se repone a handSize al fin del turno");
                 foreach (CardData c in p.hand) Assert.IsNotNull(c, "nunca queda un hueco null en la mano");
-                e.EndTurn();
                 e.BeginTurn(); e.EndTurn();   // turno de p1
             }
             // Ninguna carta se perdió: las 3 distintas siguen en circulación.
