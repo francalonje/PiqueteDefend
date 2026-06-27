@@ -18,6 +18,16 @@ namespace PiqueteDefend.Core
 
         /// <summary>Cartas ofrecidas como recompensa tras ganar un combate (1-de-N, spec §17.2).</summary>
         public int rewardCount = 3;
+
+        /// <summary>Oro otorgado al ganar un combate normal (spec §17.6).</summary>
+        public int combatGoldReward = 10;
+
+        /// <summary>Oro otorgado al ganar un combate de élite (más duro, mejor paga, spec §17.6).</summary>
+        public int eliteGoldReward = 20;
+
+        /// <summary>Oro otorgado por un nodo de tesoro (spec §17.6). En §17.6 un tesoro puede dar
+        /// reliquia en vez de oro; este es el monto cuando da oro.</summary>
+        public int treasureGoldReward = 15;
     }
 
     /// <summary>Oferta de recompensa tras ganar un combate (1-de-N, spec §17.2). Vacía si no hay
@@ -46,6 +56,7 @@ namespace PiqueteDefend.Core
         private readonly GameConfig _config;
         private readonly IRandomProvider _rng;
         private readonly RunConfig _runConfig;
+        private readonly IReadOnlyList<EncounterDefinition> _encounters;
 
         private int _pendingNodeId = -1;          // combate en curso (entre BeginCombat y ResolveCombat)
         private GameEngine _combat;                // el motor del combate en curso
@@ -54,12 +65,14 @@ namespace PiqueteDefend.Core
         public RunState State { get; }
 
         public RunManager(ICardCatalog catalog, GameConfig config, IRandomProvider rng,
-                          Faction humanFaction, RunMap map = null, RunConfig runConfig = null)
+                          Faction humanFaction, RunMap map = null, RunConfig runConfig = null,
+                          IReadOnlyList<EncounterDefinition> encounters = null)
         {
             _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _rng = rng ?? throw new ArgumentNullException(nameof(rng));
             _runConfig = runConfig ?? new RunConfig();
+            _encounters = encounters;   // null = sin arquetipos curados → fallback al mazo default opuesto
 
             State = new RunState(map ?? RunMapLibrary.BuildDefaultMap(), humanFaction);
             // Mazo starter = el default de la facción (spec §17.2). [EXTENSIÓN] armado pre-run.
@@ -114,23 +127,52 @@ namespace PiqueteDefend.Core
                 throw new InvalidOperationException($"El punto {nodeId} no es alcanzable desde {State.currentNodeId}.");
 
             MapNode node = State.map.NodeById(nodeId);
-            if (node.type != MapNodeType.Combat && node.type != MapNodeType.Boss)
+            if (!IsCombatNode(node.type))
                 throw new InvalidOperationException($"El punto {nodeId} ({node.type}) no es un combate.");
 
             int difficulty = State.map.DistanceOf(nodeId);
+            bool boss = node.type == MapNodeType.Boss;
 
             // Humano: mazo de la run inyectado (spec §17.2). El motor copia la lista, no la muta.
             var human = new PlayerSetup(State.faction) { deck = State.deck };
 
-            // IA: handicap por distancia (spec §17.1) — +recursos iniciales, y +unidad(es) en el jefe.
+            // Handicap por distancia (spec §17.1): +recursos iniciales a la IA, escala con la profundidad.
             int bonus = Math.Max(0, difficulty) * _runConfig.aiResourceBonusPerLevel;
-            var ai = new PlayerSetup(AiFaction)
+
+            // La IA sale de un arquetipo curado del pool (spec §17.6); sin pool, fallback al default opuesto.
+            EncounterDefinition enc = PickEncounter(difficulty, boss);
+            PlayerSetup ai;
+            if (enc != null)
             {
-                bonusDinero = bonus,
-                bonusFuerza = bonus,
-                bonusSocial = bonus,
-                extraStartingUnits = node.type == MapNodeType.Boss ? BossExtraUnits() : null
-            };
+                State.usedEncounterIds.Add(enc.id);
+                ai = new PlayerSetup(enc.faction)
+                {
+                    deck = enc.deck != null && enc.deck.Count > 0 ? enc.deck : null,
+                    startingUnits = enc.startingUnits != null && enc.startingUnits.Count > 0 ? enc.startingUnits : null,
+                    bonusDinero = bonus + enc.bonusDinero,
+                    bonusFuerza = bonus + enc.bonusFuerza,
+                    bonusSocial = bonus + enc.bonusSocial,
+                    extraStartingUnits = boss && enc.leaderUnit != null ? new[] { enc.leaderUnit } : null,
+                    initialStatuses = enc.aiInitialStatuses != null && enc.aiInitialStatuses.Count > 0
+                        ? enc.aiInitialStatuses : null,
+                };
+                // Pasiva de jefe que castiga al jugador (spec §17.6): estados sembrados en el humano.
+                if (enc.playerInitialStatuses != null && enc.playerInitialStatuses.Count > 0)
+                    human.initialStatuses = enc.playerInitialStatuses;
+            }
+            else
+            {
+                ai = new PlayerSetup(AiFaction)
+                {
+                    bonusDinero = bonus,
+                    bonusFuerza = bonus,
+                    bonusSocial = bonus,
+                    extraStartingUnits = boss ? BossExtraUnits() : null
+                };
+            }
+
+            // Reliquias de la run (spec §17.4/§17.6): bonos al humano, mismo seam que el handicap.
+            ApplyRelics(human);
 
             var setups = new PlayerSetup[2];
             setups[HumanIndex] = human;
@@ -142,6 +184,38 @@ namespace PiqueteDefend.Core
             return _combat;
         }
 
+        /// <summary>
+        /// Sortea un arquetipo de enemigo del pool (spec §17.6): del tipo correcto (jefe vs combate),
+        /// de la facción de la IA y no usado en la run. Prefiere el tier de dificultad del nodo; si el
+        /// pool se agotó (todos usados), permite repetir. Devuelve <c>null</c> si no hay pool o ningún
+        /// candidato — el llamador cae al mazo default opuesto.
+        /// </summary>
+        private EncounterDefinition PickEncounter(int difficulty, bool boss)
+        {
+            if (_encounters == null || _encounters.Count == 0) return null;
+
+            var candidates = new List<EncounterDefinition>();
+            foreach (EncounterDefinition e in _encounters)
+                if (e != null && e.isBoss == boss && e.faction == AiFaction && !State.usedEncounterIds.Contains(e.id))
+                    candidates.Add(e);
+
+            // Pool agotado: permitir repetir antes que quedarse sin enemigo.
+            if (candidates.Count == 0)
+                foreach (EncounterDefinition e in _encounters)
+                    if (e != null && e.isBoss == boss && e.faction == AiFaction)
+                        candidates.Add(e);
+
+            if (candidates.Count == 0) return null;
+
+            // Preferir el tier exacto del nodo; si no hay, cualquiera del tipo.
+            var tier = new List<EncounterDefinition>();
+            foreach (EncounterDefinition e in candidates)
+                if (e.difficulty == difficulty) tier.Add(e);
+            List<EncounterDefinition> bag = tier.Count > 0 ? tier : candidates;
+
+            return bag[_rng.Next(bag.Count)];
+        }
+
         /// <summary>Unidades iniciales extra para la IA en el jefe: las primeras de su lista del catálogo.</summary>
         private IReadOnlyList<UnitCardData> BossExtraUnits()
         {
@@ -150,6 +224,59 @@ namespace PiqueteDefend.Core
             var extra = new List<UnitCardData>(n);
             for (int i = 0; i < n; i++) extra.Add(baseUnits[i]);
             return extra;
+        }
+
+        /// <summary>
+        /// Vuelca las reliquias de la run (spec §17.4/§17.6) sobre el <see cref="PlayerSetup"/> del
+        /// humano: recursos extra, unidad(es) inicial(es) extra y estados sembrados. Acumula sobre lo
+        /// que ya traiga el setup (ej. una pasiva de jefe que afecta al humano), sin pisarlo.
+        /// </summary>
+        private void ApplyRelics(PlayerSetup human)
+        {
+            if (State.relics == null || State.relics.Count == 0) return;
+
+            List<UnitCardData> extraUnits = null;
+            List<StatusEffect> statuses = null;
+
+            foreach (RelicData r in State.relics)
+            {
+                if (r == null) continue;
+                switch (r.kind)
+                {
+                    case RelicEffectKind.BonusResource:
+                        if (r.resource == ResourceType.Dinero) human.bonusDinero += r.value;
+                        else if (r.resource == ResourceType.Fuerza) human.bonusFuerza += r.value;
+                        else if (r.resource == ResourceType.Social) human.bonusSocial += r.value;
+                        break;
+
+                    case RelicEffectKind.ExtraStartingUnit:
+                        if (r.unit != null)
+                        {
+                            if (extraUnits == null) extraUnits = new List<UnitCardData>();
+                            extraUnits.Add(r.unit);
+                        }
+                        break;
+
+                    case RelicEffectKind.InitialStatus:
+                        if (r.status != null)
+                        {
+                            if (statuses == null) statuses = new List<StatusEffect>();
+                            statuses.Add(r.status);
+                        }
+                        break;
+                }
+            }
+
+            if (extraUnits != null)
+            {
+                if (human.extraStartingUnits != null) extraUnits.InsertRange(0, human.extraStartingUnits);
+                human.extraStartingUnits = extraUnits;
+            }
+            if (statuses != null)
+            {
+                if (human.initialStatuses != null) statuses.InsertRange(0, human.initialStatuses);
+                human.initialStatuses = statuses;
+            }
         }
 
         /// <summary>
@@ -178,18 +305,61 @@ namespace PiqueteDefend.Core
                 return RewardOffer.None;
             }
 
-            State.clearedNodeIds.Add(node.id);
-            State.currentNodeId = node.id;
+            AdvanceTo(node);
 
             if (node.type == MapNodeType.Boss)
             {
+                // [SEAM multi-acto, spec §17.6] Con varios actos: si NO es el último, acá iría
+                // State.actIndex++ y cargar el mapa del próximo acto en vez de ganar. Hoy hay un acto.
                 State.status = RunStatus.Won;     // se llegó al extremo del mapa (spec §17.1)
                 return RewardOffer.None;
             }
 
+            // Oro por ganar el combate (spec §17.6) — la élite paga más. Economía meta para la tienda.
+            State.gold += node.type == MapNodeType.Elite ? _runConfig.eliteGoldReward : _runConfig.combatGoldReward;
+
             _pendingReward = GenerateReward();
             return new RewardOffer(_pendingReward);
         }
+
+        // ── Nodos no-combate (spec §17.6) ───────────────────────────────────────────
+
+        /// <summary>
+        /// Resuelve un nodo de <see cref="MapNodeType.Treasure"/>: otorga oro (en §17.6 también puede
+        /// dar reliquia, ver paso 5) y avanza. Atómico: no deja interacción pendiente.
+        /// </summary>
+        public void EnterTreasure(int nodeId)
+        {
+            if (State.status != RunStatus.InProgress)
+                throw new InvalidOperationException($"La run no está en curso ({State.status}).");
+            if (_pendingReward != null)
+                throw new InvalidOperationException("Hay una recompensa sin resolver.");
+            if (CombatInProgress)
+                throw new InvalidOperationException("Hay un combate en curso.");
+            if (!IsAvailable(nodeId))
+                throw new InvalidOperationException($"El punto {nodeId} no es alcanzable desde {State.currentNodeId}.");
+
+            MapNode node = State.map.NodeById(nodeId);
+            if (node.type != MapNodeType.Treasure)
+                throw new InvalidOperationException($"El punto {nodeId} ({node.type}) no es un tesoro.");
+
+            State.gold += _runConfig.treasureGoldReward;
+            AdvanceTo(node);
+        }
+
+        // ── Avance del mapa (compartido combate / no-combate, spec §17.1/§17.6) ──────
+
+        /// <summary>Marca el punto como recorrido y mueve al jugador ahí (una sola pasada, spec §17.1).
+        /// Punto único de avance: lo llaman tanto el combate ganado como los nodos no-combate.</summary>
+        private void AdvanceTo(MapNode node)
+        {
+            State.clearedNodeIds.Add(node.id);
+            State.currentNodeId = node.id;
+        }
+
+        /// <summary>True si el tipo de nodo se resuelve por combate (Combat/Elite/Boss).</summary>
+        private static bool IsCombatNode(MapNodeType t) =>
+            t == MapNodeType.Combat || t == MapNodeType.Elite || t == MapNodeType.Boss;
 
         // ── Recompensa (1-de-N, spec §17.2) ────────────────────────────────────────
 

@@ -138,6 +138,19 @@ namespace PiqueteDefend.Core
             DeployStarting(p, setup.startingUnits ?? _catalog.GetStartingUnits(faction));
             if (setup.extraStartingUnits != null) DeployStarting(p, setup.extraStartingUnits);
 
+            // Estados sembrados (reliquias/pasiva de jefe, spec §17.4): mismo ruteo que ApplyStatus.
+            // Los de jugador (producción) van al jugador; los por-unidad, a las unidades ya desplegadas.
+            if (setup.initialStatuses != null)
+                foreach (StatusEffect s in setup.initialStatuses)
+                {
+                    if (s == null) continue;
+                    if (StatusEffect.IsPlayerStatus(s.statusType))
+                        p.activeStatuses.Add(s.Clone());
+                    else
+                        foreach (UnitSlot slot in p.unitSlots)
+                            if (slot != null) slot.activeStatuses.Add(s.Clone());
+                }
+
             // Mazo: el inyectado (run) o el del catálogo (spec §8.1/§17.2).
             p.deck.AddRange(setup.deck ?? _catalog.GetDeckList(faction));
             Shuffle(p.deck);
