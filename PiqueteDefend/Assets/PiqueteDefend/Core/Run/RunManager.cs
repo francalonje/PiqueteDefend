@@ -29,9 +29,16 @@ namespace PiqueteDefend.Core
         /// reliquia en vez de oro; este es el monto cuando da oro.</summary>
         public int treasureGoldReward = 15;
 
-        /// <summary>Tamaño mínimo del mazo de la run: el taller (spec §17.6) no deja quitar cartas por
-        /// debajo de esto, para no romper el robo.</summary>
+        /// <summary>Tamaño mínimo del mazo de la run: el taller/tienda (spec §17.6) no dejan quitar cartas
+        /// por debajo de esto, para no romper el robo.</summary>
         public int minDeckSize = 5;
+
+        // ── Tienda (spec §17.6) ──────────────────────────────────────────────────
+        public int shopCardCount = 3;       // cartas a la venta
+        public int shopRelicCount = 2;      // reliquias a la venta
+        public int shopCardPrice = 15;
+        public int shopRelicPrice = 30;
+        public int shopRemovalPrice = 20;   // pagar para quitar una carta del mazo
     }
 
     /// <summary>Oferta de recompensa tras ganar un combate (1-de-N, spec §17.2). Vacía si no hay
@@ -54,6 +61,24 @@ namespace PiqueteDefend.Core
         public bool IsRelic => relic != null;
     }
 
+    /// <summary>Stock de un nodo de tienda (spec §17.6): lo que hay para comprar con oro. Las listas se
+    /// vacían a medida que el jugador compra. Los precios se fijan al generar el stock.</summary>
+    public sealed class ShopStock
+    {
+        public readonly List<CardData> cards = new List<CardData>();
+        public readonly List<RelicData> relics = new List<RelicData>();
+        public readonly int cardPrice;
+        public readonly int relicPrice;
+        public readonly int removalPrice;
+
+        public ShopStock(int cardPrice, int relicPrice, int removalPrice)
+        {
+            this.cardPrice = cardPrice;
+            this.relicPrice = relicPrice;
+            this.removalPrice = removalPrice;
+        }
+    }
+
     /// <summary>
     /// Orquesta una run (spec §17.5), C# puro y testeable sin escena. Mantiene el <see cref="RunState"/>
     /// y arma cada combate: inyecta el mazo de la run para el humano y aplica el handicap de dificultad
@@ -72,18 +97,24 @@ namespace PiqueteDefend.Core
         private readonly RunConfig _runConfig;
         private readonly IReadOnlyList<EncounterDefinition> _encounters;
         private readonly IReadOnlyList<RelicData> _relicPool;
+        private readonly IReadOnlyList<EventDefinition> _eventPool;
 
         private int _pendingNodeId = -1;          // combate en curso (entre BeginCombat y ResolveCombat)
         private GameEngine _combat;                // el motor del combate en curso
         private List<CardData> _pendingReward;     // recompensa sin resolver (Choose/Skip)
         private int _pendingWorkshopNodeId = -1;   // taller abierto (entre EnterWorkshop y Leave/Remove)
+        private int _pendingShopNodeId = -1;       // tienda abierta (entre EnterShop y LeaveShop)
+        private ShopStock _shopStock;              // stock de la tienda abierta
+        private int _pendingEventNodeId = -1;      // evento abierto (entre EnterEvent y ResolveEvent)
+        private EventDefinition _pendingEvent;     // el evento abierto
 
         public RunState State { get; }
 
         public RunManager(ICardCatalog catalog, GameConfig config, IRandomProvider rng,
                           Faction humanFaction, RunMap map = null, RunConfig runConfig = null,
                           IReadOnlyList<EncounterDefinition> encounters = null,
-                          IReadOnlyList<RelicData> relicPool = null)
+                          IReadOnlyList<RelicData> relicPool = null,
+                          IReadOnlyList<EventDefinition> eventPool = null)
         {
             _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
             _config = config ?? throw new ArgumentNullException(nameof(config));
@@ -91,6 +122,7 @@ namespace PiqueteDefend.Core
             _runConfig = runConfig ?? new RunConfig();
             _encounters = encounters;   // null = sin arquetipos curados → fallback al mazo default opuesto
             _relicPool = relicPool;     // null = sin reliquias para repartir (tesoro cae a oro)
+            _eventPool = eventPool;     // null = sin eventos
 
             State = new RunState(map ?? RunMapLibrary.BuildDefaultMap(), humanFaction);
             // Mazo starter = el default de la facción (spec §17.2). [EXTENSIÓN] armado pre-run.
@@ -110,7 +142,8 @@ namespace PiqueteDefend.Core
         /// terminó o hay una recompensa sin resolver.</summary>
         public IReadOnlyList<MapNode> AvailableNodes()
         {
-            if (State.status != RunStatus.InProgress || _pendingReward != null || WorkshopInProgress)
+            if (State.status != RunStatus.InProgress || _pendingReward != null
+                || WorkshopInProgress || ShopInProgress || EventInProgress)
                 return Array.Empty<MapNode>();
             return State.map.Successors(State.currentNodeId);
         }
@@ -466,6 +499,197 @@ namespace PiqueteDefend.Core
             MapNode node = State.map.NodeById(_pendingWorkshopNodeId);
             _pendingWorkshopNodeId = -1;
             AdvanceTo(node);
+        }
+
+        // ── Tienda (spec §17.6): comprar cartas/reliquias / pagar remoción ──────────
+
+        /// <summary>True si hay una tienda abierta (bloquea la navegación).</summary>
+        public bool ShopInProgress => _pendingShopNodeId >= 0;
+
+        /// <summary>Stock de la tienda abierta (o <c>null</c> si no hay ninguna).</summary>
+        public ShopStock CurrentShop => _shopStock;
+
+        /// <summary>Abre la tienda del nodo (spec §17.6): genera el stock (cartas del pool de la facción +
+        /// reliquias no obtenidas, RNG inyectado) y bloquea la navegación hasta <see cref="LeaveShop"/>.</summary>
+        public void EnterShop(int nodeId)
+        {
+            if (State.status != RunStatus.InProgress)
+                throw new InvalidOperationException($"La run no está en curso ({State.status}).");
+            if (_pendingReward != null)
+                throw new InvalidOperationException("Hay una recompensa sin resolver.");
+            if (CombatInProgress)
+                throw new InvalidOperationException("Hay un combate en curso.");
+            if (WorkshopInProgress || ShopInProgress)
+                throw new InvalidOperationException("Hay otra interacción abierta.");
+            if (!IsAvailable(nodeId))
+                throw new InvalidOperationException($"El punto {nodeId} no es alcanzable desde {State.currentNodeId}.");
+
+            MapNode node = State.map.NodeById(nodeId);
+            if (node.type != MapNodeType.Shop)
+                throw new InvalidOperationException($"El punto {nodeId} ({node.type}) no es una tienda.");
+
+            var stock = new ShopStock(_runConfig.shopCardPrice, _runConfig.shopRelicPrice, _runConfig.shopRemovalPrice);
+            stock.cards.AddRange(PickDistinct(new List<CardData>(_catalog.GetPool(State.faction)), _runConfig.shopCardCount));
+            if (_relicPool != null)
+            {
+                var unowned = new List<RelicData>();
+                foreach (RelicData r in _relicPool) if (r != null && !OwnsRelic(r.id)) unowned.Add(r);
+                stock.relics.AddRange(PickDistinct(unowned, _runConfig.shopRelicCount));
+            }
+
+            _shopStock = stock;
+            _pendingShopNodeId = nodeId;
+        }
+
+        /// <summary>Compra una carta del stock: descuenta oro y la suma al mazo de la run.</summary>
+        public void BuyCard(CardData card)
+        {
+            RequireShop();
+            if (card == null || !_shopStock.cards.Contains(card))
+                throw new ArgumentException("La carta no está en la tienda.", nameof(card));
+            if (State.gold < _shopStock.cardPrice)
+                throw new InvalidOperationException("No alcanza el oro.");
+            State.gold -= _shopStock.cardPrice;
+            State.deck.Add(card);
+            _shopStock.cards.Remove(card);
+        }
+
+        /// <summary>Compra una reliquia del stock: descuenta oro y la suma a la run.</summary>
+        public void BuyRelic(RelicData relic)
+        {
+            RequireShop();
+            if (relic == null || !_shopStock.relics.Contains(relic))
+                throw new ArgumentException("La reliquia no está en la tienda.", nameof(relic));
+            if (State.gold < _shopStock.relicPrice)
+                throw new InvalidOperationException("No alcanza el oro.");
+            State.gold -= _shopStock.relicPrice;
+            State.relics.Add(relic);
+            _shopStock.relics.Remove(relic);
+        }
+
+        /// <summary>Paga para quitar una carta del mazo (respeta <see cref="RunConfig.minDeckSize"/>).</summary>
+        public void BuyRemoval(CardData card)
+        {
+            RequireShop();
+            if (card == null || !State.deck.Contains(card))
+                throw new ArgumentException("La carta no está en el mazo.", nameof(card));
+            if (State.gold < _shopStock.removalPrice)
+                throw new InvalidOperationException("No alcanza el oro.");
+            if (State.deck.Count <= _runConfig.minDeckSize)
+                throw new InvalidOperationException($"El mazo está en el mínimo ({_runConfig.minDeckSize}).");
+            State.gold -= _shopStock.removalPrice;
+            State.deck.Remove(card);
+        }
+
+        /// <summary>Cierra la tienda y avanza.</summary>
+        public void LeaveShop()
+        {
+            RequireShop();
+            MapNode node = State.map.NodeById(_pendingShopNodeId);
+            _pendingShopNodeId = -1;
+            _shopStock = null;
+            AdvanceTo(node);
+        }
+
+        private void RequireShop()
+        {
+            if (!ShopInProgress) throw new InvalidOperationException("No hay tienda abierta.");
+        }
+
+        /// <summary>Saca <paramref name="n"/> elementos distintos de <paramref name="src"/> (RNG inyectado);
+        /// muta <paramref name="src"/>. Si hay menos, los devuelve todos.</summary>
+        private List<CardData> PickDistinct(List<CardData> src, int n)
+        {
+            var picked = new List<CardData>();
+            int take = Math.Min(n, src.Count);
+            for (int i = 0; i < take; i++)
+            {
+                int j = _rng.Next(src.Count);
+                picked.Add(src[j]);
+                src.RemoveAt(j);
+            }
+            return picked;
+        }
+
+        private List<RelicData> PickDistinct(List<RelicData> src, int n)
+        {
+            var picked = new List<RelicData>();
+            int take = Math.Min(n, src.Count);
+            for (int i = 0; i < take; i++)
+            {
+                int j = _rng.Next(src.Count);
+                picked.Add(src[j]);
+                src.RemoveAt(j);
+            }
+            return picked;
+        }
+
+        // ── Eventos (spec §17.6): decisión narrativa ────────────────────────────────
+
+        /// <summary>True si hay un evento abierto (bloquea la navegación).</summary>
+        public bool EventInProgress => _pendingEventNodeId >= 0;
+
+        /// <summary>El evento abierto (o <c>null</c> si no hay ninguno).</summary>
+        public EventDefinition CurrentEvent => _pendingEvent;
+
+        /// <summary>Abre el evento del nodo (spec §17.6): elige uno del pool (RNG inyectado) y bloquea la
+        /// navegación hasta <see cref="ResolveEvent"/>. Devuelve el evento para que la presentación lo muestre.</summary>
+        public EventDefinition EnterEvent(int nodeId)
+        {
+            if (State.status != RunStatus.InProgress)
+                throw new InvalidOperationException($"La run no está en curso ({State.status}).");
+            if (_pendingReward != null)
+                throw new InvalidOperationException("Hay una recompensa sin resolver.");
+            if (CombatInProgress)
+                throw new InvalidOperationException("Hay un combate en curso.");
+            if (WorkshopInProgress || ShopInProgress || EventInProgress)
+                throw new InvalidOperationException("Hay otra interacción abierta.");
+            if (!IsAvailable(nodeId))
+                throw new InvalidOperationException($"El punto {nodeId} no es alcanzable desde {State.currentNodeId}.");
+
+            MapNode node = State.map.NodeById(nodeId);
+            if (node.type != MapNodeType.Event)
+                throw new InvalidOperationException($"El punto {nodeId} ({node.type}) no es un evento.");
+            if (_eventPool == null || _eventPool.Count == 0)
+                throw new InvalidOperationException("No hay eventos configurados.");
+
+            _pendingEvent = _eventPool[_rng.Next(_eventPool.Count)];
+            _pendingEventNodeId = nodeId;
+            return _pendingEvent;
+        }
+
+        /// <summary>Aplica la opción elegida del evento abierto y avanza.</summary>
+        public void ResolveEvent(int choiceIndex)
+        {
+            if (!EventInProgress)
+                throw new InvalidOperationException("No hay evento abierto.");
+            if (choiceIndex < 0 || choiceIndex >= _pendingEvent.choices.Count)
+                throw new ArgumentOutOfRangeException(nameof(choiceIndex));
+
+            foreach (EventOutcome o in _pendingEvent.choices[choiceIndex].outcomes)
+                ApplyOutcome(o);
+
+            MapNode node = State.map.NodeById(_pendingEventNodeId);
+            _pendingEvent = null;
+            _pendingEventNodeId = -1;
+            AdvanceTo(node);
+        }
+
+        private void ApplyOutcome(EventOutcome o)
+        {
+            switch (o.kind)
+            {
+                case EventOutcome.Kind.Gold:
+                    State.gold = Math.Max(0, State.gold + o.amount);
+                    break;
+                case EventOutcome.Kind.Relic:
+                    GrantRelic();
+                    break;
+                case EventOutcome.Kind.AddRandomCard:
+                    IReadOnlyList<CardData> pool = _catalog.GetPool(State.faction);
+                    if (pool != null && pool.Count > 0) State.deck.Add(pool[_rng.Next(pool.Count)]);
+                    break;
+            }
         }
 
         // ── Avance del mapa (compartido combate / no-combate, spec §17.1/§17.6) ──────
