@@ -400,10 +400,14 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
     persistente (`BonusResource`/`ExtraStartingUnit`/`InitialStatus`).
   - `RunState` — `map`, `currentNodeId`, `actIndex`, `status`, `deck`, `clearedNodeIds`,
     `usedEncounterIds`, `gold`, `relics`.
-  - `RunManager` — `AvailableNodes` (bloquea con recompensa o taller abierto), `BeginCombat` (arma la IA
-    desde el arquetipo, fallback al default, aplica reliquias), `PickEncounter`, `ResolveCombat`
-    (recompensa + oro), `EnterTreasure`, `EnterWorkshop`/`RemoveCardAndLeave`/`LeaveWorkshop`, `AdvanceTo`,
-    `ChooseReward`/`SkipReward`. `RunConfig` = params (handicap, `rewardCount`, oro, `minDeckSize`).
+  - `RunManager` — `AvailableNodes` (bloquea con recompensa/taller/tienda/evento abierto), `BeginCombat`
+    (arma la IA desde el arquetipo, fallback al default, aplica reliquias), `PickEncounter`, `ResolveCombat`
+    (recompensa + oro + reliquia de élite), `EnterTreasure`/`GrantRelic`, `EnterWorkshop`/`RemoveCardAndLeave`/
+    `LeaveWorkshop`, `EnterShop`/`BuyCard`/`BuyRelic`/`BuyRemoval`/`LeaveShop`, `EnterEvent`/`ResolveEvent`,
+    `AdvanceTo`, `ChooseReward`/`SkipReward`. `RunConfig` = params (handicap, `rewardCount`, oro, `minDeckSize`,
+    precios de tienda).
+  - Libraries de contenido (código): `EncounterLibrary` (arquetipos), `RelicLibrary` (reliquias),
+    `EventLibrary` (eventos) — todas armadas en memoria desde el catálogo.
   - `PlayerSetup` + `GameEngine.StartGame(PlayerSetup, PlayerSetup, firstIndex)` — inyección de mazo +
     handicap + `initialStatuses` (único seam de motor, ver receta abajo).
   - Tests: `RunTests`, `EncounterTests`, `RelicTests`, `MapNodeTypeTests`.
@@ -422,8 +426,16 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
   la run. Pasiva de jefe = pasivas del `leaderUnit` + `aiInitialStatuses`/`playerInitialStatuses`.
 
   **Receta — taller de remoción:** `EnterWorkshop(nodeId)` abre (bloquea navegación); `RemoveCardAndLeave(card)`
-  quita una carta (respeta `RunConfig.minDeckSize`) y avanza; `LeaveWorkshop()` sale sin tocar. Falta su
-  pantalla en presentación + un nodo `Workshop` en `BuildActo1`.
+  quita una carta (respeta `RunConfig.minDeckSize`) y avanza; `LeaveWorkshop()` sale sin tocar.
+
+  **Receta — tienda:** `EnterShop(nodeId)` genera `CurrentShop` (`ShopStock`: cartas + reliquias con
+  precio); `BuyCard`/`BuyRelic`/`BuyRemoval` gastan `State.gold`; `LeaveShop()` avanza. Precios en `RunConfig`.
+
+  **Receta — evento:** agregalo en `EventLibrary.BuildActo1Pool` (`EventDefinition` con `EventChoice`/
+  `EventOutcome` Gold/Relic/AddRandomCard). `EnterEvent(nodeId)` lo abre; `ResolveEvent(choiceIndex)` aplica
+  la opción y avanza.
+
+  ⚠️ Taller/tienda/evento están **Core+tests** pero **sin pantalla ni nodo en `BuildActo1`** (pase de UI pendiente).
 
   **Receta — reliquia:** agregala en `RelicLibrary.BuildPool` (código; `kind` = `BonusResource`/
   `ExtraStartingUnit`/`InitialStatus`) o como asset `RelicData` (menú `PiqueteDefend/Relic`). El pool va al

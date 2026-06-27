@@ -1107,6 +1107,8 @@ duplicados (`RunManager.GrantRelic`/`OwnsRelic`, RNG inyectado).
   assets): por facción Patota/Búnker/Aparato + Jefe. La presentación (`FactionSelectController`) lo pasa al
   `RunManager`.
 - **`RelicData`** (SO, §17.4) + **`RelicLibrary`** (Core): pool de reliquias por facción, en código.
+- **`EventDefinition`** (POCO: título/cuerpo/opciones con `EventOutcome` Gold/Relic/AddRandomCard) +
+  **`EventLibrary`** (Core): pool de eventos del acto, en código.
 - **`RunMap` / `MapNode` / `MapNodeType` / `RunMapLibrary`:** grafo de puntos como **data**. `MapNode` =
   `{ id, type, title, connections, x/y (inertes en Core) }`. Dificultad = distancia (BFS).
   `RunMapLibrary.BuildActo1` arma la Línea A; `BuildDefaultMap` se conserva como fixture de tests.
@@ -1115,9 +1117,12 @@ duplicados (`RunManager.GrantRelic`/`OwnsRelic`, RNG inyectado).
   devuelve un `GameEngine` iniciado), `PickEncounter` (tier + no-repetir, RNG inyectado), `ResolveCombat`
   (gana→recompensa+oro, élite suelta reliquia / jefe→`Won` / pierde→`Lost`), `EnterTreasure` (da reliquia
   del pool o, si se agotó, oro — devuelve `TreasureReward`), `GrantRelic`/`OwnsRelic` (reparto sin repetir),
-  `EnterWorkshop`/`RemoveCardAndLeave`/`LeaveWorkshop` (taller de remoción, respeta `minDeckSize`), `AdvanceTo`
-  (avance único compartido combate / no-combate), `ChooseReward`/`SkipReward`. `RunConfig` = parámetros
-  (handicap, `rewardCount`, oro por combate/élite/tesoro, `minDeckSize`). Lados fijos: humano = índice de su facción.
+  `EnterWorkshop`/`RemoveCardAndLeave`/`LeaveWorkshop` (taller de remoción, respeta `minDeckSize`),
+  `EnterShop`/`BuyCard`/`BuyRelic`/`BuyRemoval`/`LeaveShop` (tienda: stock con RNG + gastar oro),
+  `EnterEvent`/`ResolveEvent` (evento data-driven), `AdvanceTo` (avance único compartido combate /
+  no-combate), `ChooseReward`/`SkipReward`. Las interacciones abiertas (recompensa/taller/tienda/evento)
+  bloquean `AvailableNodes`. `RunConfig` = parámetros (handicap, `rewardCount`, oro, `minDeckSize`, precios
+  de tienda). Lados fijos: humano = índice de su facción.
 - **Seam de motor único:** `PlayerSetup.initialStatuses` (§7.8) — siembra estados al iniciar (ruteo igual
   que `ApplyStatus`: de jugador→`activeStatuses`, por-unidad→unidades desplegadas). Lo usan reliquias y la
   pasiva de jefe. Todo lo demás se materializa en `PlayerSetup`/`RunState` sin tocar el resolutor.
@@ -1125,9 +1130,10 @@ duplicados (`RunManager.GrantRelic`/`OwnsRelic`, RNG inyectado).
 
 ### 17.6 Puntos de extensión (resumen)
 
-- **Pasos 8-9 (Core):** `Workshop` (remoción ✅ Core, falta pantalla + nodo en el mapa), `Shop` (stock con
-  RNG + gastar oro), `Event` (`EventDefinition` data-driven), `Mystery` (resuelve a otro tipo); **upgrade de
-  cartas** (`RunCardEntry` + `RunCardFactory`, migra `RunState.deck`).
+- **Paso 8 (Core):** ✅ `Workshop` (remoción), ✅ `Shop` (cartas/reliquias/remoción con oro), ✅ `Event`
+  (data-driven) — **todos Core+tests; falta su pantalla + meter los nodos en `BuildActo1`**. Pendiente:
+  `Mystery` (resuelve a otro tipo). **Paso 9:** **upgrade de cartas** (`RunCardEntry` + `RunCardFactory`,
+  migra `RunState.deck`).
 - **Reliquias:** ✅ jugables (`RelicLibrary` + reparto por tesoro/élite + HUD placeholder). Falta darlas
   también en tienda y un set más grande con flavor.
 - **Presentación pendiente:** pantallas de taller/tienda/evento, **sprites** de reliquias (hoy chips con
