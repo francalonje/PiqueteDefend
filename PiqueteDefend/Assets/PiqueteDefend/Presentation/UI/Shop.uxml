@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="root" class="screen screen--shop">
+        <Style src="Common.uss" />
+        <Style src="Game.uss" />
+        <Style src="RunScreens.uss" />
+        <ui:VisualElement name="bg" class="scene-bg" picking-mode="Ignore" />
+        <ui:VisualElement class="run-panel">
+            <ui:VisualElement class="run-panel__header">
+                <ui:VisualElement class="run-panel__titles">
+                    <ui:Label text="Tienda" class="run-panel__title" />
+                    <ui:Label class="run-panel__subtitle"
+                              text="Gastá tu oro: cartas, reliquias o sacar una carta del mazo." />
+                </ui:VisualElement>
+                <ui:Label name="shop-gold" class="run-panel__gold" text="Oro: 0" />
+            </ui:VisualElement>
+            <ui:ScrollView name="shop-body" class="run-scroll" />
+            <ui:VisualElement class="run-footer">
+                <ui:Button name="shop-leave" text="Salir de la tienda" class="btn" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -1130,16 +1130,15 @@ duplicados (`RunManager.GrantRelic`/`OwnsRelic`, RNG inyectado).
 
 ### 17.6 Puntos de extensión (resumen)
 
-- **Paso 8 (Core):** ✅ `Workshop` (remoción), ✅ `Shop` (cartas/reliquias/remoción con oro), ✅ `Event`
-  (data-driven) — **todos Core+tests; falta su pantalla + meter los nodos en `BuildActo1`**. Pendiente:
-  `Mystery` (resuelve a otro tipo). **Paso 9:** **upgrade de cartas** (`RunCardEntry` + `RunCardFactory`,
-  migra `RunState.deck`).
-- **Reliquias:** ✅ jugables (`RelicLibrary` + reparto por tesoro/élite + HUD placeholder). Falta darlas
-  también en tienda y un set más grande con flavor.
-- **Presentación pendiente:** pantallas de taller/tienda/evento, **sprites** de reliquias (hoy chips con
-  nombre), estilos USS de los tipos de nodo, estética del subte. Ya wireado: `FactionSelectController`
-  (BuildActo1 + pools de arquetipos y reliquias) y `MapController`
-  (dispatch de tesoro, HUD de oro + reliquias placeholder, toast de recompensa, clases por tipo).
+- **Paso 8:** ✅ `Workshop`/`Shop`/`Event` — Core+tests **y pantallas** (escenas Workshop/Shop/Event +
+  `RunScreens.uss`), wireadas desde `MapController` y presentes en `BuildActo1`. La tienda también vende
+  reliquias. Pendiente: `Mystery` (resuelve a otro tipo). **Paso 9:** **upgrade de cartas** (`RunCardEntry`
+  + `RunCardFactory`, migra `RunState.deck`).
+- **Reliquias:** ✅ jugables (`RelicLibrary` + reparto por tesoro/élite/tienda + **HUD en combate y mapa**,
+  placeholder). Falta un set más grande con flavor.
+- **Presentación:** ✅ pantallas de taller/tienda/evento; HUD de reliquias en combate y mapa; `BuildActo1`
+  usa todos los tipos de nodo. **Pendiente:** **sprites** (íconos de tipo de nodo, reliquias, oro — hoy
+  texto/placeholder), estilos USS de los nodos del mapa, estética del subte.
 - **Diferidos (paso 10):** **consumibles** (carta con flag `consumable`), **`AiProfile`** activo (estilos
   de IA por arquetipo), **`ICombatRule`** (hooks dinámicos de reliquia/boss), **generación procedural** de
   mapa, **meta-progresión** entre runs, **armado de mazo pre-run**, **3ª facción**.

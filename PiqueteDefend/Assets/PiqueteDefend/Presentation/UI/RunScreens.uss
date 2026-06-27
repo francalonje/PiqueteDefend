@@ -1,0 +1,159 @@
+/* Estilos compartidos por las pantallas de nodo de la run (taller / tienda / evento, spec §17.6).
+   Layout coherente: panel central translúcido sobre el fondo, header (título + contexto + oro),
+   cuerpo scrolleable con grilla de items, footer con la acción de salida. Reusa .btn (Common.uss)
+   y el visual de carta .card (Game.uss). */
+
+.run-panel {
+    width: 92%;
+    max-width: 1040px;
+    max-height: 90%;
+    padding: 22px 28px;
+    background-color: rgba(18, 20, 26, 0.88);
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.06);
+    align-items: stretch;
+}
+
+.run-panel__header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 4px;
+}
+
+.run-panel__titles { flex-direction: column; }
+
+.run-panel__title {
+    font-size: 30px;
+    -unity-font-style: bold;
+    color: rgb(235, 237, 242);
+}
+
+.run-panel__subtitle {
+    font-size: 16px;
+    color: rgb(170, 176, 190);
+    margin-top: 2px;
+    white-space: normal;
+}
+
+/* Indicador de oro (arriba a la derecha del panel). */
+.run-panel__gold {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: rgb(255, 217, 64);
+    margin-left: 16px;
+    flex-shrink: 0;
+}
+
+.run-scroll {
+    flex-grow: 1;
+    margin-top: 14px;
+    margin-bottom: 12px;
+}
+
+/* Grilla de items (cartas/reliquias) que envuelve. */
+.run-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.run-section-title {
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: rgb(200, 205, 216);
+    margin-top: 12px;
+    margin-bottom: 4px;
+}
+
+.run-empty {
+    font-size: 15px;
+    color: rgb(140, 146, 160);
+    -unity-font-style: italic;
+    margin: 6px 0;
+}
+
+.run-footer {
+    flex-direction: row;
+    justify-content: center;
+    margin-top: 4px;
+}
+
+/* Item comprable/accionable: el visual (carta o reliquia) + su botón debajo. */
+.shop-item {
+    flex-direction: column;
+    align-items: center;
+    margin: 10px 12px;
+}
+
+.shop-item__action {
+    margin-top: 8px;
+    min-width: 150px;
+    height: 40px;
+    font-size: 16px;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.shop-item--sold { opacity: 0.3; }
+
+/* Tarjeta de reliquia (placeholder hasta tener sprites): mismo gálibo que una carta. */
+.relic-card {
+    width: 150px;
+    height: 210px;
+    padding: 12px;
+    border-radius: 12px;
+    background-color: rgb(40, 36, 22);
+    border-width: 2px;
+    border-color: rgb(120, 96, 32);
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.relic-card__badge {
+    font-size: 12px;
+    -unity-font-style: bold;
+    color: rgb(20, 18, 10);
+    background-color: rgb(255, 217, 64);
+    border-radius: 6px;
+    padding: 1px 8px;
+    margin-bottom: 8px;
+}
+
+.relic-card__name {
+    font-size: 17px;
+    -unity-font-style: bold;
+    color: rgb(255, 224, 130);
+    -unity-text-align: middle-center;
+    white-space: normal;
+    margin-bottom: 8px;
+}
+
+.relic-card__desc {
+    font-size: 13px;
+    color: rgb(206, 200, 178);
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+
+/* Evento: cuerpo de texto y opciones. */
+.event-body {
+    font-size: 18px;
+    color: rgb(210, 214, 224);
+    white-space: normal;
+    margin: 12px 0 20px 0;
+    -unity-text-align: middle-center;
+}
+
+.event-choices { align-items: center; }
+
+.event-choice {
+    width: 560px;
+    max-width: 90%;
+    height: 56px;
+    margin: 6px 0;
+    white-space: normal;
+    font-size: 17px;
+}

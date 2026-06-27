@@ -450,9 +450,18 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
   **Receta — handicap / oro:** `RunConfig` (`aiResourceBonusPerLevel`, `bossExtraStartingUnits`,
   `combatGoldReward`/`eliteGoldReward`/`treasureGoldReward`). No son reglas de combate.
 
-  **[EXTENSIÓN, pasos 8-10] tienda / taller / evento / upgrade / consumibles:** ver §17.6 del spec.
-- **Presentación (Fase 4 — HECHO):** escenas `Map` (`MapController`, mapa 2D por `x/y`) y `Reward`
-  (`RewardController`, 1-de-3 reusando `GameController.BuildCardVisual`). `MainMenu` con 2 modos +
+  **Pantallas de nodo (taller/tienda/evento):** patrón de `RewardController` — `XController` +
+  `X.uxml` (referencia `Common.uss`/`Game.uss`/`RunScreens.uss`) + alta en `SceneSetup.BuildScene` +
+  build settings + dispatch en `MapController.TryGetNodeAction`. El controller arma el contenido en runtime
+  (reusa `GameController.BuildCardVisual`); abre la interacción en el Core ANTES de `LoadScene` y al
+  cerrar llama `Leave/Resolve` + vuelve a `Map`. ⚠️ Tras crear/editar escenas correr `PiqueteDefend →
+  Setup UI Scenes` (regenera las escenas; revertir el churn benigno de las existentes).
+
+  **[EXTENSIÓN, paso 9-10] upgrade / consumibles / Mystery:** ver §17.6 del spec.
+- **Presentación (HECHO):** escenas `Map`/`Reward`/`Workshop`/`Shop`/`Event` + `Game`. `MapController`
+  (mapa 2D por `x/y`, dispatch por tipo de nodo, HUD de oro + reliquias). `RewardController` (1-de-3).
+  `Workshop/Shop/EventController` (nodos no-combate, `RunScreens.uss`). `GameController` muestra el **HUD
+  de reliquias del humano** en combate. `MainMenu` con 2 modos +
   Ajustes(disabled)/Salir. `RunSession` (estático) mantiene el `RunManager` y el engine prearmado entre
   escenas. `GameController`: en modo run consume el engine de `RunSession`, autojugando el índice
   `RunManager.AiIndex` con `HeuristicAiController` (loop `NextAction→Execute→Render→delay→EndTurn`, input

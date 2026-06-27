@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="root" class="screen screen--event">
+        <Style src="Common.uss" />
+        <Style src="Game.uss" />
+        <Style src="RunScreens.uss" />
+        <ui:VisualElement name="bg" class="scene-bg" picking-mode="Ignore" />
+        <ui:VisualElement class="run-panel">
+            <ui:VisualElement class="run-panel__header">
+                <ui:VisualElement class="run-panel__titles">
+                    <ui:Label name="ev-title" class="run-panel__title" text="Evento" />
+                </ui:VisualElement>
+                <ui:Label name="ev-gold" class="run-panel__gold" text="Oro: 0" />
+            </ui:VisualElement>
+            <ui:Label name="ev-body" class="event-body" text="" />
+            <ui:VisualElement name="ev-choices" class="event-choices" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

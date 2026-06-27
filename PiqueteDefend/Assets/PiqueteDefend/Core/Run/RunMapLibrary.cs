@@ -15,7 +15,7 @@ namespace PiqueteDefend.Core
 
         // Ids del acto 1 (Línea A del subte). Estables para presentación/tests.
         public const int Acto1StartId = 0;
-        public const int Acto1BossId = 6;
+        public const int Acto1BossId = 9;
 
         /// <summary>
         /// Mapa default: grafo de puntos a elección con bifurcaciones (no carriles, spec §17.1).
@@ -65,19 +65,18 @@ namespace PiqueteDefend.Core
 
         /// <summary>
         /// Acto 1 = <b>Línea A del subte</b> (spec §17.6), de Primera Junta (el barrio) hasta Plaza de
-        /// Mayo / Casa Rosada (cabecera = jefe). Mezcla tipos de nodo para ejercitar todo el loop:
-        /// combates con arquetipos curados, un tesoro y una élite en ramas paralelas, y el jefe al final.
+        /// Mayo / Casa Rosada (cabecera = jefe). Mezcla TODOS los tipos de nodo en anillos por distancia,
+        /// con ramas paralelas para que la ruta sea una decisión. El taller cae sobre todas las rutas.
         /// <code>
         ///   START Primera Junta (d0) → 1, 2
-        ///   1 Combat  Plaza Miserere (d1) → 3
-        ///   2 Combat  Congreso       (d1) → 3, 4
-        ///   3 Treasure Sáenz Peña    (d2) → 5
-        ///   4 Elite    Lima          (d2) → 5
-        ///   5 Combat   Perú          (d3) → BOSS
-        ///   BOSS Plaza de Mayo       (d4)
+        ///   d1: 1 Combat Acoyte → 3,4   · 2 Combat Río de Janeiro → 4,5
+        ///   d2: 3 Treasure Castro Barros → 6 · 4 Event Loria → 6,7 · 5 Shop Plaza Miserere → 7
+        ///   d3: 6 Combat Congreso → 8   · 7 Elite Sáenz Peña → 8
+        ///   d4: 8 Workshop Lima → BOSS
+        ///   d5: BOSS Plaza de Mayo
         /// </code>
-        /// Cada pasada pelea 3-4 veces según la ruta (rama del tesoro vs rama de la élite). El modelo
-        /// soporta multi-acto sin rediseño: ver <see cref="RunState.actIndex"/>. <b>Rough, a iterar por
+        /// Cada pasada pelea 3 veces (2 combates/élite + jefe) y pasa por 1-2 nodos no-combate + el taller.
+        /// Soporta multi-acto sin rediseño: ver <see cref="RunState.actIndex"/>. <b>Rough, a iterar por
         /// playtest</b> ([[feedback-playtest-driven]]).
         /// </summary>
         public static RunMap BuildActo1()
@@ -88,15 +87,24 @@ namespace PiqueteDefend.Core
                 new MapNode(Acto1StartId, MapNodeType.Start, "Primera Junta", 0.02f, 0.50f)
                     .ConnectTo(1, 2),
 
-                new MapNode(1, MapNodeType.Combat,   "Plaza Miserere", 0.25f, 0.72f).ConnectTo(3),
-                new MapNode(2, MapNodeType.Combat,   "Congreso",       0.25f, 0.28f).ConnectTo(3, 4),
+                // Anillo 1 (d1) — la calle se calienta.
+                new MapNode(1, MapNodeType.Combat,   "Acoyte",         0.18f, 0.70f).ConnectTo(3, 4),
+                new MapNode(2, MapNodeType.Combat,   "Río de Janeiro", 0.18f, 0.30f).ConnectTo(4, 5),
 
-                new MapNode(3, MapNodeType.Treasure, "Sáenz Peña",     0.50f, 0.72f).ConnectTo(5),
-                new MapNode(4, MapNodeType.Elite,    "Lima",           0.50f, 0.28f).ConnectTo(5),
+                // Anillo 2 (d2) — variedad: tesoro / evento / tienda.
+                new MapNode(3, MapNodeType.Treasure, "Castro Barros",  0.36f, 0.82f).ConnectTo(6),
+                new MapNode(4, MapNodeType.Event,    "Loria",          0.36f, 0.50f).ConnectTo(6, 7),
+                new MapNode(5, MapNodeType.Shop,     "Plaza Miserere", 0.36f, 0.18f).ConnectTo(7),
 
-                new MapNode(5, MapNodeType.Combat,   "Perú",           0.74f, 0.50f).ConnectTo(Acto1BossId),
+                // Anillo 3 (d3) — el centro pega más fuerte.
+                new MapNode(6, MapNodeType.Combat,   "Congreso",       0.56f, 0.66f).ConnectTo(8),
+                new MapNode(7, MapNodeType.Elite,    "Sáenz Peña",     0.56f, 0.34f).ConnectTo(8),
 
-                new MapNode(Acto1BossId, MapNodeType.Boss, "Plaza de Mayo", 0.97f, 0.50f),
+                // Anillo 4 (d4) — taller antes de la cabecera (sobre toda ruta).
+                new MapNode(8, MapNodeType.Workshop, "Lima",           0.76f, 0.50f).ConnectTo(Acto1BossId),
+
+                // Jefe (d5) — el final.
+                new MapNode(Acto1BossId, MapNodeType.Boss, "Plaza de Mayo", 0.96f, 0.50f),
             };
 
             return new RunMap(nodes, Acto1StartId);

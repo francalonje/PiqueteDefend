@@ -79,6 +79,7 @@ namespace PiqueteDefend.Presentation
         private readonly Label[] _faction = new Label[2];
         private readonly Label[] _res = new Label[2];
         private readonly Label[] _status = new Label[2];
+        private VisualElement _relicsRow;   // HUD de reliquias del humano (sólo en run, spec §17.4)
 
         private void OnEnable()
         {
@@ -171,6 +172,21 @@ namespace PiqueteDefend.Presentation
             _faction[0] = root.Q<Label>("p0-faction"); _faction[1] = root.Q<Label>("p1-faction");
             _res[0] = root.Q<Label>("p0-res"); _res[1] = root.Q<Label>("p1-res");
             _status[0] = root.Q<Label>("p0-status"); _status[1] = root.Q<Label>("p1-status");
+
+            // HUD de reliquias (sólo en run, spec §17.4): fila de chips en el panel del jugador humano.
+            // Placeholder por ahora (chips con nombre+tooltip); los sprites van cuando estén.
+            if (RunSession.IsActive)
+            {
+                VisualElement panel = _status[RunSession.Manager.HumanIndex]?.parent;
+                if (panel != null)
+                {
+                    _relicsRow = new VisualElement { name = "relics-row" };
+                    _relicsRow.style.flexDirection = FlexDirection.Row;
+                    _relicsRow.style.flexWrap = Wrap.Wrap;
+                    _relicsRow.style.marginTop = 2;
+                    panel.Add(_relicsRow);
+                }
+            }
         }
 
         private void BuildPopover()
@@ -789,6 +805,7 @@ namespace PiqueteDefend.Presentation
             _endTurnButton.text = "Terminar turno";
             RenderPanel(0);
             RenderPanel(1);
+            RenderRelics();
             RenderSlots();
             RenderHand();
             if (_animAttackerIdx >= 0) ApplyPendingAnimations();
@@ -841,6 +858,29 @@ namespace PiqueteDefend.Presentation
             _faction[index].text = (active ? "▶ " : "") + Display(p.faction);
             _res[index].text = $"$ {p.dinero}   ⚡ {p.fuerza}   📣 {p.social}";
             _status[index].text = StatusText(p);
+        }
+
+        /// <summary>Reliquias activas de la run en el panel del humano (spec §17.4). Placeholder: chips
+        /// con nombre + tooltip; el sprite se enchufa después. Da affordance in-game de qué reliquias
+        /// pesan en el combate (su efecto ya se aplicó al iniciar vía <see cref="PlayerSetup"/>).</summary>
+        private void RenderRelics()
+        {
+            if (_relicsRow == null || !RunSession.IsActive) return;
+            _relicsRow.Clear();
+            foreach (RelicData relic in RunSession.Manager.State.relics)
+            {
+                if (relic == null) continue;
+                var chip = new Label(relic.relicName) { tooltip = $"{relic.relicName}\n{relic.description}" };
+                chip.style.marginRight = 4;
+                chip.style.paddingLeft = 5; chip.style.paddingRight = 5;
+                chip.style.paddingTop = 1; chip.style.paddingBottom = 1;
+                chip.style.fontSize = 11;
+                chip.style.color = new Color(1f, 0.85f, 0.25f);
+                chip.style.backgroundColor = new Color(0.15f, 0.12f, 0.05f, 0.9f);
+                chip.style.borderTopLeftRadius = 3; chip.style.borderTopRightRadius = 3;
+                chip.style.borderBottomLeftRadius = 3; chip.style.borderBottomRightRadius = 3;
+                _relicsRow.Add(chip);
+            }
         }
 
         private void RenderSlots()
