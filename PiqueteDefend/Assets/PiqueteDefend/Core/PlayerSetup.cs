@@ -39,6 +39,17 @@ namespace PiqueteDefend.Core
         public int bonusFuerza;
         public int bonusSocial;
 
+        /// <summary>
+        /// Estados sembrados al iniciar la partida (spec §17.4). Punto de inyección genérico para
+        /// <b>pasivas de combate de jefe</b> y <b>reliquias tipo-status</b> (spec §17.4) sin tocar el
+        /// resolutor de efectos: el motor los siembra en <see cref="GameEngine.NewPlayer"/> tras
+        /// desplegar las unidades iniciales. Se rutean igual que <c>ApplyStatus</c>
+        /// (<see cref="StatusEffect.IsPlayerStatus"/>): los de jugador (producción) van al
+        /// <c>activeStatuses</c> del jugador; los por-unidad (Furia/Desmoralizar/Veneno/Aturdir) se
+        /// aplican a todas las unidades iniciales desplegadas. <c>null</c> = ninguno (idéntico a la base).
+        /// </summary>
+        public IReadOnlyList<StatusEffect> initialStatuses;
+
         public PlayerSetup(Faction faction) => this.faction = faction;
 
         /// <summary>Setup base: facción pura, todo lo demás por default (idéntico a 2-jugadores).</summary>

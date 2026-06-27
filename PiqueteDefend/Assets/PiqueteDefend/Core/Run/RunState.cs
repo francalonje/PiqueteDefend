@@ -29,6 +29,12 @@ namespace PiqueteDefend.Core
 
         public RunStatus status = RunStatus.InProgress;
 
+        /// <summary>Acto actual (spec §17.6): el acto 1 (Línea A del subte) es 0. Seam de multi-acto:
+        /// al vencer el jefe de un acto que NO es el último, en vez de ganar la run se incrementa
+        /// <see cref="actIndex"/> y se carga el mapa del próximo acto (línea del subte). Hoy hay un solo
+        /// acto, así que vencer al jefe gana la run.</summary>
+        public int actIndex;
+
         /// <summary>
         /// Mazo persistente de la run (spec §17.2/§17.3): arranca como el starter de la facción y
         /// crece con las recompensas (1-de-3). Se inyecta en el motor al iniciar cada combate
@@ -41,11 +47,18 @@ namespace PiqueteDefend.Core
         /// (spec §17.1): el camino recorrido.</summary>
         public readonly HashSet<int> clearedNodeIds = new HashSet<int>();
 
-        // ── [EXTENSIÓN, spec §17.4] Reliquias ────────────────────────────────────
-        // Las reliquias persistentes de la run van acá como List<RelicData> (lista, no campos
-        // sueltos — [[feedback-buenas-practicas]]) cuando se implementen. La capa de run las
-        // traducirá a bonos de PlayerSetup del humano (mismo seam que el handicap de la IA), sin
-        // tocar el motor. Diferidas a propósito (decisión 2026-06-26): este MVP no las usa.
+        /// <summary>Arquetipos de enemigo ya enfrentados (ids), para no repetir dentro de la run
+        /// (spec §17.6). El pool los excluye al sortear el próximo combate.</summary>
+        public readonly HashSet<string> usedEncounterIds = new HashSet<string>();
+
+        /// <summary>Oro de la run (spec §17.6): economía meta — se gana en combates/eventos y se gasta
+        /// en la tienda. NO es un <see cref="ResourceType"/> de combate; el motor no lo conoce.</summary>
+        public int gold;
+
+        /// <summary>Reliquias persistentes de la run (spec §17.4/§17.6): modificadores pasivos que
+        /// duran toda la run. <see cref="RunManager"/> las traduce a bonos del <see cref="PlayerSetup"/>
+        /// del humano al iniciar cada combate (mismo seam que el handicap de la IA), sin tocar el motor.</summary>
+        public readonly List<RelicData> relics = new List<RelicData>();
 
         public RunState(RunMap map, Faction faction)
         {

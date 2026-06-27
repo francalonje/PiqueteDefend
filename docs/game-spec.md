@@ -573,7 +573,7 @@ Vive en `activeStatuses` de un **jugador** (estados de producción) o de una **u
 
 **`IPlayerController` (PLANIFICADO — single-player, §17):** abstracción de "controlador de jugador" (impl `Human` y `AI`) para que el motor consulte las acciones del turno sin conocer la escena. Habilita IA y, a futuro, multijugador online, sin modificar `GameEngine`. La IA porta la heurística de `sim/policy.py` (§16) adaptada al turno multi-acción.
 
-**Deckbuilding (IMPLEMENTADO — single-player, §17):** vía `PlayerSetup.deck` + `StartGame(PlayerSetup, PlayerSetup, firstIndex)` el motor recibe el **mazo del jugador** inyectado (mazo de la run) en vez de derivarlo de la facción. Con `PlayerSetup.ForFaction` cae al mazo del catálogo (hotseat). `PlayerSetup` también lleva los handicaps de dificultad (recursos/unidades iniciales extra, §17.1). Punto de extensión para mazos configurables (tienda, armado pre-run).
+**Deckbuilding (IMPLEMENTADO — single-player, §17):** vía `PlayerSetup.deck` + `StartGame(PlayerSetup, PlayerSetup, firstIndex)` el motor recibe el **mazo del jugador** inyectado (mazo de la run) en vez de derivarlo de la facción. Con `PlayerSetup.ForFaction` cae al mazo del catálogo (hotseat). `PlayerSetup` también lleva los handicaps de dificultad (recursos/unidades iniciales extra, §17.1) y `initialStatuses` (estados sembrados al iniciar — único seam de motor para reliquias y pasivas de jefe, §17.4/§17.5; ruteo igual que `ApplyStatus`: de jugador→`activeStatuses`, por-unidad→unidades desplegadas). Punto de inyección para arquetipos de enemigo, reliquias y mazos configurables (tienda, armado pre-run).
 
 ---
 
@@ -1020,98 +1020,102 @@ progresión, inspirada en Slay the Spire (progresión + recompensas) y The King 
 Reusa íntegro el motor de combate (§6) — el rival lo controla la **IA** (§16, vía `IPlayerController`,
 §7.8). El hotseat 2-jugadores comparte el mismo motor.
 
-> **Estado:** diseño aprobado; **run jugable end-to-end** — capa de `Core` (Fase 3: `RunState`/`RunManager`/
-> `RunMap` + inyección del mazo y handicap de IA por distancia) + **presentación (Fase 4)**: menú de 2
-> modos, pantalla de **mapa 2D**, **recompensa 1-de-3**, combate con **turno de IA** (delays + input
-> bloqueado) y **menú de pausa**. Pendiente: pulido por playtest (feel) y el diorama 3D del mapa. Esta
-> sección es la fuente de verdad del modo. Toma de StS las **recompensas de carta** y el **permadeath**, pero el
-> **mapa NO es por carriles**: es de **puntos a elección con dificultad por distancia** (§17.1).
-> Valores concretos (largo de run, nº de puntos, handicap) son **rough, a iterar por playtest** ([[feedback-playtest-driven]]).
+> **Estado:** diseño aprobado (sesión 2026-06-27); **base de Core extendida e implementada** (pasos 1-7
+> del plan, **95/95 tests EditMode verde**): arquetipos de enemigo, oro, tipos de nodo + tesoro/élite,
+> reliquias, boss data-driven y el **acto 1 = Línea A del subte**. **Pendiente:** wirear la presentación
+> a esta base nueva (hoy la presentación de Fase 4 corría el mapa default de combates), crear el
+> **contenido** (assets de arquetipos/reliquias/boss) y los pasos 8-10 (tienda/taller/evento, upgrade,
+> consumibles). Esta sección es la fuente de verdad del modo. **Mapa NO por carriles**: puntos a elección
+> con dificultad por distancia (§17.1). Valores = **rough, a iterar por playtest** ([[feedback-playtest-driven]]).
 
 ### 17.1 Objetivo y estructura
 
-- **Mapa de PUNTOS a elección (NO tipo Slay the Spire / no carriles):** puntos temáticos repartidos
-  en el mapa; el jugador **elige a qué punto ir** entre los disponibles. Cada punto se visita **una
-  sola vez** (sin revisitar/backtracking; elegir una ruta **saltea** otros puntos).
-- **Dificultad por distancia:** **cuanto más lejos del punto inicial, más difícil** el combate. La
-  distancia al inicio = **saltos por el camino** (BFS sobre las conexiones) es el dial de dificultad.
-  **Palanca concreta (Fase 3):** la IA recibe un **handicap escalado por distancia** —
-  `RunConfig.aiResourceBonusPerLevel` (default **+2** a cada recurso inicial por nivel de distancia:
-  d1→+2, d2→+4, d3→+6) y, en el jefe, `bossExtraStartingUnits` (default **+1** unidad inicial extra).
-  El humano **no** recibe handicap. Se inyecta vía `PlayerSetup` (§17.5), sin tocar las reglas de combate.
-- **MVP = sólo puntos de COMBATE.** Puntos-**tienda** y puntos-**encuentro** quedan como **punto de
-  extensión post-MVP** (no se implementan ahora; §17.4/§17.6). Tipo de punto = **data**, extensible.
-- **Objetivo de la run (Fase 3):** llegar al extremo del mapa = **vencer el combate del punto-jefe**
-  (el más lejano, tipo `Boss`) → `RunState.status = Won`. El grafo es de **puntos con caminos explícitos
-  y bifurcaciones** — un DAG dirigido "hacia adelante", **no carriles**: desde el punto actual se avanza
-  a **uno de sus sucesores** y la ruta no tomada queda atrás (una sola pasada). **Mapa default del MVP**
-  (`RunMapLibrary.BuildDefaultMap`): inicio → 3 anillos de combate (jefe incluido) = **~3 combates por
-  run**, 2-3 puntos por anillo (elección de ruta). Forma, tamaño y conexiones = **data, rough, iterables**.
-  El jefe especial con reglas propias queda como **extensión** (hoy `Boss` = combate más difícil).
-- **Derrota = fin de la run** (permadeath roguelike): perder un combate corta la run y se vuelve a
-  empezar. (Meta-desbloqueos entre runs = extensión futura, §17.4.)
-- **Temática:** los puntos tienen identidad argenta (p. ej. *el barrio → el centro → la Casa Rosada*),
-  pero la estructura es de puntos elegibles, no de etapas lineales.
+- **Mapa = SUBTE de Buenos Aires** (decisión 2026-06-27): **línea = acto**, **estación = nodo**,
+  **transbordo/combinación = bifurcación** entre ramas (y puente entre actos cuando haya multi-acto). El
+  jugador **elige a qué estación ir** entre las disponibles; cada estación se visita **una sola vez**
+  (elegir una ruta **saltea** las hermanas). **Multi-acto eventual**; hoy **un acto**.
+- **Acto 1 = Línea A** (`RunMapLibrary.BuildActo1`): de **Primera Junta** (el barrio) a **Plaza de Mayo /
+  Casa Rosada** (cabecera = jefe). 7 estaciones: 3 combates + 1 **tesoro** + 1 **élite** + boss, con ramas
+  paralelas → **3-4 peleas por pasada** según ruta. Forma/tamaño = **data, rough, iterable**.
+- **Variedad por ARQUETIPOS de enemigo curados** (`EncounterDefinition`, §17.5): cada combate enfrenta un
+  arquetipo (mazo + unidades iniciales + handicap propio + estilo) sorteado de un pool **sin repetir** en la
+  run (`RunState.usedEncounterIds`). Reemplaza el viejo "mazo default opuesto + handicap" (que queda como
+  **fallback** si no hay pool). La variedad viene del enemigo, no de subir un número.
+- **Dificultad por distancia:** más lejos del inicio = más difícil. Distancia = **saltos** (BFS). La IA
+  recibe un **handicap escalado por distancia** (`RunConfig.aiResourceBonusPerLevel`, default +2/nivel)
+  que **se suma** al bonus propio del arquetipo. El humano **no** recibe handicap (salvo reliquias, §17.4).
+- **Tipos de nodo** (`MapNodeType`, todos **data**): `Combat`, `Elite` (combate más duro, mejor paga),
+  `Boss` (cabecera), `Shop` (tienda), `Event` (decisión), `Workshop` (taller: upgrade/remoción),
+  `Treasure` (oro/reliquia), `Mystery` (resultado oculto). **Implementados en Core:** Combat/Elite/Boss
+  (camino de combate) y Treasure (atómico, otorga oro). Shop/Event/Workshop/Mystery = pasos 8/10.
+- **Objetivo de la run:** vencer el combate del **jefe** (cabecera de línea, tipo `Boss`) →
+  `RunState.status = Won`. **[Seam multi-acto]** con varios actos, vencer un jefe que no es el último
+  incrementa `RunState.actIndex` y carga el mapa del próximo acto en vez de ganar (hoy: un acto = Won).
+- **Derrota = fin de la run** (permadeath): perder o empatar corta la run.
 
-### 17.2 Mazo de la run (deckbuilding)
+### 17.2 Mazo de la run y deckbuilding
 
-- Se arranca con un **mazo starter fijo** (las "cartas default" de la facción del jugador).
-- Tras **ganar** un combate, el jugador elige **1 de 3** cartas ofrecidas (card reward) para sumarla
-  al mazo. El mazo **evoluciona** durante la run.
-- El **mazo de la run es estado persistente** y se **inyecta en el motor** al iniciar cada combate
-  (el combate roba de él, §8.1), en vez de derivarlo de la facción. Es el punto de inyección de
-  deckbuilding del §7.8.
-- **Puntos de extensión (no en la primera versión):** **tienda** (comprar/quitar cartas) y **armado
-  de mazo pre-run** (elegir el starter en vez del fijo). El modelo debe dejar el hueco para ambos.
+- Se arranca con un **mazo starter** de la facción (hoy el default; **starter chico** = afinado de
+  contenido). Crece con recompensas **1-de-3** tras cada combate. El mazo es **estado persistente** y se
+  **inyecta en el motor** al iniciar cada combate (§8.1/§7.8).
+- **Capas de profundidad acordadas** (2026-06-27): **reliquias** (§17.4, ✅), **mejora de cartas**
+  (upgrade), **remoción de cartas**, **consumibles** (un uso), y **economía de oro + tienda**.
+  **Implementado:** oro (`RunState.gold`, se gana en combate/élite/tesoro). **Pendiente (pasos 8-9):**
+  upgrade (`RunState.deck` pasa a `List<RunCardEntry>` + `RunCardFactory.Materialize`, migración aislada),
+  remoción (trivial sobre `deck`, con mínimo de mazo), tienda y consumibles (carta con flag `consumable`).
 
 ### 17.3 Persistencia entre combates
 
-- **Persisten:** el **mazo** (evolucionado) y las **reliquias** (§17.4).
-- **Se reinicia cada combate:** el **tablero** (unidades iniciales de nuevo), los **recursos**, los
-  **estados** y la **mano** (se roba fresca del mazo). Encaja con que no hay HP global (§4): no hay un
-  "HP de personaje" que arrastrar entre peleas; lo que progresa es el mazo + las reliquias.
+- **Reset total de vida** (decisión 2026-06-27): el **tablero**, **recursos**, **estados** y **mano** se
+  reinician cada combate (sin atrición de vida — no hay HP global, §4). La tensión de la run viene del
+  **mazo + oro + reliquias**, no de la vida; por eso el "descanso/curación" se reemplaza por el **taller
+  de mazo** (`Workshop`).
+- **Persisten:** el **mazo** (evolucionado), las **reliquias** (§17.4), el **oro** y el progreso del mapa.
 
-### 17.4 Reliquias
+### 17.4 Reliquias (implementadas)
 
-Power-ups **persistentes** durante la run que **tuercen la estrategia** (estilo StS). Se modelan como
-**pasivas que enganchan eventos del motor** (inicio de turno, al jugar carta, al matar, etc.), data y
-extensibles (un puñado simple en la primera versión). Punto de extensión: cómo se obtienen
-(recompensa de élite/jefe, tienda). El sistema debe nacer **extensible** (lista de reliquias activas
-en el `RunState`, no campos sueltos), alineado con [[feedback-buenas-practicas]].
+Modificadores **persistentes** de la run (`RelicData`, ScriptableObject) que se traducen a bonos del
+`PlayerSetup` del humano al iniciar cada combate — **el mismo seam que el handicap de la IA, sin tocar el
+motor**. `RunState.relics` = lista (no campos sueltos, [[feedback-buenas-practicas]]). `RunManager.ApplyRelics`
+las vuelca acumulando sobre lo que ya traiga el setup (ej. una pasiva de jefe). Tipos (`RelicEffectKind`):
+- **`BonusResource`** — +N a un recurso inicial del humano.
+- **`ExtraStartingUnit`** — despliega una unidad inicial extra.
+- **`InitialStatus`** — siembra un estado al iniciar (vía `PlayerSetup.initialStatuses`, §7.8).
 
-> **No implementadas en Fase 3 (decisión 2026-06-26).** Quedan como **diseño** (esta sección sigue
-> siendo la fuente de verdad), pero el MVP no las construye. El **seam está reservado** en `RunState`
-> (comentario `[EXTENSIÓN]` donde irá la `List<RelicData>`) y los bonos de setup ya tienen vía de
-> aplicación vía `PlayerSetup` (los mismos campos que usa el handicap de la IA), así que sumarlas no
-> tocará el motor.
+> Reliquias con **hooks dinámicos** (al-matar, al-inicio-de-turno-global) necesitarían un `ICombatRule`
+> inyectable en el motor — **reservado, no implementado** (§17.6). Las tres variantes de arriba no tocan
+> el motor. Cómo se obtienen (tesoro/élite/tienda) = contenido/pasos siguientes.
 
 ### 17.5 Arquitectura (Core, C# puro)
 
-- **`RunState`** (en `Core`, sin escena): `map` (puntos a elección), `currentNodeId`, `deck` persistente,
-  `clearedNodeIds`, `faction` (la del humano), `status` (`InProgress`/`Won`/`Lost`). Reliquias =
-  **seam documentado** (§17.4, no implementadas). Datos puros, testeable sin Unity.
-- **`RunMap` / `MapNode` / `MapNodeType` / `RunMapLibrary`:** el grafo de puntos como **data**. `MapNode`
-  = `{ id, type, title, connections, x/y (hint de presentación, inertes en Core) }`. `MapNodeType` =
-  `Start`/`Combat`/`Boss` (+ `Shop`/`Event` = extensión). La **dificultad = distancia** se deriva por
-  BFS (las conexiones son la única fuente de verdad). `RunMapLibrary.BuildDefaultMap` arma el mapa MVP.
-- **`RunManager`** (lógica de la run, Core puro): `AvailableNodes` (sucesores del actual),
-  `BeginCombat(nodeId)` (arma los `PlayerSetup` — mazo de run al humano, handicap a la IA — y devuelve
-  un `GameEngine` ya iniciado; la presentación corre el loop), `ResolveCombat(outcome)`
-  (gana→recompensa / jefe→`Won` / pierde o empata→`Lost`), `OfferReward`/`ChooseReward`/`SkipReward`.
-  `RunConfig` = parámetros (handicap, `rewardCount`). Lados fijos: humano = índice de su facción, IA la otra.
-- **Inyección del mazo:** `PlayerSetup` (deck override + bonos de recursos/unidades iniciales) +
-  `GameEngine.StartGame(PlayerSetup, PlayerSetup, firstIndex)`. Con setups por facción es idéntico al
-  inicio 2-jugadores (los call-sites del hotseat/tests no cambian). Es el punto de inyección del §7.8.
-- **IA del rival:** `IPlayerController` (§7.8) — `HeuristicAiController` (puerto de `sim/policy.py`, §16,
-  multi-acción) **ya implementado (Fase 2)**. La presentación lo conecta al índice `RunManager.AiIndex`.
-  Una sola dificultad para empezar, iterar por feel.
-- **Selección:** el humano elige facción, la IA toma la otra (§11.2 reusada). Menú con dos botones (§11.1).
-- **Presentación:** pantalla de **mapa temático**, pantalla de **recompensa (1-de-3)**, **HUD de run**
-  (reliquias, progreso), y el combate con **turno de IA** (delays + indicador + input bloqueado, §11.3).
+- **`RunState`:** `map`, `currentNodeId`, `actIndex`, `status`, `deck` persistente, `clearedNodeIds`,
+  `usedEncounterIds` (no repetir arquetipos), `gold`, `relics`. Datos puros, testeable sin Unity.
+- **`EncounterDefinition`** (SO, §17.1): `faction`, `difficulty` (tier), `deck` (multiset literal),
+  `startingUnits`, `bonus{Dinero,Fuerza,Social}`, `aiInitialStatuses`/`playerInitialStatuses` (estados
+  sembrados en la IA o en el humano), y sólo-jefe `isBoss` + `leaderUnit` (unidad-líder única cuyas pasivas
+  son la "pasiva de combate del jefe"). La pasiva de jefe se expresa con **pasivas del líder + estados
+  sembrados**, sin tocar el motor.
+- **`RelicData`** (SO, §17.4).
+- **`RunMap` / `MapNode` / `MapNodeType` / `RunMapLibrary`:** grafo de puntos como **data**. `MapNode` =
+  `{ id, type, title, connections, x/y (inertes en Core) }`. Dificultad = distancia (BFS).
+  `RunMapLibrary.BuildActo1` arma la Línea A; `BuildDefaultMap` se conserva como fixture de tests.
+- **`RunManager`:** `AvailableNodes`, `BeginCombat(nodeId)` (arma la IA desde el arquetipo del pool —
+  fallback al default opuesto sin pool — aplica reliquias al humano y devuelve un `GameEngine` iniciado),
+  `PickEncounter` (tier + no-repetir, RNG inyectado), `ResolveCombat` (gana→recompensa+oro / jefe→`Won` /
+  pierde→`Lost`), `EnterTreasure` (otorga oro y avanza), `AdvanceTo` (avance único compartido combate /
+  no-combate), `ChooseReward`/`SkipReward`. `RunConfig` = parámetros (handicap, `rewardCount`, oro por
+  combate/élite/tesoro). Lados fijos: humano = índice de su facción, IA la otra.
+- **Seam de motor único:** `PlayerSetup.initialStatuses` (§7.8) — siembra estados al iniciar (ruteo igual
+  que `ApplyStatus`: de jugador→`activeStatuses`, por-unidad→unidades desplegadas). Lo usan reliquias y la
+  pasiva de jefe. Todo lo demás se materializa en `PlayerSetup`/`RunState` sin tocar el resolutor.
+- **IA del rival:** `IPlayerController` / `HeuristicAiController` (§16), sin cambios. Una sola dificultad.
 
 ### 17.6 Puntos de extensión (resumen)
 
-Reservar el hueco, sin implementar todavía: **puntos-tienda** y **puntos-encuentro** en el mapa
-(§17.1) · **armado de mazo pre-run** · **meta-progresión entre runs** (desbloqueos persistentes) ·
-**dificultades** de IA · **combate automático por tempo** (alternativa al manual, a evaluar en sesión
-próxima — §6 quedaría como variante).
+- **Pasos 8-9 (Core):** `Workshop` (remoción primero), `Shop` (stock con RNG + gastar oro), `Event`
+  (`EventDefinition` data-driven), `Mystery` (resuelve a otro tipo); **upgrade de cartas** (`RunCardEntry`
+  + `RunCardFactory`, migra `RunState.deck`).
+- **Diferidos (paso 10):** **consumibles** (carta con flag `consumable`), **`AiProfile`** activo (estilos
+  de IA por arquetipo), **`ICombatRule`** (hooks dinámicos de reliquia/boss), **generación procedural** de
+  mapa, **meta-progresión** entre runs, **armado de mazo pre-run**, **3ª facción**.
+- **Multi-acto:** seam listo (`RunState.actIndex`); el acto 2+ = nuevas líneas del subte (contenido).

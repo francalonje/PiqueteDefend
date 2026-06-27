@@ -866,6 +866,59 @@ namespace PiqueteDefend.Tests
             Assert.AreEqual(9, e.PlayerAt(1).unitSlots[0].currentHp);
         }
 
+        // ── Estados sembrados al iniciar (PlayerSetup.initialStatuses, spec §17.4) ──
+
+        [Test]
+        public void InitialStatuses_Null_IsNoOp_RegressionBaseline()
+        {
+            GameEngine e = NewEngine(PlainCfg(), out _);
+            var p0 = new PlayerSetup(Faction.Manifestantes) { startingUnits = new[] { U(10) } };
+            var p1 = new PlayerSetup(Faction.Policias) { startingUnits = new[] { U(10) } };
+            e.StartGame(p0, p1, firstIndex: 0);   // initialStatuses == null
+
+            Assert.IsEmpty(e.PlayerAt(0).activeStatuses,
+                "sin initialStatuses el jugador arranca sin estados (idéntico a la base 2-jugadores)");
+            foreach (UnitSlot s in e.PlayerAt(0).unitSlots)
+                if (s != null) Assert.IsEmpty(s.activeStatuses);
+        }
+
+        [Test]
+        public void InitialStatuses_PlayerStatus_SeededOnPlayer()
+        {
+            GameEngine e = NewEngine(PlainCfg(), out _);
+            var p0 = new PlayerSetup(Faction.Manifestantes)
+            {
+                startingUnits = new[] { U(10) },
+                initialStatuses = new[] { new StatusEffect(StatusType.DoubleProduction, 2, 1) }
+            };
+            var p1 = new PlayerSetup(Faction.Policias) { startingUnits = new[] { U(10) } };
+            e.StartGame(p0, p1, firstIndex: 0);
+
+            PlayerState player = e.PlayerAt(0);
+            Assert.AreEqual(1, player.activeStatuses.Count, "el status de jugador se siembra en el jugador");
+            Assert.AreEqual(StatusType.DoubleProduction, player.activeStatuses[0].statusType);
+        }
+
+        [Test]
+        public void InitialStatuses_UnitStatus_SeededOnAllStartingUnits()
+        {
+            GameEngine e = NewEngine(PlainCfg(), out _);
+            var p0 = new PlayerSetup(Faction.Manifestantes)
+            {
+                startingUnits = new[] { U(10), U(10) },
+                initialStatuses = new[] { new StatusEffect(StatusType.Desmoralizar, 3, 2) }
+            };
+            var p1 = new PlayerSetup(Faction.Policias) { startingUnits = new[] { U(10) } };
+            e.StartGame(p0, p1, firstIndex: 0);
+
+            PlayerState player = e.PlayerAt(0);
+            Assert.IsEmpty(player.activeStatuses, "un status por-unidad NO va al jugador");
+            int seeded = 0;
+            foreach (UnitSlot s in player.unitSlots)
+                if (s != null && s.StatusValue(StatusType.Desmoralizar) == 3) seeded++;
+            Assert.AreEqual(2, seeded, "se siembra en TODAS las unidades iniciales desplegadas");
+        }
+
         // ── Acciones: efectos sobre recursos / unidades ────────────────────────
 
         [Test]

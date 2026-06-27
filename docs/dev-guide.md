@@ -389,29 +389,44 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
   `CardLibrary` + tests). Invalida el balance previo: re-derivar economía/inflación/`maxResource`.
 - **IA (Fase 2):** `IPlayerController` en `Core` (impl `Human` en Presentation, `AI` en Core portando
   `policy.py`). El motor consulta al controller; testeable sin escena.
-- **Run/meta (Fase 3 — HECHO, Core puro):** la capa de run vive en `Core/Run/`:
-  - `RunMap`/`MapNode`/`MapNodeType`/`RunMapLibrary` — el grafo de puntos como **data**.
-  - `RunState` — `map`, `currentNodeId`, `deck` persistente, `clearedNodeIds`, `faction`, `status`.
-  - `RunManager` — orquesta: `AvailableNodes`, `BeginCombat`, `ResolveCombat`, recompensas. `RunConfig` = params.
-  - `PlayerSetup` + `GameEngine.StartGame(PlayerSetup, PlayerSetup, firstIndex)` — inyección del mazo + handicap.
-  - Tests en `Tests/EditMode/RunTests.cs`. Reliquias = **diferidas** (seam en `RunState`).
+- **Run/meta (Core puro):** la capa de run vive en `Core/Run/`. Base extendida 2026-06-27 (pasos 1-7,
+  95/95 tests verde):
+  - `RunMap`/`MapNode`/`MapNodeType`/`RunMapLibrary` — el grafo como **data**. `MapNodeType` =
+    `Start`/`Combat`/`Elite`/`Boss`/`Shop`/`Event`/`Workshop`/`Treasure`/`Mystery`.
+    `BuildActo1` = **Línea A del subte** (el acto jugable); `BuildDefaultMap` = fixture de tests.
+  - `EncounterDefinition` (SO) — **arquetipo de enemigo** curado (mazo + unidades + handicap + estados +
+    `isBoss`/`leaderUnit`). `RelicData` (SO) — reliquia persistente (`BonusResource`/`ExtraStartingUnit`/`InitialStatus`).
+  - `RunState` — `map`, `currentNodeId`, `actIndex`, `status`, `deck`, `clearedNodeIds`,
+    `usedEncounterIds`, `gold`, `relics`.
+  - `RunManager` — `AvailableNodes`, `BeginCombat` (arma la IA desde el arquetipo, fallback al default,
+    aplica reliquias), `PickEncounter`, `ResolveCombat` (recompensa + oro), `EnterTreasure`, `AdvanceTo`,
+    `ChooseReward`/`SkipReward`. `RunConfig` = params (handicap, `rewardCount`, oro).
+  - `PlayerSetup` + `GameEngine.StartGame(PlayerSetup, PlayerSetup, firstIndex)` — inyección de mazo +
+    handicap + `initialStatuses` (único seam de motor, ver receta abajo).
+  - Tests: `RunTests`, `EncounterTests`, `RelicTests`, `MapNodeTypeTests`.
 
-  **Receta — agregar/editar un punto del mapa:** en `RunMapLibrary.BuildDefaultMap` agregá un `new
-  MapNode(id, type, "título", x, y).ConnectTo(idsDestino…)` y enganchalo desde algún punto previo con
-  `.ConnectTo(nuevoId)`. La **dificultad la da la distancia** (BFS): no se setea a mano. `type` =
-  `Combat` o `Boss` (un solo `Boss`, el más lejano). Las conexiones deben apuntar a ids existentes (el
-  ctor de `RunMap` valida). `x/y` son sólo hint visual para Fase 4 (Core los ignora). Es data: no toca
-  el motor ni el sim.
+  **Receta — punto del mapa / acto:** en `RunMapLibrary.BuildActo1` agregá un `new MapNode(id, type,
+  "estación", x, y).ConnectTo(idsDestino…)` y enganchalo desde un punto previo. La **dificultad la da la
+  distancia** (BFS): no se setea a mano. Un solo `Boss` (la cabecera). Conexiones a ids existentes (el
+  ctor valida). `x/y` = hint visual (Core los ignora). Es data: no toca motor ni sim.
 
-  **Receta — handicap de dificultad:** se ajusta en `RunConfig` (`aiResourceBonusPerLevel`,
-  `bossExtraStartingUnits`) o, para una palanca nueva, agregá un campo a `PlayerSetup` + su lectura en
-  `GameEngine.NewPlayer`. No es regla de combate (default-cero ⇒ no afecta hotseat/sim ⇒ no toca parity).
+  **Receta — arquetipo de enemigo:** creá un asset `EncounterDefinition` (menú `PiqueteDefend/Encounter`),
+  poné `faction` (la opuesta al humano), `difficulty` (tier del nodo), `deck`/`startingUnits`/bonus, y para
+  el jefe `isBoss`+`leaderUnit`. Pasalo al pool del `RunManager` (param `encounters`). El pool no repite
+  arquetipos en la run. Pasiva de jefe = pasivas del `leaderUnit` + `aiInitialStatuses`/`playerInitialStatuses`.
 
-  **Receta — recompensa de carta:** `RunManager.GenerateReward` toma `RunConfig.rewardCount` cartas del
-  pool de la facción vía `IRandomProvider`; `ChooseReward`/`SkipReward` resuelven la oferta.
+  **Receta — reliquia:** creá un asset `RelicData` (menú `PiqueteDefend/Relic`) con su `kind`. Sumala a
+  `RunState.relics` (tesoro/élite/tienda). `RunManager.ApplyRelics` la vuelca al `PlayerSetup` del humano.
+  Reliquias con hooks dinámicos (al-matar, etc.) = `ICombatRule` [EXTENSIÓN], aún sin implementar.
 
-  **[EXTENSIÓN] reliquia / tienda / encuentro:** ver el seam en `RunState` (`[EXTENSIÓN]`) y los tipos
-  `Shop`/`Event` reservados en `MapNodeType`.
+  **Receta — seam de estados iniciales:** para sembrar un estado al iniciar (reliquia/pasiva de jefe), usá
+  `PlayerSetup.initialStatuses`. `GameEngine.NewPlayer` lo rutea como `ApplyStatus` (de jugador→`activeStatuses`,
+  por-unidad→unidades desplegadas). Default-null ⇒ no afecta hotseat/sim ⇒ no toca parity.
+
+  **Receta — handicap / oro:** `RunConfig` (`aiResourceBonusPerLevel`, `bossExtraStartingUnits`,
+  `combatGoldReward`/`eliteGoldReward`/`treasureGoldReward`). No son reglas de combate.
+
+  **[EXTENSIÓN, pasos 8-10] tienda / taller / evento / upgrade / consumibles:** ver §17.6 del spec.
 - **Presentación (Fase 4 — HECHO):** escenas `Map` (`MapController`, mapa 2D por `x/y`) y `Reward`
   (`RewardController`, 1-de-3 reusando `GameController.BuildCardVisual`). `MainMenu` con 2 modos +
   Ajustes(disabled)/Salir. `RunSession` (estático) mantiene el `RunManager` y el engine prearmado entre

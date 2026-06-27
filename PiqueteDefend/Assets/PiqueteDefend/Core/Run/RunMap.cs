@@ -14,11 +14,27 @@ namespace PiqueteDefend.Core
         /// <summary>Combate normal contra la IA. La dificultad la da la distancia al inicio (spec §17.1).</summary>
         Combat,
 
-        /// <summary>Combate final. Ganarlo gana la run (spec §17.1, decisión Fase 3).</summary>
-        Boss
+        /// <summary>Combate de élite (spec §17.6): arquetipo más duro, mejor paga (oro/recompensa).
+        /// Usa el mismo camino de combate que <see cref="Combat"/>.</summary>
+        Elite,
 
-        // [EXTENSIÓN post-MVP, spec §17.1/§17.6]: Shop (comprar/quitar cartas), Event (encuentro).
-        // Agregar el valor acá + su resolución en la capa de run; el grafo no cambia.
+        /// <summary>Combate final. Ganarlo gana el acto/run (spec §17.1/§17.6).</summary>
+        Boss,
+
+        /// <summary>Tienda (spec §17.6): gastar oro en cartas/reliquias/remoción. No es combate.</summary>
+        Shop,
+
+        /// <summary>Evento narrativo con decisión (spec §17.6). No es combate.</summary>
+        Event,
+
+        /// <summary>Taller de mazo (spec §17.6): mejorar (upgrade) o quitar cartas. No es combate.</summary>
+        Workshop,
+
+        /// <summary>Tesoro (spec §17.6): regala oro o una reliquia, sin combate.</summary>
+        Treasure,
+
+        /// <summary>Nodo misterioso (spec §17.6): resultado oculto hasta llegar; se resuelve a otro tipo.</summary>
+        Mystery
     }
 
     /// <summary>
