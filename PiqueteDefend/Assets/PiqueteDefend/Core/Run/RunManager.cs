@@ -44,6 +44,16 @@ namespace PiqueteDefend.Core
         public static RewardOffer None => new RewardOffer(null);
     }
 
+    /// <summary>Lo que entregó un nodo de tesoro (spec §17.6): una <see cref="relic"/> o, si el pool de
+    /// reliquias está agotado, <see cref="gold"/>. La presentación lo usa para mostrar qué tocó.</summary>
+    public readonly struct TreasureReward
+    {
+        public readonly RelicData relic;   // null si dio oro
+        public readonly int gold;          // 0 si dio reliquia
+        public TreasureReward(RelicData relic, int gold) { this.relic = relic; this.gold = gold; }
+        public bool IsRelic => relic != null;
+    }
+
     /// <summary>
     /// Orquesta una run (spec §17.5), C# puro y testeable sin escena. Mantiene el <see cref="RunState"/>
     /// y arma cada combate: inyecta el mazo de la run para el humano y aplica el handicap de dificultad
@@ -61,6 +71,7 @@ namespace PiqueteDefend.Core
         private readonly IRandomProvider _rng;
         private readonly RunConfig _runConfig;
         private readonly IReadOnlyList<EncounterDefinition> _encounters;
+        private readonly IReadOnlyList<RelicData> _relicPool;
 
         private int _pendingNodeId = -1;          // combate en curso (entre BeginCombat y ResolveCombat)
         private GameEngine _combat;                // el motor del combate en curso
@@ -71,13 +82,15 @@ namespace PiqueteDefend.Core
 
         public RunManager(ICardCatalog catalog, GameConfig config, IRandomProvider rng,
                           Faction humanFaction, RunMap map = null, RunConfig runConfig = null,
-                          IReadOnlyList<EncounterDefinition> encounters = null)
+                          IReadOnlyList<EncounterDefinition> encounters = null,
+                          IReadOnlyList<RelicData> relicPool = null)
         {
             _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _rng = rng ?? throw new ArgumentNullException(nameof(rng));
             _runConfig = runConfig ?? new RunConfig();
             _encounters = encounters;   // null = sin arquetipos curados → fallback al mazo default opuesto
+            _relicPool = relicPool;     // null = sin reliquias para repartir (tesoro cae a oro)
 
             State = new RunState(map ?? RunMapLibrary.BuildDefaultMap(), humanFaction);
             // Mazo starter = el default de la facción (spec §17.2). [EXTENSIÓN] armado pre-run.
@@ -323,17 +336,46 @@ namespace PiqueteDefend.Core
             // Oro por ganar el combate (spec §17.6) — la élite paga más. Economía meta para la tienda.
             State.gold += node.type == MapNodeType.Elite ? _runConfig.eliteGoldReward : _runConfig.combatGoldReward;
 
+            // La élite, además, suelta una reliquia (spec §17.4/§17.6). Se ve en el HUD al volver al mapa.
+            if (node.type == MapNodeType.Elite) GrantRelic();
+
             _pendingReward = GenerateReward();
             return new RewardOffer(_pendingReward);
+        }
+
+        // ── Reliquias (reparto, spec §17.4/§17.6) ───────────────────────────────────
+
+        /// <summary>Otorga una reliquia no repetida del pool (RNG inyectado) y la suma a la run. Devuelve
+        /// la reliquia, o <c>null</c> si no hay pool o ya se agotó (todas obtenidas).</summary>
+        private RelicData GrantRelic()
+        {
+            if (_relicPool == null || _relicPool.Count == 0) return null;
+
+            var candidates = new List<RelicData>();
+            foreach (RelicData r in _relicPool)
+                if (r != null && !OwnsRelic(r.id)) candidates.Add(r);
+            if (candidates.Count == 0) return null;
+
+            RelicData picked = candidates[_rng.Next(candidates.Count)];
+            State.relics.Add(picked);
+            return picked;
+        }
+
+        private bool OwnsRelic(string id)
+        {
+            foreach (RelicData owned in State.relics)
+                if (owned != null && owned.id == id) return true;
+            return false;
         }
 
         // ── Nodos no-combate (spec §17.6) ───────────────────────────────────────────
 
         /// <summary>
-        /// Resuelve un nodo de <see cref="MapNodeType.Treasure"/>: otorga oro (en §17.6 también puede
-        /// dar reliquia, ver paso 5) y avanza. Atómico: no deja interacción pendiente.
+        /// Resuelve un nodo de <see cref="MapNodeType.Treasure"/> (spec §17.6): entrega una <b>reliquia</b>
+        /// del pool (o <b>oro</b> si ya no quedan) y avanza. Atómico: no deja interacción pendiente.
+        /// Devuelve qué tocó, para que la presentación lo muestre.
         /// </summary>
-        public void EnterTreasure(int nodeId)
+        public TreasureReward EnterTreasure(int nodeId)
         {
             if (State.status != RunStatus.InProgress)
                 throw new InvalidOperationException($"La run no está en curso ({State.status}).");
@@ -348,8 +390,20 @@ namespace PiqueteDefend.Core
             if (node.type != MapNodeType.Treasure)
                 throw new InvalidOperationException($"El punto {nodeId} ({node.type}) no es un tesoro.");
 
-            State.gold += _runConfig.treasureGoldReward;
+            RelicData relic = GrantRelic();
+            TreasureReward reward;
+            if (relic != null)
+            {
+                reward = new TreasureReward(relic, 0);
+            }
+            else
+            {
+                State.gold += _runConfig.treasureGoldReward;   // sin reliquias disponibles → oro
+                reward = new TreasureReward(null, _runConfig.treasureGoldReward);
+            }
+
             AdvanceTo(node);
+            return reward;
         }
 
         // ── Taller de mazo (spec §17.6): remoción de cartas ─────────────────────────

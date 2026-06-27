@@ -66,10 +66,11 @@ namespace PiqueteDefend.Presentation
                 return;
             }
 
-            // Acto 1 = Línea A del subte (§17.1) + pool de arquetipos de enemigo curados (§17.6).
+            // Acto 1 = Línea A del subte (§17.1) + pool de arquetipos de enemigo (§17.6) + reliquias (§17.4).
             var encounters = EncounterLibrary.BuildActo1Pool(catalog);
+            var relics = RelicLibrary.BuildPool(catalog, faction);
             var run = new RunManager(catalog, new GameConfig(), new SystemRandomProvider(), faction,
-                                     RunMapLibrary.BuildActo1(), null, encounters);
+                                     RunMapLibrary.BuildActo1(), null, encounters, relics);
             RunSession.Start(run);
             SceneManager.LoadScene("Map");
         }

@@ -20,6 +20,8 @@ namespace PiqueteDefend.Presentation
         private VisualElement _area;
         private VisualElement _edges;
         private Label _goldLabel;
+        private VisualElement _relicsBar;
+        private Label _toast;
         private readonly Dictionary<int, VisualElement> _nodeEls = new Dictionary<int, VisualElement>();
 
         private void OnEnable()
@@ -45,14 +47,16 @@ namespace PiqueteDefend.Presentation
             Button abandon = root.Q<Button>("map-abandon");
             if (abandon != null) abandon.clicked += Abandon;
 
-            EnsureGoldHud(root);
+            EnsureHud(root);
             BuildMap();
         }
 
-        /// <summary>HUD de oro de la run (spec §17.6). Construido en runtime (no depende del UXML).</summary>
-        private void EnsureGoldHud(VisualElement root)
+        /// <summary>HUD de run (oro + reliquias + toast). Construido en runtime (no depende del UXML).
+        /// Placeholder: las reliquias se muestran como chips con nombre; el sprite va más adelante.</summary>
+        private void EnsureHud(VisualElement root)
         {
             if (_goldLabel != null) return;
+
             _goldLabel = new Label { name = "map-gold" };
             _goldLabel.style.position = Position.Absolute;
             _goldLabel.style.top = 12;
@@ -61,12 +65,69 @@ namespace PiqueteDefend.Presentation
             _goldLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
             _goldLabel.style.color = new Color(1f, 0.85f, 0.25f);   // dorado
             root.Add(_goldLabel);
+
+            // Barra de reliquias (fila de chips placeholder, arriba a la derecha).
+            _relicsBar = new VisualElement { name = "map-relics" };
+            _relicsBar.style.position = Position.Absolute;
+            _relicsBar.style.top = 12;
+            _relicsBar.style.right = 12;
+            _relicsBar.style.flexDirection = FlexDirection.Row;
+            root.Add(_relicsBar);
+
+            // Toast de feedback (centro arriba), p. ej. al sacar una reliquia del tesoro.
+            _toast = new Label { name = "map-toast" };
+            _toast.style.position = Position.Absolute;
+            _toast.style.top = 44;
+            _toast.style.left = 0;
+            _toast.style.right = 0;
+            _toast.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _toast.style.fontSize = 18;
+            _toast.style.unityFontStyleAndWeight = FontStyle.Bold;
+            _toast.style.color = new Color(1f, 0.95f, 0.7f);
+            _toast.style.display = DisplayStyle.None;
+            root.Add(_toast);
         }
 
-        private void UpdateGold()
+        private void UpdateHud()
         {
-            if (_goldLabel != null && RunSession.IsActive)
-                _goldLabel.text = $"Oro: {RunSession.Manager.State.gold}";
+            if (!RunSession.IsActive) return;
+            RunState st = RunSession.Manager.State;
+
+            if (_goldLabel != null) _goldLabel.text = $"Oro: {st.gold}";
+
+            if (_relicsBar != null)
+            {
+                _relicsBar.Clear();
+                foreach (RelicData relic in st.relics)
+                {
+                    if (relic == null) continue;
+                    var chip = new Label(Short(relic.relicName)) { tooltip = $"{relic.relicName}\n{relic.description}" };
+                    chip.AddToClassList("relic-chip");
+                    chip.style.marginLeft = 4;
+                    chip.style.paddingLeft = 6; chip.style.paddingRight = 6;
+                    chip.style.paddingTop = 2; chip.style.paddingBottom = 2;
+                    chip.style.backgroundColor = new Color(0.15f, 0.12f, 0.05f, 0.9f);
+                    chip.style.borderTopLeftRadius = 4; chip.style.borderTopRightRadius = 4;
+                    chip.style.borderBottomLeftRadius = 4; chip.style.borderBottomRightRadius = 4;
+                    chip.style.color = new Color(1f, 0.85f, 0.25f);
+                    chip.style.fontSize = 13;
+                    _relicsBar.Add(chip);
+                }
+            }
+        }
+
+        /// <summary>Iniciales del nombre de la reliquia (placeholder hasta tener sprites).</summary>
+        private static string Short(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return "?";
+            return name.Length <= 12 ? name : name.Substring(0, 12) + "…";
+        }
+
+        private void ShowToast(string text)
+        {
+            if (_toast == null) return;
+            _toast.text = text;
+            _toast.style.display = DisplayStyle.Flex;
         }
 
         private void BuildMap()
@@ -120,7 +181,7 @@ namespace PiqueteDefend.Presentation
                 _nodeEls[node.id] = btn;
             }
 
-            UpdateGold();
+            UpdateHud();
 
             // Las líneas necesitan el layout ya resuelto: las (re)dibujamos cuando el área tiene geometría.
             _area.RegisterCallback<GeometryChangedEvent>(_ => DrawEdges());
@@ -210,12 +271,13 @@ namespace PiqueteDefend.Presentation
             SceneManager.LoadScene("Game");
         }
 
-        /// <summary>Tesoro (spec §17.6): otorga oro y avanza en el acto, sin salir del mapa.</summary>
+        /// <summary>Tesoro (spec §17.6): da una reliquia (o oro si no quedan) y avanza, sin salir del mapa.</summary>
         private void ChooseTreasure(int nodeId)
         {
             AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
-            RunSession.Manager.EnterTreasure(nodeId);
-            BuildMap();   // refresca oro, nodo actual y sucesores disponibles
+            TreasureReward reward = RunSession.Manager.EnterTreasure(nodeId);
+            BuildMap();   // refresca oro, reliquias, nodo actual y sucesores disponibles
+            ShowToast(reward.IsRelic ? $"¡Reliquia: {reward.relic.relicName}!" : $"+{reward.gold} oro");
         }
 
         private void Abandon()

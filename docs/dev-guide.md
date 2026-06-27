@@ -425,9 +425,11 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
   quita una carta (respeta `RunConfig.minDeckSize`) y avanza; `LeaveWorkshop()` sale sin tocar. Falta su
   pantalla en presentación + un nodo `Workshop` en `BuildActo1`.
 
-  **Receta — reliquia:** creá un asset `RelicData` (menú `PiqueteDefend/Relic`) con su `kind`. Sumala a
-  `RunState.relics` (tesoro/élite/tienda). `RunManager.ApplyRelics` la vuelca al `PlayerSetup` del humano.
-  Reliquias con hooks dinámicos (al-matar, etc.) = `ICombatRule` [EXTENSIÓN], aún sin implementar.
+  **Receta — reliquia:** agregala en `RelicLibrary.BuildPool` (código; `kind` = `BonusResource`/
+  `ExtraStartingUnit`/`InitialStatus`) o como asset `RelicData` (menú `PiqueteDefend/Relic`). El pool va al
+  `RunManager` (param `relicPool`, hoy `RelicLibrary.BuildPool`). Se reparten en **tesoro** (`EnterTreasure`
+  → `TreasureReward`) y al ganar **élite** (`GrantRelic`, sin repetir). `ApplyRelics` las vuelca al
+  `PlayerSetup` del humano. Hooks dinámicos (al-matar, etc.) = `ICombatRule` [EXTENSIÓN], sin implementar.
 
   **Receta — seam de estados iniciales:** para sembrar un estado al iniciar (reliquia/pasiva de jefe), usá
   `PlayerSetup.initialStatuses`. `GameEngine.NewPlayer` lo rutea como `ApplyStatus` (de jugador→`activeStatuses`,
@@ -445,7 +447,8 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
   bloqueado por `_aiTurnInProgress`); al terminar llama `RunManager.ResolveCombat` y rutea a Reward /
   run-ganada / run-perdida. Menú de pausa (ESCAPE) + click-away que cierra popovers.
   **Wiring del acto 1 (2026-06-27):** `FactionSelectController` arranca la run con `BuildActo1()` +
-  `EncounterLibrary.BuildActo1Pool`; `MapController` despacha por tipo de nodo (tesoro→`EnterTreasure` y
-  refresca; combate/élite/jefe→combate), clases `map-node--{tipo}` y un HUD de oro (Label runtime).
-  **Pendiente:** pantallas de taller/tienda/evento, HUD de reliquias, estilos USS de los tipos de nodo,
+  `EncounterLibrary.BuildActo1Pool` + `RelicLibrary.BuildPool`; `MapController` despacha por tipo de nodo
+  (tesoro→`EnterTreasure` y refresca; combate/élite/jefe→combate), clases `map-node--{tipo}`, HUD de oro +
+  **reliquias placeholder** (chips con nombre/tooltip; sprites después) y un toast de recompensa.
+  **Pendiente:** pantallas de taller/tienda/evento, sprites de reliquias, estilos USS de los tipos de nodo,
   estética del subte; pulido por playtest; el diorama 3D del mapa es mejora futura.
