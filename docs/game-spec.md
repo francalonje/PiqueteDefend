@@ -1083,9 +1083,15 @@ las vuelca acumulando sobre lo que ya traiga el setup (ej. una pasiva de jefe). 
 - **`ExtraStartingUnit`** — despliega una unidad inicial extra.
 - **`InitialStatus`** — siembra un estado al iniciar (vía `PlayerSetup.initialStatuses`, §7.8).
 
+**Contenido y reparto (implementado):** `RelicLibrary.BuildPool(catalog, faction)` arma el pool de la
+facción del humano (en código, espejo de `EncounterLibrary`): recursos (Caja/Aguante/Rosca), estados
+(Doble Turno, Envión) y una unidad extra. Se **obtienen** en el **tesoro** (`EnterTreasure` da una
+reliquia no repetida del pool, o oro si se agotó) y al ganar una **élite** (`ResolveCombat`). Sin
+duplicados (`RunManager.GrantRelic`/`OwnsRelic`, RNG inyectado).
+
 > Reliquias con **hooks dinámicos** (al-matar, al-inicio-de-turno-global) necesitarían un `ICombatRule`
 > inyectable en el motor — **reservado, no implementado** (§17.6). Las tres variantes de arriba no tocan
-> el motor. Cómo se obtienen (tesoro/élite/tienda) = contenido/pasos siguientes.
+> el motor.
 
 ### 17.5 Arquitectura (Core, C# puro)
 
@@ -1100,17 +1106,18 @@ las vuelca acumulando sobre lo que ya traiga el setup (ej. una pasiva de jefe). 
   `BuildActo1Pool(catalog)` arma el pool **en memoria** desde el catálogo (por `unitSubtype`, sin duplicar
   assets): por facción Patota/Búnker/Aparato + Jefe. La presentación (`FactionSelectController`) lo pasa al
   `RunManager`.
-- **`RelicData`** (SO, §17.4).
+- **`RelicData`** (SO, §17.4) + **`RelicLibrary`** (Core): pool de reliquias por facción, en código.
 - **`RunMap` / `MapNode` / `MapNodeType` / `RunMapLibrary`:** grafo de puntos como **data**. `MapNode` =
   `{ id, type, title, connections, x/y (inertes en Core) }`. Dificultad = distancia (BFS).
   `RunMapLibrary.BuildActo1` arma la Línea A; `BuildDefaultMap` se conserva como fixture de tests.
 - **`RunManager`:** `AvailableNodes` (bloquea con recompensa o taller abierto), `BeginCombat(nodeId)` (arma
   la IA desde el arquetipo del pool — fallback al default opuesto sin pool — aplica reliquias al humano y
   devuelve un `GameEngine` iniciado), `PickEncounter` (tier + no-repetir, RNG inyectado), `ResolveCombat`
-  (gana→recompensa+oro / jefe→`Won` / pierde→`Lost`), `EnterTreasure` (otorga oro y avanza), `EnterWorkshop`/
-  `RemoveCardAndLeave`/`LeaveWorkshop` (taller de remoción, respeta `minDeckSize`), `AdvanceTo` (avance único
-  compartido combate / no-combate), `ChooseReward`/`SkipReward`. `RunConfig` = parámetros (handicap,
-  `rewardCount`, oro por combate/élite/tesoro, `minDeckSize`). Lados fijos: humano = índice de su facción, IA la otra.
+  (gana→recompensa+oro, élite suelta reliquia / jefe→`Won` / pierde→`Lost`), `EnterTreasure` (da reliquia
+  del pool o, si se agotó, oro — devuelve `TreasureReward`), `GrantRelic`/`OwnsRelic` (reparto sin repetir),
+  `EnterWorkshop`/`RemoveCardAndLeave`/`LeaveWorkshop` (taller de remoción, respeta `minDeckSize`), `AdvanceTo`
+  (avance único compartido combate / no-combate), `ChooseReward`/`SkipReward`. `RunConfig` = parámetros
+  (handicap, `rewardCount`, oro por combate/élite/tesoro, `minDeckSize`). Lados fijos: humano = índice de su facción.
 - **Seam de motor único:** `PlayerSetup.initialStatuses` (§7.8) — siembra estados al iniciar (ruteo igual
   que `ApplyStatus`: de jugador→`activeStatuses`, por-unidad→unidades desplegadas). Lo usan reliquias y la
   pasiva de jefe. Todo lo demás se materializa en `PlayerSetup`/`RunState` sin tocar el resolutor.
@@ -1121,11 +1128,12 @@ las vuelca acumulando sobre lo que ya traiga el setup (ej. una pasiva de jefe). 
 - **Pasos 8-9 (Core):** `Workshop` (remoción ✅ Core, falta pantalla + nodo en el mapa), `Shop` (stock con
   RNG + gastar oro), `Event` (`EventDefinition` data-driven), `Mystery` (resuelve a otro tipo); **upgrade de
   cartas** (`RunCardEntry` + `RunCardFactory`, migra `RunState.deck`).
-- **Reliquias jugables (hueco actual):** el motor las aplica, pero falta una `RelicLibrary` + flujo para
-  obtenerlas (tesoro oro-o-reliquia / boss / élite / tienda) + HUD.
-- **Presentación pendiente:** pantallas de taller/tienda/evento, HUD de reliquias, estilos USS de los tipos
-  de nodo, estética del subte. Ya wireado: `FactionSelectController` (BuildActo1 + pool) y `MapController`
-  (dispatch de tesoro, HUD de oro, clases por tipo).
+- **Reliquias:** ✅ jugables (`RelicLibrary` + reparto por tesoro/élite + HUD placeholder). Falta darlas
+  también en tienda y un set más grande con flavor.
+- **Presentación pendiente:** pantallas de taller/tienda/evento, **sprites** de reliquias (hoy chips con
+  nombre), estilos USS de los tipos de nodo, estética del subte. Ya wireado: `FactionSelectController`
+  (BuildActo1 + pools de arquetipos y reliquias) y `MapController`
+  (dispatch de tesoro, HUD de oro + reliquias placeholder, toast de recompensa, clases por tipo).
 - **Diferidos (paso 10):** **consumibles** (carta con flag `consumable`), **`AiProfile`** activo (estilos
   de IA por arquetipo), **`ICombatRule`** (hooks dinámicos de reliquia/boss), **generación procedural** de
   mapa, **meta-progresión** entre runs, **armado de mazo pre-run**, **3ª facción**.
