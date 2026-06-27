@@ -214,10 +214,27 @@ namespace PiqueteDefend.Presentation
                 case MapNodeType.Treasure:
                     onClick = () => ChooseTreasure(nodeId);
                     return true;
+                case MapNodeType.Workshop:
+                    onClick = () => EnterScene(() => RunSession.Manager.EnterWorkshop(nodeId), "Workshop");
+                    return true;
+                case MapNodeType.Shop:
+                    onClick = () => EnterScene(() => RunSession.Manager.EnterShop(nodeId), "Shop");
+                    return true;
+                case MapNodeType.Event:
+                    onClick = () => EnterScene(() => RunSession.Manager.EnterEvent(nodeId), "Event");
+                    return true;
                 default:
                     onClick = null;
                     return false;
             }
+        }
+
+        /// <summary>Abre la interacción del nodo en el Core y carga su escena (taller/tienda/evento).</summary>
+        private void EnterScene(System.Action open, string scene)
+        {
+            AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+            open();
+            SceneManager.LoadScene(scene);
         }
 
         /// <summary>Dibuja una línea por cada conexión, anclada a los centros ya posicionados.</summary>

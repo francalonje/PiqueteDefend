@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="root" class="screen screen--workshop">
+        <Style src="Common.uss" />
+        <Style src="Game.uss" />
+        <Style src="RunScreens.uss" />
+        <ui:VisualElement name="bg" class="scene-bg" picking-mode="Ignore" />
+        <ui:VisualElement class="run-panel">
+            <ui:VisualElement class="run-panel__header">
+                <ui:VisualElement class="run-panel__titles">
+                    <ui:Label text="Taller de mazo" class="run-panel__title" />
+                    <ui:Label name="wk-subtitle" class="run-panel__subtitle"
+                              text="Quitá una carta del mazo (gratis), o seguí sin tocar." />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:ScrollView name="wk-items" class="run-scroll" />
+            <ui:VisualElement class="run-footer">
+                <ui:Button name="wk-leave" text="Seguir sin quitar" class="btn" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

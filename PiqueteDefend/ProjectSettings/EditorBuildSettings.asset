@@ -18,6 +18,15 @@ EditorBuildSettings:
     path: Assets/PiqueteDefend/Scenes/Reward.unity
     guid: e5b08e9cea155194ba79773fc7c22631
   - enabled: 1
+    path: Assets/PiqueteDefend/Scenes/Workshop.unity
+    guid: 0c2efdec2b914cd47a62d89cea860136
+  - enabled: 1
+    path: Assets/PiqueteDefend/Scenes/Shop.unity
+    guid: a2845aa16817ce149bd6328368770d9e
+  - enabled: 1
+    path: Assets/PiqueteDefend/Scenes/Event.unity
+    guid: 067101b3544b43c4c900d3c0cd91b3e6
+  - enabled: 1
     path: Assets/PiqueteDefend/Scenes/Game.unity
     guid: 09fd89bc9dca4ac448e266e36b0f8bb0
   m_configObjects:
