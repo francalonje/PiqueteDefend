@@ -19,6 +19,7 @@ namespace PiqueteDefend.Presentation
 
         private VisualElement _area;
         private VisualElement _edges;
+        private Label _goldLabel;
         private readonly Dictionary<int, VisualElement> _nodeEls = new Dictionary<int, VisualElement>();
 
         private void OnEnable()
@@ -44,7 +45,28 @@ namespace PiqueteDefend.Presentation
             Button abandon = root.Q<Button>("map-abandon");
             if (abandon != null) abandon.clicked += Abandon;
 
+            EnsureGoldHud(root);
             BuildMap();
+        }
+
+        /// <summary>HUD de oro de la run (spec §17.6). Construido en runtime (no depende del UXML).</summary>
+        private void EnsureGoldHud(VisualElement root)
+        {
+            if (_goldLabel != null) return;
+            _goldLabel = new Label { name = "map-gold" };
+            _goldLabel.style.position = Position.Absolute;
+            _goldLabel.style.top = 12;
+            _goldLabel.style.left = 12;
+            _goldLabel.style.fontSize = 20;
+            _goldLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+            _goldLabel.style.color = new Color(1f, 0.85f, 0.25f);   // dorado
+            root.Add(_goldLabel);
+        }
+
+        private void UpdateGold()
+        {
+            if (_goldLabel != null && RunSession.IsActive)
+                _goldLabel.text = $"Oro: {RunSession.Manager.State.gold}";
         }
 
         private void BuildMap()
@@ -77,16 +99,16 @@ namespace PiqueteDefend.Presentation
                 bool isCleared = st.IsCleared(node.id) && !isCurrent;
                 bool isAvailable = available.Contains(node.id);
 
-                if (node.type == MapNodeType.Boss) btn.AddToClassList("map-node--boss");
+                // Clase visual por tipo (el USS puede no tener todas; AddToClassList es inofensivo).
+                btn.AddToClassList(NodeTypeClass(node.type));
                 if (isCurrent) btn.AddToClassList("map-node--current");
                 else if (isCleared) btn.AddToClassList("map-node--cleared");
                 else if (isAvailable) btn.AddToClassList("map-node--available");
                 else btn.AddToClassList("map-node--locked");
 
-                if (isAvailable)
+                if (isAvailable && TryGetNodeAction(node.type, node.id, out System.Action onClick))
                 {
-                    int id = node.id;
-                    btn.clicked += () => ChooseNode(id);
+                    btn.clicked += onClick;
                 }
                 else
                 {
@@ -98,8 +120,43 @@ namespace PiqueteDefend.Presentation
                 _nodeEls[node.id] = btn;
             }
 
+            UpdateGold();
+
             // Las líneas necesitan el layout ya resuelto: las (re)dibujamos cuando el área tiene geometría.
             _area.RegisterCallback<GeometryChangedEvent>(_ => DrawEdges());
+        }
+
+        /// <summary>Clase USS por tipo de nodo (spec §17.6).</summary>
+        private static string NodeTypeClass(MapNodeType type) => type switch
+        {
+            MapNodeType.Boss => "map-node--boss",
+            MapNodeType.Elite => "map-node--elite",
+            MapNodeType.Treasure => "map-node--treasure",
+            MapNodeType.Shop => "map-node--shop",
+            MapNodeType.Event => "map-node--event",
+            MapNodeType.Workshop => "map-node--workshop",
+            MapNodeType.Mystery => "map-node--mystery",
+            _ => "map-node--combat",
+        };
+
+        /// <summary>Acción al clickear un nodo disponible, según su tipo. Devuelve false para tipos aún
+        /// no implementados (quedan no-clickeables; el acto 1 no los usa, spec §17.6).</summary>
+        private bool TryGetNodeAction(MapNodeType type, int nodeId, out System.Action onClick)
+        {
+            switch (type)
+            {
+                case MapNodeType.Combat:
+                case MapNodeType.Elite:
+                case MapNodeType.Boss:
+                    onClick = () => ChooseNode(nodeId);
+                    return true;
+                case MapNodeType.Treasure:
+                    onClick = () => ChooseTreasure(nodeId);
+                    return true;
+                default:
+                    onClick = null;
+                    return false;
+            }
         }
 
         /// <summary>Dibuja una línea por cada conexión, anclada a los centros ya posicionados.</summary>
@@ -151,6 +208,14 @@ namespace PiqueteDefend.Presentation
             GameEngine engine = RunSession.Manager.BeginCombat(nodeId);
             RunSession.SetPendingCombat(engine);
             SceneManager.LoadScene("Game");
+        }
+
+        /// <summary>Tesoro (spec §17.6): otorga oro y avanza en el acto, sin salir del mapa.</summary>
+        private void ChooseTreasure(int nodeId)
+        {
+            AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+            RunSession.Manager.EnterTreasure(nodeId);
+            BuildMap();   // refresca oro, nodo actual y sucesores disponibles
         }
 
         private void Abandon()

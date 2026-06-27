@@ -1059,10 +1059,11 @@ Reusa íntegro el motor de combate (§6) — el rival lo controla la **IA** (§1
   contenido). Crece con recompensas **1-de-3** tras cada combate. El mazo es **estado persistente** y se
   **inyecta en el motor** al iniciar cada combate (§8.1/§7.8).
 - **Capas de profundidad acordadas** (2026-06-27): **reliquias** (§17.4, ✅), **mejora de cartas**
-  (upgrade), **remoción de cartas**, **consumibles** (un uso), y **economía de oro + tienda**.
-  **Implementado:** oro (`RunState.gold`, se gana en combate/élite/tesoro). **Pendiente (pasos 8-9):**
-  upgrade (`RunState.deck` pasa a `List<RunCardEntry>` + `RunCardFactory.Materialize`, migración aislada),
-  remoción (trivial sobre `deck`, con mínimo de mazo), tienda y consumibles (carta con flag `consumable`).
+  (upgrade), **remoción de cartas** (✅ Core), **consumibles** (un uso), y **economía de oro + tienda**.
+  **Implementado:** oro (`RunState.gold`, se gana en combate/élite/tesoro) y **remoción** (taller/`Workshop`:
+  `RunManager.EnterWorkshop`/`RemoveCardAndLeave`/`LeaveWorkshop`, con `RunConfig.minDeckSize`; falta su
+  pantalla y el nodo en `BuildActo1`). **Pendiente:** upgrade (`RunState.deck` pasa a `List<RunCardEntry>`
+  + `RunCardFactory.Materialize`, migración aislada — paso 9), tienda y consumibles.
 
 ### 17.3 Persistencia entre combates
 
@@ -1095,16 +1096,21 @@ las vuelca acumulando sobre lo que ya traiga el setup (ej. una pasiva de jefe). 
   sembrados en la IA o en el humano), y sólo-jefe `isBoss` + `leaderUnit` (unidad-líder única cuyas pasivas
   son la "pasiva de combate del jefe"). La pasiva de jefe se expresa con **pasivas del líder + estados
   sembrados**, sin tocar el motor.
+- **`EncounterLibrary`** (Core): fuente de verdad de los arquetipos del acto 1 (espejo de `CardLibrary`).
+  `BuildActo1Pool(catalog)` arma el pool **en memoria** desde el catálogo (por `unitSubtype`, sin duplicar
+  assets): por facción Patota/Búnker/Aparato + Jefe. La presentación (`FactionSelectController`) lo pasa al
+  `RunManager`.
 - **`RelicData`** (SO, §17.4).
 - **`RunMap` / `MapNode` / `MapNodeType` / `RunMapLibrary`:** grafo de puntos como **data**. `MapNode` =
   `{ id, type, title, connections, x/y (inertes en Core) }`. Dificultad = distancia (BFS).
   `RunMapLibrary.BuildActo1` arma la Línea A; `BuildDefaultMap` se conserva como fixture de tests.
-- **`RunManager`:** `AvailableNodes`, `BeginCombat(nodeId)` (arma la IA desde el arquetipo del pool —
-  fallback al default opuesto sin pool — aplica reliquias al humano y devuelve un `GameEngine` iniciado),
-  `PickEncounter` (tier + no-repetir, RNG inyectado), `ResolveCombat` (gana→recompensa+oro / jefe→`Won` /
-  pierde→`Lost`), `EnterTreasure` (otorga oro y avanza), `AdvanceTo` (avance único compartido combate /
-  no-combate), `ChooseReward`/`SkipReward`. `RunConfig` = parámetros (handicap, `rewardCount`, oro por
-  combate/élite/tesoro). Lados fijos: humano = índice de su facción, IA la otra.
+- **`RunManager`:** `AvailableNodes` (bloquea con recompensa o taller abierto), `BeginCombat(nodeId)` (arma
+  la IA desde el arquetipo del pool — fallback al default opuesto sin pool — aplica reliquias al humano y
+  devuelve un `GameEngine` iniciado), `PickEncounter` (tier + no-repetir, RNG inyectado), `ResolveCombat`
+  (gana→recompensa+oro / jefe→`Won` / pierde→`Lost`), `EnterTreasure` (otorga oro y avanza), `EnterWorkshop`/
+  `RemoveCardAndLeave`/`LeaveWorkshop` (taller de remoción, respeta `minDeckSize`), `AdvanceTo` (avance único
+  compartido combate / no-combate), `ChooseReward`/`SkipReward`. `RunConfig` = parámetros (handicap,
+  `rewardCount`, oro por combate/élite/tesoro, `minDeckSize`). Lados fijos: humano = índice de su facción, IA la otra.
 - **Seam de motor único:** `PlayerSetup.initialStatuses` (§7.8) — siembra estados al iniciar (ruteo igual
   que `ApplyStatus`: de jugador→`activeStatuses`, por-unidad→unidades desplegadas). Lo usan reliquias y la
   pasiva de jefe. Todo lo demás se materializa en `PlayerSetup`/`RunState` sin tocar el resolutor.
@@ -1112,9 +1118,14 @@ las vuelca acumulando sobre lo que ya traiga el setup (ej. una pasiva de jefe). 
 
 ### 17.6 Puntos de extensión (resumen)
 
-- **Pasos 8-9 (Core):** `Workshop` (remoción primero), `Shop` (stock con RNG + gastar oro), `Event`
-  (`EventDefinition` data-driven), `Mystery` (resuelve a otro tipo); **upgrade de cartas** (`RunCardEntry`
-  + `RunCardFactory`, migra `RunState.deck`).
+- **Pasos 8-9 (Core):** `Workshop` (remoción ✅ Core, falta pantalla + nodo en el mapa), `Shop` (stock con
+  RNG + gastar oro), `Event` (`EventDefinition` data-driven), `Mystery` (resuelve a otro tipo); **upgrade de
+  cartas** (`RunCardEntry` + `RunCardFactory`, migra `RunState.deck`).
+- **Reliquias jugables (hueco actual):** el motor las aplica, pero falta una `RelicLibrary` + flujo para
+  obtenerlas (tesoro oro-o-reliquia / boss / élite / tienda) + HUD.
+- **Presentación pendiente:** pantallas de taller/tienda/evento, HUD de reliquias, estilos USS de los tipos
+  de nodo, estética del subte. Ya wireado: `FactionSelectController` (BuildActo1 + pool) y `MapController`
+  (dispatch de tesoro, HUD de oro, clases por tipo).
 - **Diferidos (paso 10):** **consumibles** (carta con flag `consumable`), **`AiProfile`** activo (estilos
   de IA por arquetipo), **`ICombatRule`** (hooks dinámicos de reliquia/boss), **generación procedural** de
   mapa, **meta-progresión** entre runs, **armado de mazo pre-run**, **3ª facción**.

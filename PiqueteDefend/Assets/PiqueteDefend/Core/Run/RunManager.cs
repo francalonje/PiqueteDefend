@@ -28,6 +28,10 @@ namespace PiqueteDefend.Core
         /// <summary>Oro otorgado por un nodo de tesoro (spec §17.6). En §17.6 un tesoro puede dar
         /// reliquia en vez de oro; este es el monto cuando da oro.</summary>
         public int treasureGoldReward = 15;
+
+        /// <summary>Tamaño mínimo del mazo de la run: el taller (spec §17.6) no deja quitar cartas por
+        /// debajo de esto, para no romper el robo.</summary>
+        public int minDeckSize = 5;
     }
 
     /// <summary>Oferta de recompensa tras ganar un combate (1-de-N, spec §17.2). Vacía si no hay
@@ -61,6 +65,7 @@ namespace PiqueteDefend.Core
         private int _pendingNodeId = -1;          // combate en curso (entre BeginCombat y ResolveCombat)
         private GameEngine _combat;                // el motor del combate en curso
         private List<CardData> _pendingReward;     // recompensa sin resolver (Choose/Skip)
+        private int _pendingWorkshopNodeId = -1;   // taller abierto (entre EnterWorkshop y Leave/Remove)
 
         public RunState State { get; }
 
@@ -92,7 +97,7 @@ namespace PiqueteDefend.Core
         /// terminó o hay una recompensa sin resolver.</summary>
         public IReadOnlyList<MapNode> AvailableNodes()
         {
-            if (State.status != RunStatus.InProgress || _pendingReward != null)
+            if (State.status != RunStatus.InProgress || _pendingReward != null || WorkshopInProgress)
                 return Array.Empty<MapNode>();
             return State.map.Successors(State.currentNodeId);
         }
@@ -344,6 +349,68 @@ namespace PiqueteDefend.Core
                 throw new InvalidOperationException($"El punto {nodeId} ({node.type}) no es un tesoro.");
 
             State.gold += _runConfig.treasureGoldReward;
+            AdvanceTo(node);
+        }
+
+        // ── Taller de mazo (spec §17.6): remoción de cartas ─────────────────────────
+
+        /// <summary>True si hay un taller abierto (bloquea la navegación, como la recompensa).</summary>
+        public bool WorkshopInProgress => _pendingWorkshopNodeId >= 0;
+
+        /// <summary>Abre el taller del nodo (spec §17.6): hasta cerrarlo (quitar una carta o salir) no
+        /// se puede navegar. No es combate ni deja recompensa pendiente.</summary>
+        public void EnterWorkshop(int nodeId)
+        {
+            if (State.status != RunStatus.InProgress)
+                throw new InvalidOperationException($"La run no está en curso ({State.status}).");
+            if (_pendingReward != null)
+                throw new InvalidOperationException("Hay una recompensa sin resolver.");
+            if (CombatInProgress)
+                throw new InvalidOperationException("Hay un combate en curso.");
+            if (WorkshopInProgress)
+                throw new InvalidOperationException("Ya hay un taller abierto.");
+            if (!IsAvailable(nodeId))
+                throw new InvalidOperationException($"El punto {nodeId} no es alcanzable desde {State.currentNodeId}.");
+
+            MapNode node = State.map.NodeById(nodeId);
+            if (node.type != MapNodeType.Workshop)
+                throw new InvalidOperationException($"El punto {nodeId} ({node.type}) no es un taller.");
+
+            _pendingWorkshopNodeId = nodeId;
+        }
+
+        /// <summary>Cartas del mazo que se pueden quitar en el taller abierto.</summary>
+        public IReadOnlyList<CardData> WorkshopCards => State.deck;
+
+        /// <summary>True si todavía se puede quitar una carta (el mazo está por encima del mínimo).</summary>
+        public bool CanRemoveCard => WorkshopInProgress && State.deck.Count > _runConfig.minDeckSize;
+
+        /// <summary>Quita la carta del mazo y cierra el taller (avanza). Una remoción por taller.</summary>
+        public void RemoveCardAndLeave(CardData card)
+        {
+            if (!WorkshopInProgress)
+                throw new InvalidOperationException("No hay taller abierto.");
+            if (card == null || !State.deck.Contains(card))
+                throw new ArgumentException("La carta no está en el mazo de la run.", nameof(card));
+            if (State.deck.Count <= _runConfig.minDeckSize)
+                throw new InvalidOperationException($"El mazo está en el mínimo ({_runConfig.minDeckSize}): no se puede quitar.");
+
+            State.deck.Remove(card);
+            CloseWorkshop();
+        }
+
+        /// <summary>Sale del taller sin quitar nada (avanza).</summary>
+        public void LeaveWorkshop()
+        {
+            if (!WorkshopInProgress)
+                throw new InvalidOperationException("No hay taller abierto.");
+            CloseWorkshop();
+        }
+
+        private void CloseWorkshop()
+        {
+            MapNode node = State.map.NodeById(_pendingWorkshopNodeId);
+            _pendingWorkshopNodeId = -1;
             AdvanceTo(node);
         }
 

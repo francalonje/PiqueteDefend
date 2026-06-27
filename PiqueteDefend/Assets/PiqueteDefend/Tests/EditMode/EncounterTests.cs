@@ -192,5 +192,42 @@ namespace PiqueteDefend.Tests
 
             Assert.AreEqual(new RunConfig().combatGoldReward, rm.State.gold, "ganar un combate otorga oro");
         }
+
+        // ── EncounterLibrary (contenido del acto 1) ─────────────────────────────
+
+        [Test]
+        public void EncounterLibrary_BuildsPool_BothFactions_WithBossAndCombats()
+        {
+            var cat = NewCatalog();
+            List<EncounterDefinition> pool = EncounterLibrary.BuildActo1Pool(cat);
+
+            foreach (Faction f in new[] { Faction.Manifestantes, Faction.Policias })
+            {
+                int boss = 0, combat = 0;
+                foreach (EncounterDefinition e in pool)
+                {
+                    if (e.faction != f) continue;
+                    Assert.Greater(e.deck.Count, 0, $"{f}: cada arquetipo trae un mazo");
+                    if (e.isBoss) boss++; else combat++;
+                }
+                Assert.AreEqual(1, boss, $"{f}: exactamente un jefe");
+                Assert.GreaterOrEqual(combat, 1, $"{f}: al menos un arquetipo de combate");
+            }
+        }
+
+        [Test]
+        public void EncounterLibrary_FeedsRun_PicksCuratedArchetype()
+        {
+            var cat = NewCatalog();
+            List<EncounterDefinition> pool = EncounterLibrary.BuildActo1Pool(cat);
+            var rm = new RunManager(cat, new GameConfig(), new ZeroRng(), Faction.Manifestantes,
+                                    RunMapLibrary.BuildActo1(), null, pool);
+
+            int firstCombat = -1;
+            foreach (MapNode n in rm.AvailableNodes()) { firstCombat = n.id; break; }
+            rm.BeginCombat(firstCombat, firstIndex: 0);
+
+            Assert.IsNotEmpty(rm.State.usedEncounterIds, "el combate usó un arquetipo curado del pool");
+        }
     }
 }

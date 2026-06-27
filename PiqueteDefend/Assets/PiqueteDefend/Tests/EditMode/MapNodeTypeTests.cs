@@ -62,15 +62,16 @@ namespace PiqueteDefend.Tests
         }
 
         /// <summary>Mapa de prueba con tipos de nodo variados:
-        /// Start(0) → Combat(1), Elite(2), Treasure(3); cada uno → Boss(4).</summary>
+        /// Start(0) → Combat(1), Elite(2), Treasure(3), Workshop(5); cada uno → Boss(4).</summary>
         private static RunMap TestMap()
         {
             var nodes = new List<MapNode>
             {
-                new MapNode(0, MapNodeType.Start, "inicio").ConnectTo(1, 2, 3),
+                new MapNode(0, MapNodeType.Start, "inicio").ConnectTo(1, 2, 3, 5),
                 new MapNode(1, MapNodeType.Combat, "combate").ConnectTo(4),
                 new MapNode(2, MapNodeType.Elite, "elite").ConnectTo(4),
                 new MapNode(3, MapNodeType.Treasure, "tesoro").ConnectTo(4),
+                new MapNode(5, MapNodeType.Workshop, "taller").ConnectTo(4),
                 new MapNode(4, MapNodeType.Boss, "jefe"),
             };
             return new RunMap(nodes, 0);
@@ -133,6 +134,51 @@ namespace PiqueteDefend.Tests
             RunManager rm = NewRun(out _);
             Assert.DoesNotThrow(() => rm.BeginCombat(2, firstIndex: 0), "la élite se entra como combate");
             Assert.IsTrue(rm.CombatInProgress);
+        }
+
+        // ── Taller de mazo (remoción) ──────────────────────────────────────────────
+
+        [Test]
+        public void Workshop_RemovesCard_AndAdvances()
+        {
+            RunManager rm = NewRun(out _);
+            int before = rm.State.deck.Count;
+            CardData toRemove = rm.State.deck[0];
+
+            rm.EnterWorkshop(5);
+            Assert.IsTrue(rm.WorkshopInProgress);
+            Assert.AreEqual(0, rm.AvailableNodes().Count, "el taller abierto bloquea la navegación");
+
+            rm.RemoveCardAndLeave(toRemove);
+
+            Assert.IsFalse(rm.WorkshopInProgress, "quitar cierra el taller");
+            Assert.AreEqual(before - 1, rm.State.deck.Count, "el mazo perdió una carta");
+            Assert.AreEqual(5, rm.State.currentNodeId, "avanzó al nodo del taller");
+            Assert.IsTrue(rm.IsAvailable(4), "ahora el sucesor del taller");
+        }
+
+        [Test]
+        public void Workshop_LeaveWithoutRemoving_Advances()
+        {
+            RunManager rm = NewRun(out _);
+            int before = rm.State.deck.Count;
+            rm.EnterWorkshop(5);
+            rm.LeaveWorkshop();
+
+            Assert.IsFalse(rm.WorkshopInProgress);
+            Assert.AreEqual(before, rm.State.deck.Count, "salir sin tocar no cambia el mazo");
+            Assert.AreEqual(5, rm.State.currentNodeId);
+        }
+
+        [Test]
+        public void Workshop_RespectsMinDeckSize()
+        {
+            var rm = new RunManager(NewCatalog(), new GameConfig(), new ZeroRng(),
+                                    Faction.Manifestantes, TestMap(), new RunConfig { minDeckSize = 100 });
+            CardData any = rm.State.deck[0];
+            rm.EnterWorkshop(5);
+            Assert.IsFalse(rm.CanRemoveCard, "con el mazo en el mínimo no se puede quitar");
+            Assert.Throws<InvalidOperationException>(() => rm.RemoveCardAndLeave(any));
         }
 
         // ── Acto 1 (Línea A del subte) ─────────────────────────────────────────────

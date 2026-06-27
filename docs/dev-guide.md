@@ -389,18 +389,21 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
   `CardLibrary` + tests). Invalida el balance previo: re-derivar economía/inflación/`maxResource`.
 - **IA (Fase 2):** `IPlayerController` en `Core` (impl `Human` en Presentation, `AI` en Core portando
   `policy.py`). El motor consulta al controller; testeable sin escena.
-- **Run/meta (Core puro):** la capa de run vive en `Core/Run/`. Base extendida 2026-06-27 (pasos 1-7,
-  95/95 tests verde):
+- **Run/meta (Core puro):** la capa de run vive en `Core/Run/`. Base extendida 2026-06-27 (pasos 1-7 +
+  contenido/wiring + taller de remoción, **100/100 tests verde**):
   - `RunMap`/`MapNode`/`MapNodeType`/`RunMapLibrary` — el grafo como **data**. `MapNodeType` =
     `Start`/`Combat`/`Elite`/`Boss`/`Shop`/`Event`/`Workshop`/`Treasure`/`Mystery`.
-    `BuildActo1` = **Línea A del subte** (el acto jugable); `BuildDefaultMap` = fixture de tests.
+    `BuildActo1` = **Línea A del subte** (el acto jugable, ya wireado); `BuildDefaultMap` = fixture de tests.
   - `EncounterDefinition` (SO) — **arquetipo de enemigo** curado (mazo + unidades + handicap + estados +
-    `isBoss`/`leaderUnit`). `RelicData` (SO) — reliquia persistente (`BonusResource`/`ExtraStartingUnit`/`InitialStatus`).
+    `isBoss`/`leaderUnit`). `EncounterLibrary` (Core) — fuente de verdad de los arquetipos del acto,
+    armados **en código** desde el catálogo (`BuildActo1Pool(catalog)`). `RelicData` (SO) — reliquia
+    persistente (`BonusResource`/`ExtraStartingUnit`/`InitialStatus`).
   - `RunState` — `map`, `currentNodeId`, `actIndex`, `status`, `deck`, `clearedNodeIds`,
     `usedEncounterIds`, `gold`, `relics`.
-  - `RunManager` — `AvailableNodes`, `BeginCombat` (arma la IA desde el arquetipo, fallback al default,
-    aplica reliquias), `PickEncounter`, `ResolveCombat` (recompensa + oro), `EnterTreasure`, `AdvanceTo`,
-    `ChooseReward`/`SkipReward`. `RunConfig` = params (handicap, `rewardCount`, oro).
+  - `RunManager` — `AvailableNodes` (bloquea con recompensa o taller abierto), `BeginCombat` (arma la IA
+    desde el arquetipo, fallback al default, aplica reliquias), `PickEncounter`, `ResolveCombat`
+    (recompensa + oro), `EnterTreasure`, `EnterWorkshop`/`RemoveCardAndLeave`/`LeaveWorkshop`, `AdvanceTo`,
+    `ChooseReward`/`SkipReward`. `RunConfig` = params (handicap, `rewardCount`, oro, `minDeckSize`).
   - `PlayerSetup` + `GameEngine.StartGame(PlayerSetup, PlayerSetup, firstIndex)` — inyección de mazo +
     handicap + `initialStatuses` (único seam de motor, ver receta abajo).
   - Tests: `RunTests`, `EncounterTests`, `RelicTests`, `MapNodeTypeTests`.
@@ -408,12 +411,19 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
   **Receta — punto del mapa / acto:** en `RunMapLibrary.BuildActo1` agregá un `new MapNode(id, type,
   "estación", x, y).ConnectTo(idsDestino…)` y enganchalo desde un punto previo. La **dificultad la da la
   distancia** (BFS): no se setea a mano. Un solo `Boss` (la cabecera). Conexiones a ids existentes (el
-  ctor valida). `x/y` = hint visual (Core los ignora). Es data: no toca motor ni sim.
+  ctor valida). `x/y` = hint visual (Core los ignora). ⚠️ Si el nodo es de un tipo aún no dispatcheado en
+  `MapController` (Shop/Event/Workshop/Mystery), no lo metas en una ruta única o trabás la run.
 
-  **Receta — arquetipo de enemigo:** creá un asset `EncounterDefinition` (menú `PiqueteDefend/Encounter`),
-  poné `faction` (la opuesta al humano), `difficulty` (tier del nodo), `deck`/`startingUnits`/bonus, y para
-  el jefe `isBoss`+`leaderUnit`. Pasalo al pool del `RunManager` (param `encounters`). El pool no repite
-  arquetipos en la run. Pasiva de jefe = pasivas del `leaderUnit` + `aiInitialStatuses`/`playerInitialStatuses`.
+  **Receta — arquetipo de enemigo:** lo más rápido es agregarlo en `EncounterLibrary.BuildForFaction`
+  (código, referencia cartas del catálogo por `unitSubtype` — sin duplicar assets). Alternativa: crear un
+  asset `EncounterDefinition` (menú `PiqueteDefend/Encounter`). En ambos casos: `faction` (la opuesta al
+  humano), `difficulty` (tier del nodo), `deck`/`startingUnits`/bonus, y para el jefe `isBoss`+`leaderUnit`.
+  El `RunManager` recibe el pool (param `encounters`, hoy `EncounterLibrary.BuildActo1Pool`); no repite en
+  la run. Pasiva de jefe = pasivas del `leaderUnit` + `aiInitialStatuses`/`playerInitialStatuses`.
+
+  **Receta — taller de remoción:** `EnterWorkshop(nodeId)` abre (bloquea navegación); `RemoveCardAndLeave(card)`
+  quita una carta (respeta `RunConfig.minDeckSize`) y avanza; `LeaveWorkshop()` sale sin tocar. Falta su
+  pantalla en presentación + un nodo `Workshop` en `BuildActo1`.
 
   **Receta — reliquia:** creá un asset `RelicData` (menú `PiqueteDefend/Relic`) con su `kind`. Sumala a
   `RunState.relics` (tesoro/élite/tienda). `RunManager.ApplyRelics` la vuelca al `PlayerSetup` del humano.
@@ -434,4 +444,8 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
   `RunManager.AiIndex` con `HeuristicAiController` (loop `NextAction→Execute→Render→delay→EndTurn`, input
   bloqueado por `_aiTurnInProgress`); al terminar llama `RunManager.ResolveCombat` y rutea a Reward /
   run-ganada / run-perdida. Menú de pausa (ESCAPE) + click-away que cierra popovers.
-  Pendiente de pulido por playtest; el diorama 3D del mapa es mejora futura.
+  **Wiring del acto 1 (2026-06-27):** `FactionSelectController` arranca la run con `BuildActo1()` +
+  `EncounterLibrary.BuildActo1Pool`; `MapController` despacha por tipo de nodo (tesoro→`EnterTreasure` y
+  refresca; combate/élite/jefe→combate), clases `map-node--{tipo}` y un HUD de oro (Label runtime).
+  **Pendiente:** pantallas de taller/tienda/evento, HUD de reliquias, estilos USS de los tipos de nodo,
+  estética del subte; pulido por playtest; el diorama 3D del mapa es mejora futura.

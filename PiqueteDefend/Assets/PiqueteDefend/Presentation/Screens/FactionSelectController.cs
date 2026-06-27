@@ -66,7 +66,10 @@ namespace PiqueteDefend.Presentation
                 return;
             }
 
-            var run = new RunManager(catalog, new GameConfig(), new SystemRandomProvider(), faction);
+            // Acto 1 = Línea A del subte (§17.1) + pool de arquetipos de enemigo curados (§17.6).
+            var encounters = EncounterLibrary.BuildActo1Pool(catalog);
+            var run = new RunManager(catalog, new GameConfig(), new SystemRandomProvider(), faction,
+                                     RunMapLibrary.BuildActo1(), null, encounters);
             RunSession.Start(run);
             SceneManager.LoadScene("Map");
         }
