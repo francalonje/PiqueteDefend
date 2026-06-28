@@ -485,7 +485,12 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
   nombre/chip de tipo/ícono `node-<tipo>`, ficha en la parada actual, badges de combinación) y despacha
   por tipo (tesoro→`EnterTreasure` y refresca; combate/élite/jefe→combate; taller/tienda/evento→escena).
   HUD de oro (ícono `gold`) + reliquias con sprite (`relic-<id>`/`relic-generic`, fallback a texto). Seam
-  de FX/audio al avanzar = `MapController.PlayStationAdvanceFx`.
+  de FX/audio al avanzar = `MapController.PlayStationAdvanceFx`. La tira se **compone dentro del marco
+  blanco** del arte de fondo: el fondo del mapa se estira (`.screen--map .scene-bg { background-size:
+  100% 100% }`) y `.map__area` se posiciona (insets %) sobre el rectángulo del marco (ajustar si cambia
+  el arte). Las reliquias tienen **popover on-hover** vía `InfoPopover` (helper compartido en
+  `Presentation/App`: título + flavor + línea de efecto mecánico; clases `popover*` en Common.uss;
+  `InfoPopover.Show(anchor, title, body, effect)`, reutilizable por cualquier pantalla).
   **Pendiente / iteración:** afinar look por playtest (espaciado de estaciones, tamaños); fondo de subte
-  por parada (`bg-subte` + `MapNode.backgroundKey`); fork/desvío en combinaciones (candidato de playtest);
+  por parada (`bgsubte` + `MapNode.backgroundKey`); fork/desvío en combinaciones (candidato de playtest);
   `Mystery`; el diorama 3D del mapa es mejora futura.

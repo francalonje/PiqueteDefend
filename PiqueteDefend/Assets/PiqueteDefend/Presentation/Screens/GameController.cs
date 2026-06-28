@@ -879,7 +879,7 @@ namespace PiqueteDefend.Presentation
         /// descripción. Usa las clases <c>relic-chip*</c> de Common.uss.</summary>
         public static VisualElement BuildRelicChip(RelicData relic)
         {
-            var chip = new VisualElement { tooltip = $"{relic.relicName}\n{relic.description}" };
+            var chip = new VisualElement();
             chip.AddToClassList("relic-chip");
 
             Texture2D tex = IconLoader.Texture("relic-" + relic.id) ?? IconLoader.Texture("relic-generic");
@@ -898,7 +898,32 @@ namespace PiqueteDefend.Presentation
                 lbl.AddToClassList("relic-chip__text");
                 chip.Add(lbl);
             }
+
+            // Popover informativo on hover (mismo look que el resto): nombre + flavor + efecto mecánico.
+            // Reemplaza al tooltip nativo.
+            chip.RegisterCallback<PointerEnterEvent>(_ =>
+                InfoPopover.Show(chip, relic.relicName, relic.description, RelicEffectText(relic)));
+            chip.RegisterCallback<PointerLeaveEvent>(_ => InfoPopover.Hide(chip));
             return chip;
+        }
+
+        /// <summary>Línea de efecto mecánico de una reliquia (derivada de <see cref="RelicData"/>) para el
+        /// popover: traduce el <see cref="RelicEffectKind"/> a una descripción concreta.</summary>
+        private static string RelicEffectText(RelicData r)
+        {
+            switch (r.kind)
+            {
+                case RelicEffectKind.BonusResource:
+                    return $"+{r.value} {r.resource} al empezar cada combate";
+                case RelicEffectKind.ExtraStartingUnit:
+                    return r.unit != null ? $"Unidad inicial extra: {r.unit.cardName}" : "Unidad inicial extra";
+                case RelicEffectKind.InitialStatus:
+                    if (r.status == null) return "Estado inicial al empezar el combate";
+                    string st = r.status.value != 0 ? $"{r.status.statusType} {r.status.value}" : r.status.statusType.ToString();
+                    return $"Empezás cada combate con {st}";
+                default:
+                    return null;
+            }
         }
 
         /// <summary>Muestra el oro con ícono (key <c>gold</c>) + número en un <see cref="Label"/> existente
@@ -2218,9 +2243,8 @@ namespace PiqueteDefend.Presentation
             int step = 0;
             el.schedule.Execute(() =>
             {
-                el.transform.position = step < xs.Length
-                    ? new Vector3(xs[step], 0f, 0f)
-                    : Vector3.zero;
+                float x = step < xs.Length ? xs[step] : 0f;
+                el.style.translate = new StyleTranslate(new Translate(x, 0));   // (antes ITransform.position, obsoleto)
                 step++;
             }).Every(28).Until(() => step > xs.Length);
         }

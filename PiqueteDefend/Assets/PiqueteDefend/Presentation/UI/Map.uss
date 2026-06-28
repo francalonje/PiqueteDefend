@@ -3,11 +3,23 @@
 
 .screen--map {
     flex-direction: column;
+    justify-content: flex-start;   /* el header arriba; .map__area es absoluto (sobre el marco) */
+}
+
+/* El mapa se compone DENTRO del marco blanco del arte de fondo. Para que el marco quede en una
+   posición fija (y el mapa caiga adentro sin importar el aspect), el fondo del mapa se ESTIRA
+   (100% 100%) en vez de cover; el área del mapa (.map__area) se posiciona sobre el rectángulo del marco. */
+.screen--map .scene-bg {
+    background-size: 100% 100%;
 }
 
 .map__header {
     margin-top: 18px;
     align-items: center;
+    align-self: center;
+    padding: 6px 24px;
+    border-radius: 12px;
+    background-color: rgba(12, 15, 21, 0.6);
 }
 
 .map__title {
@@ -26,11 +38,14 @@
    (.screen) centra en horizontal con align-items:center, así que SIN align-self:stretch el área
    quedaría del ancho de su contenido (0, porque los hijos son absolutos) y los left% colapsarían
    todos los nodos al centro. stretch = ocupa el ancho real → los x se reparten bien. */
+/* Rectángulo interior del marco blanco del fondo (fracciones de la imagen bgsubte). El mapa vive
+   acá adentro. Si cambia el arte, ajustar estos insets. */
 .map__area {
-    flex-grow: 1;
-    align-self: stretch;
-    margin: 12px 40px;
-    position: relative;
+    position: absolute;
+    left: 14%;
+    right: 14%;
+    top: 20%;
+    bottom: 24%;
 }
 
 .map__abandon {
@@ -47,21 +62,21 @@
    La barra es "la línea": una franja del color de la línea detrás de las estaciones (color
    asignado por código desde RunMap.lineColorHex). */
 .map-line {
-    height: 10px;
-    border-radius: 5px;
+    height: 20px;
+    border-radius: 10px;
 }
 
 /* Estación = dot circular sobre la línea (botón clickeable). El anillo (border-color) lo pinta el
    código con el color de la línea; relleno y estado los maneja el USS. */
 .map-node {
     position: absolute;
-    width: 26px;
-    height: 26px;
+    width: 42px;
+    height: 42px;
     min-width: 0;
     margin: 0;
     padding: 0;
-    border-radius: 13px;
-    border-width: 4px;
+    border-radius: 21px;
+    border-width: 5px;
     background-color: rgb(238, 242, 246);
     align-items: center;
     justify-content: center;
@@ -71,8 +86,8 @@
 
 /* Ícono del tipo de parada dentro del dot (sprite-ready; si falta el PNG, el dot queda liso). */
 .map-node__icon {
-    width: 16px;
-    height: 16px;
+    width: 28px;
+    height: 28px;
     background-size: contain;
 }
 
@@ -80,11 +95,11 @@
 .map-node__ficha {
     position: absolute;
     bottom: 100%;
-    margin-bottom: 2px;
-    width: 22px;
-    height: 22px;
+    margin-bottom: 4px;
+    width: 36px;
+    height: 36px;
     background-size: contain;
-    font-size: 18px;
+    font-size: 26px;
     -unity-font-style: bold;
     color: rgb(255, 230, 120);
     -unity-text-align: middle-center;
@@ -92,11 +107,11 @@
 
 /* Disponible: próxima parada elegible (avanzar 1-2). Resaltada y clickeable. */
 .map-node--available {
-    width: 30px;
-    height: 30px;
-    border-radius: 15px;
+    width: 54px;
+    height: 54px;
+    border-radius: 27px;
 }
-.map-node--available:hover { scale: 1.18 1.18; }
+.map-node--available:hover { scale: 1.15 1.15; }
 
 /* Parada actual (además lleva la ficha encima). */
 .map-node--current {
@@ -111,32 +126,38 @@
 
 /* Jefe = cabecera de la línea (Plaza de Mayo). Dot más grande. */
 .map-node--boss {
-    width: 40px;
-    height: 40px;
-    border-radius: 20px;
+    width: 64px;
+    height: 64px;
+    border-radius: 32px;
 }
 
 /* ── Etiqueta de la estación (nombre + chip de tipo), debajo del dot ──────────── */
 .map-station__label {
-    width: 132px;
+    width: 78px;
     align-items: center;
 }
+/* Nombre de estación: pill oscuro translúcido para que se lea sobre el fondo (claro u oscuro).
+   max-width fuerza el WRAP cuando el nombre no entra (ej. "Río de Janeiro"). */
 .map-node__title {
-    font-size: 12px;
+    font-size: 14px;
     -unity-font-style: bold;
-    color: rgb(232, 236, 244);
+    color: rgb(245, 248, 252);
     -unity-text-align: middle-center;
     white-space: normal;
+    max-width: 76px;
+    padding: 1px 7px;
+    background-color: rgba(14, 17, 23, 0.74);
+    border-radius: 6px;
 }
 /* Chip de tipo: distingue tienda/tesoro/evento/etc. de un vistazo. Color de fondo por tipo (abajo). */
 .map-node__type {
-    margin-top: 2px;
-    padding: 0 6px;
-    font-size: 10px;
+    margin-top: 3px;
+    padding: 1px 9px;
+    font-size: 13px;
     -unity-font-style: bold;
     color: rgb(18, 20, 26);
     background-color: rgb(150, 156, 170);
-    border-radius: 5px;
+    border-radius: 6px;
     -unity-text-align: middle-center;
 }
 
@@ -156,11 +177,11 @@
     justify-content: center;
 }
 .map-combo {
-    width: 18px;
-    height: 18px;
-    border-radius: 9px;
-    margin: 0 1px;
-    font-size: 11px;
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    margin: 0 2px;
+    font-size: 14px;
     -unity-font-style: bold;
     color: rgb(255, 255, 255);
     -unity-text-align: middle-center;

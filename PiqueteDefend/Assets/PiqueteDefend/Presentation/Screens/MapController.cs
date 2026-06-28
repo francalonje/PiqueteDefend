@@ -19,7 +19,7 @@ namespace PiqueteDefend.Presentation
         private const string PanelSettingsResource = "UIPanelSettings";
 
         // Geometría de la tira (porcentajes del área; coherente con RunMapLibrary.BuildLineaA).
-        private const float DotOffset = 18f;   // px: separación del dot a las etiquetas/combos arriba-abajo.
+        private const float DotOffset = 36f;   // px: separación del dot a las etiquetas/combos arriba-abajo.
 
         private VisualElement _area;
         private VisualElement _goldRow;
@@ -151,23 +151,15 @@ namespace PiqueteDefend.Presentation
             UpdateHud();
         }
 
-        /// <summary>Barra continua del color de la línea, detrás de las estaciones (de la primera x a la
-        /// última, a media altura). Es "la línea" del subte.</summary>
+        /// <summary>Barra continua del color de la línea, detrás de las estaciones. Va de borde a borde
+        /// del área (entra en el fondo, como la vía del andén). Es "la línea" del subte.</summary>
         private void DrawLineBar(RunMap map, Color lineColor)
         {
-            float minX = 1f, maxX = 0f;
-            foreach (MapNode n in map.Nodes)
-            {
-                if (n.x < minX) minX = n.x;
-                if (n.x > maxX) maxX = n.x;
-            }
-            if (maxX < minX) return;
-
             var bar = new VisualElement { name = "map-line", pickingMode = PickingMode.Ignore };
             bar.AddToClassList("map-line");
             bar.style.position = Position.Absolute;
-            bar.style.left = Length.Percent(minX * 100f);
-            bar.style.width = Length.Percent((maxX - minX) * 100f);
+            bar.style.left = 0;
+            bar.style.right = 0;
             bar.style.top = Length.Percent(50f);
             bar.style.translate = new StyleTranslate(new Translate(0, Length.Percent(-50f)));
             bar.style.backgroundColor = lineColor;
