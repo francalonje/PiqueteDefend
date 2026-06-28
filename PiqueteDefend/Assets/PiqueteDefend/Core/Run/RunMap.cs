@@ -61,13 +61,27 @@ namespace PiqueteDefend.Core
         public readonly float x;
         public readonly float y;
 
-        public MapNode(int id, MapNodeType type, string title, float x = 0f, float y = 0f)
+        /// <summary>Combinaciones (líneas que cruzan en esta estación, ej. ["H"] o ["D","E"]). Metadata
+        /// <b>inerte de presentación</b>: el núcleo no la lee; la UI dibuja el badge de combinación.
+        /// Hoy es decoración (la decisión de ruta es cuántas paradas avanzar); el fork/desvío por
+        /// combinación es candidato de playtest.</summary>
+        public readonly IReadOnlyList<string> combinations;
+
+        /// <summary>Clave de fondo específico de la parada (ej. "estacion-congreso"). Metadata
+        /// <b>inerte de presentación</b>: extension point para que cada parada tenga su background
+        /// (mapa y/o combate de esa parada). <c>null</c>/"" = fondo por defecto.</summary>
+        public readonly string backgroundKey;
+
+        public MapNode(int id, MapNodeType type, string title, float x = 0f, float y = 0f,
+                       IReadOnlyList<string> combinations = null, string backgroundKey = null)
         {
             this.id = id;
             this.type = type;
             this.title = title;
             this.x = x;
             this.y = y;
+            this.combinations = combinations ?? System.Array.Empty<string>();
+            this.backgroundKey = backgroundKey;
         }
 
         /// <summary>Agrega salidas (encadenable, para autorar el mapa de forma legible).</summary>
@@ -88,13 +102,27 @@ namespace PiqueteDefend.Core
     {
         public readonly int startNodeId;
 
+        /// <summary>Nombre de la línea/acto (ej. "Línea A"). Metadata <b>inerte de presentación</b>:
+        /// el núcleo no la lee; la UI titula y themea el mapa. Escala a multi-acto vía
+        /// <see cref="RunState.actIndex"/>.</summary>
+        public readonly string lineName;
+
+        /// <summary>Color de la línea en hex (ej. "#1CA9C9" celeste para la A). Metadata <b>inerte de
+        /// presentación</b>: la UI lo usa para la barra/anillos de estación. <c>null</c> = color por
+        /// defecto de la UI.</summary>
+        public readonly string lineColorHex;
+
         private readonly List<MapNode> _nodes;
         private readonly Dictionary<int, MapNode> _byId;
         private readonly Dictionary<int, int> _distance;
         private readonly int _bossNodeId;
 
-        public RunMap(IReadOnlyList<MapNode> nodes, int startNodeId)
+        public RunMap(IReadOnlyList<MapNode> nodes, int startNodeId,
+                      string lineName = null, string lineColorHex = null)
         {
+            this.lineName = lineName;
+            this.lineColorHex = lineColorHex;
+
             _nodes = new List<MapNode>(nodes);
             _byId = new Dictionary<int, MapNode>(_nodes.Count);
             foreach (MapNode n in _nodes)

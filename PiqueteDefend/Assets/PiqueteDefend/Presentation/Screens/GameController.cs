@@ -860,9 +860,9 @@ namespace PiqueteDefend.Presentation
             _status[index].text = StatusText(p);
         }
 
-        /// <summary>Reliquias activas de la run en el panel del humano (spec §17.4). Placeholder: chips
-        /// con nombre + tooltip; el sprite se enchufa después. Da affordance in-game de qué reliquias
-        /// pesan en el combate (su efecto ya se aplicó al iniciar vía <see cref="PlayerSetup"/>).</summary>
+        /// <summary>Reliquias activas de la run en el panel del humano (spec §17.4): chips sprite-ready
+        /// (<see cref="BuildRelicChip"/>). Da affordance in-game de qué reliquias pesan en el combate
+        /// (su efecto ya se aplicó al iniciar vía <see cref="PlayerSetup"/>).</summary>
         private void RenderRelics()
         {
             if (_relicsRow == null || !RunSession.IsActive) return;
@@ -870,17 +870,63 @@ namespace PiqueteDefend.Presentation
             foreach (RelicData relic in RunSession.Manager.State.relics)
             {
                 if (relic == null) continue;
-                var chip = new Label(relic.relicName) { tooltip = $"{relic.relicName}\n{relic.description}" };
-                chip.style.marginRight = 4;
-                chip.style.paddingLeft = 5; chip.style.paddingRight = 5;
-                chip.style.paddingTop = 1; chip.style.paddingBottom = 1;
-                chip.style.fontSize = 11;
-                chip.style.color = new Color(1f, 0.85f, 0.25f);
-                chip.style.backgroundColor = new Color(0.15f, 0.12f, 0.05f, 0.9f);
-                chip.style.borderTopLeftRadius = 3; chip.style.borderTopRightRadius = 3;
-                chip.style.borderBottomLeftRadius = 3; chip.style.borderBottomRightRadius = 3;
-                _relicsRow.Add(chip);
+                _relicsRow.Add(BuildRelicChip(relic));
             }
+        }
+
+        /// <summary>Chip de reliquia compartido (HUD de combate y de mapa): sprite <c>relic-&lt;id&gt;</c>
+        /// (o <c>relic-generic</c>); si falta el PNG, cae al nombre corto en texto. Tooltip con nombre +
+        /// descripción. Usa las clases <c>relic-chip*</c> de Common.uss.</summary>
+        public static VisualElement BuildRelicChip(RelicData relic)
+        {
+            var chip = new VisualElement { tooltip = $"{relic.relicName}\n{relic.description}" };
+            chip.AddToClassList("relic-chip");
+
+            Texture2D tex = IconLoader.Texture("relic-" + relic.id) ?? IconLoader.Texture("relic-generic");
+            if (tex != null)
+            {
+                var img = new VisualElement();
+                img.AddToClassList("relic-chip__img");
+                img.style.backgroundImage = new StyleBackground(tex);
+                chip.Add(img);
+            }
+            else
+            {
+                string name = relic.relicName ?? "?";
+                if (name.Length > 12) name = name.Substring(0, 12) + "…";
+                var lbl = new Label(name);
+                lbl.AddToClassList("relic-chip__text");
+                chip.Add(lbl);
+            }
+            return chip;
+        }
+
+        /// <summary>Muestra el oro con ícono (key <c>gold</c>) + número en un <see cref="Label"/> existente
+        /// (tienda/evento/run-panel). Envuelve el label una sola vez en una fila <c>hud-gold</c> con el
+        /// ícono; si falta el PNG, cae a "Oro: N" en el mismo label. Idempotente (re-render seguro).</summary>
+        public static void SetGoldDisplay(Label label, int gold)
+        {
+            if (label == null) return;
+            Texture2D tex = IconLoader.Texture("gold");
+            label.text = tex != null ? gold.ToString() : $"Oro: {gold}";
+
+            // Sin sprite, o ya envuelto: sólo actualizar el texto.
+            if (tex == null || (label.parent != null && label.parent.ClassListContains("hud-gold"))) return;
+            VisualElement parent = label.parent;
+            if (parent == null) return;
+
+            int idx = parent.IndexOf(label);
+            var row = new VisualElement();
+            row.AddToClassList("hud-gold");
+            row.style.flexShrink = 0;
+            parent.Insert(idx, row);
+            parent.Remove(label);
+
+            var icon = new VisualElement { pickingMode = PickingMode.Ignore };
+            icon.AddToClassList("hud-gold__icon");
+            icon.style.backgroundImage = new StyleBackground(tex);
+            row.Add(icon);
+            row.Add(label);
         }
 
         private void RenderSlots()
@@ -1099,19 +1145,8 @@ namespace PiqueteDefend.Presentation
             }
         }
 
-        // Texturas de iconos cargadas de Resources/Icons (cache por key). Las genera tools/gen_icons.py.
-        private readonly Dictionary<string, Texture2D> _iconTexCache = new Dictionary<string, Texture2D>();
-
-        private Texture2D IconTexture(string key)
-        {
-            if (string.IsNullOrEmpty(key)) return null;
-            if (!_iconTexCache.TryGetValue(key, out Texture2D tex))
-            {
-                tex = Resources.Load<Texture2D>("Icons/" + key);
-                _iconTexCache[key] = tex;   // cachea también el null (falta) para no recargar
-            }
-            return tex;
-        }
+        // Texturas de iconos de Resources/Icons (cache compartido en IconLoader). Las genera tools/gen_icons.py.
+        private Texture2D IconTexture(string key) => IconLoader.Texture(key);
 
         // Texturas de arte de unidad cargadas de Resources/Units (cache por key, incluye null = falta).
         private readonly Dictionary<string, Texture2D> _unitTexCache = new Dictionary<string, Texture2D>();
@@ -1673,6 +1708,18 @@ namespace PiqueteDefend.Presentation
         /// Público y estático para reusarlo fuera del combate (p. ej. la pantalla de recompensa de la run,
         /// spec §17.2). Usa las clases <c>.card*</c> de <c>Game.uss</c>: la escena que lo muestre debe
         /// importar ese stylesheet.</summary>
+        /// <summary>Envuelve el visual de carta en un slot de tamaño fijo (relative, flex-shrink:0) para
+        /// usarlo FUERA del abanico de la mano. En la mano la carta es position:absolute (la coloca
+        /// LayoutHand), por lo que NO reserva lugar en el flujo: en recompensa/tienda/taller se amontonan
+        /// sin este contenedor (spec §17.2/§17.6). El slot mantiene el gálibo 160×240 de <c>.card</c>.</summary>
+        public static VisualElement BuildCardSlot(CardData card, int inflationPercent = 0)
+        {
+            var slot = new VisualElement();
+            slot.AddToClassList("card-slot");
+            slot.Add(BuildCardVisual(card, inflationPercent));
+            return slot;
+        }
+
         public static VisualElement BuildCardVisual(CardData card, int inflationPercent = 0)
         {
             var el = new VisualElement();

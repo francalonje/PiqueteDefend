@@ -52,7 +52,7 @@ namespace PiqueteDefend.Presentation
             var wrap = new VisualElement();
             wrap.AddToClassList("reward-pick");
 
-            VisualElement cardView = GameController.BuildCardVisual(card);
+            VisualElement cardView = GameController.BuildCardSlot(card);
             wrap.Add(cardView);
 
             wrap.RegisterCallback<ClickEvent>(_ => Choose(card));

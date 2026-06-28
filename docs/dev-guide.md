@@ -412,11 +412,14 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
     handicap + `initialStatuses` (único seam de motor, ver receta abajo).
   - Tests: `RunTests`, `EncounterTests`, `RelicTests`, `MapNodeTypeTests`.
 
-  **Receta — punto del mapa / acto:** en `RunMapLibrary.BuildActo1` agregá un `new MapNode(id, type,
-  "estación", x, y).ConnectTo(idsDestino…)` y enganchalo desde un punto previo. La **dificultad la da la
-  distancia** (BFS): no se setea a mano. Un solo `Boss` (la cabecera). Conexiones a ids existentes (el
-  ctor valida). `x/y` = hint visual (Core los ignora). ⚠️ Si el nodo es de un tipo aún no dispatcheado en
-  `MapController` (Shop/Event/Workshop/Mystery), no lo metas en una ruta única o trabás la run.
+  **Receta — estación / línea del acto:** el acto es la **tira lineal** de una línea de subte. Editás la
+  tabla `LineaA` en `RunMapLibrary` (`Station`: nombre + `combinations` de flavor); para otra línea/acto,
+  clonás el patrón. La **topología la arma `BuildLineaA`** (cada parada conecta a `i+1`/`i+2` = avanzar
+  1-2 paradas; subí `maxJump` para líneas largas). Los **tipos de nodo se sortean por run** en
+  `RollActo1Types` (RNG inyectado, con garantías de variedad) — tocá ahí las reglas; `DefaultActo1Types`
+  es el layout determinista para tests (`BuildActo1()` sin args). La **dificultad la da la distancia** (BFS):
+  no se setea a mano. Color/nombre de línea = `RunMap.lineColorHex`/`lineName`; fondo por parada =
+  `MapNode.backgroundKey` (extension point, aún no conectado al combate).
 
   **Receta — arquetipo de enemigo:** lo más rápido es agregarlo en `EncounterLibrary.BuildForFaction`
   (código, referencia cartas del catálogo por `unitSubtype` — sin duplicar assets). Alternativa: crear un
@@ -435,7 +438,16 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
   `EventOutcome` Gold/Relic/AddRandomCard). `EnterEvent(nodeId)` lo abre; `ResolveEvent(choiceIndex)` aplica
   la opción y avanza.
 
-  ⚠️ Taller/tienda/evento están **Core+tests** pero **sin pantalla ni nodo en `BuildActo1`** (pase de UI pendiente).
+  Taller/tienda/evento: **Core + tests + pantalla** (`Workshop/Shop/EventController`); los nodos los
+  **reparte el sorteo** de `BuildActo1(rng)`.
+
+  **Receta — sprite de ícono (nodo / oro / reliquia / ficha):** dejá un PNG en
+  `Presentation/Resources/Icons/<key>.png` y aparece solo (carga vía `IconLoader`, cache + fallback a
+  glyph/texto). Keys en uso: `gold`; `node-combat|elite|boss|treasure|shop|event|workshop|mystery`;
+  `relic-generic` y `relic-<id>` (id de `RelicData`); `ficha` (marcador del jugador en el mapa). Fondo de
+  subte del mapa = `Resources/bg-subte` (override de `bg-menu`, hook listo). `IconLoader.BuildIcon(key,
+  glyph, clase)` / `IconLoader.Texture(key)` son los helpers; el chip de reliquia y el oro compartidos
+  están en `GameController.BuildRelicChip`/`SetGoldDisplay` (clases `relic-chip*`/`hud-gold*` en Common.uss).
 
   **Receta — reliquia:** agregala en `RelicLibrary.BuildPool` (código; `kind` = `BonusResource`/
   `ExtraStartingUnit`/`InitialStatus`) o como asset `RelicData` (menú `PiqueteDefend/Relic`). El pool va al
@@ -467,9 +479,13 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
   `RunManager.AiIndex` con `HeuristicAiController` (loop `NextAction→Execute→Render→delay→EndTurn`, input
   bloqueado por `_aiTurnInProgress`); al terminar llama `RunManager.ResolveCombat` y rutea a Reward /
   run-ganada / run-perdida. Menú de pausa (ESCAPE) + click-away que cierra popovers.
-  **Wiring del acto 1 (2026-06-27):** `FactionSelectController` arranca la run con `BuildActo1()` +
-  `EncounterLibrary.BuildActo1Pool` + `RelicLibrary.BuildPool`; `MapController` despacha por tipo de nodo
-  (tesoro→`EnterTreasure` y refresca; combate/élite/jefe→combate), clases `map-node--{tipo}`, HUD de oro +
-  **reliquias placeholder** (chips con nombre/tooltip; sprites después) y un toast de recompensa.
-  **Pendiente:** pantallas de taller/tienda/evento, sprites de reliquias, estilos USS de los tipos de nodo,
-  estética del subte; pulido por playtest; el diorama 3D del mapa es mejora futura.
+  **Wiring del acto 1:** `FactionSelectController` arranca la run con `BuildActo1(rng)` (mapa con tipos
+  sorteados, mismo RNG que el manager) + `EncounterLibrary.BuildActo1Pool` + `RelicLibrary.BuildPool`.
+  `MapController` dibuja la **tira de subte** (barra del color de línea, estaciones-círculo con
+  nombre/chip de tipo/ícono `node-<tipo>`, ficha en la parada actual, badges de combinación) y despacha
+  por tipo (tesoro→`EnterTreasure` y refresca; combate/élite/jefe→combate; taller/tienda/evento→escena).
+  HUD de oro (ícono `gold`) + reliquias con sprite (`relic-<id>`/`relic-generic`, fallback a texto). Seam
+  de FX/audio al avanzar = `MapController.PlayStationAdvanceFx`.
+  **Pendiente / iteración:** afinar look por playtest (espaciado de estaciones, tamaños); fondo de subte
+  por parada (`bg-subte` + `MapNode.backgroundKey`); fork/desvío en combinaciones (candidato de playtest);
+  `Mystery`; el diorama 3D del mapa es mejora futura.

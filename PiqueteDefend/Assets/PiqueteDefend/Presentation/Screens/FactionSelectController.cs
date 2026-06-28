@@ -70,8 +70,10 @@ namespace PiqueteDefend.Presentation
             var encounters = EncounterLibrary.BuildActo1Pool(catalog);
             var relics = RelicLibrary.BuildPool(catalog, faction);
             var events = EventLibrary.BuildActo1Pool();
-            var run = new RunManager(catalog, new GameConfig(), new SystemRandomProvider(), faction,
-                                     RunMapLibrary.BuildActo1(), null, encounters, relics, events);
+            // Un solo RNG para mapa (tipos de nodo por run, §17.6) y combate/manager.
+            var rng = new SystemRandomProvider();
+            var run = new RunManager(catalog, new GameConfig(), rng, faction,
+                                     RunMapLibrary.BuildActo1(rng), null, encounters, relics, events);
             RunSession.Start(run);
             SceneManager.LoadScene("Map");
         }

@@ -206,5 +206,39 @@ namespace PiqueteDefend.Tests
             // El jefe es alcanzable (distancia válida vía BFS).
             Assert.Greater(map.DistanceOf(RunMapLibrary.Acto1BossId), 0, "el jefe es alcanzable desde el inicio");
         }
+
+        [Test]
+        public void Acto1_Generator_IsValidAcrossSeeds()
+        {
+            for (int seed = 0; seed < 25; seed++)
+            {
+                RunMap map = RunMapLibrary.BuildActo1(new SystemRandomProvider(seed));
+
+                Assert.AreEqual(MapNodeType.Start, map.StartNode.type, $"seed {seed}: inicio es Start");
+                Assert.AreEqual(RunMapLibrary.Acto1BossId, map.BossNodeId, $"seed {seed}: cabecera es el jefe");
+                Assert.AreEqual(0, map.Successors(RunMapLibrary.Acto1BossId).Count, $"seed {seed}: jefe terminal");
+
+                var counts = new Dictionary<MapNodeType, int>();
+                foreach (MapNode node in map.Nodes)
+                {
+                    counts.TryGetValue(node.type, out int c);
+                    counts[node.type] = c + 1;
+
+                    // Topología "saltos 1-2": cada parada no-final conecta a i+1, a lo sumo 2 salidas.
+                    if (node.id < RunMapLibrary.Acto1BossId)
+                    {
+                        CollectionAssert.Contains(node.connections, node.id + 1,
+                            $"seed {seed}: la parada {node.id} conecta a la siguiente");
+                        Assert.LessOrEqual(node.connections.Count, 2, $"seed {seed}: a lo sumo salto 2");
+                    }
+                    Assert.GreaterOrEqual(map.DistanceOf(node.id), 0, $"seed {seed}: nodo {node.id} alcanzable");
+                }
+
+                foreach (MapNodeType req in new[] { MapNodeType.Shop, MapNodeType.Elite,
+                                                    MapNodeType.Treasure, MapNodeType.Event, MapNodeType.Workshop })
+                    Assert.IsTrue(counts.ContainsKey(req), $"seed {seed}: hay al menos un {req}");
+                Assert.IsTrue(counts.ContainsKey(MapNodeType.Combat), $"seed {seed}: hay combates de relleno");
+            }
+        }
     }
 }
