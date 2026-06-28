@@ -1030,13 +1030,20 @@ Reusa íntegro el motor de combate (§6) — el rival lo controla la **IA** (§1
 
 ### 17.1 Objetivo y estructura
 
-- **Mapa = SUBTE de Buenos Aires** (decisión 2026-06-27): **línea = acto**, **estación = nodo**,
-  **transbordo/combinación = bifurcación** entre ramas (y puente entre actos cuando haya multi-acto). El
-  jugador **elige a qué estación ir** entre las disponibles; cada estación se visita **una sola vez**
-  (elegir una ruta **saltea** las hermanas). **Multi-acto eventual**; hoy **un acto**.
-- **Acto 1 = Línea A** (`RunMapLibrary.BuildActo1`): de **Primera Junta** (el barrio) a **Plaza de Mayo /
-  Casa Rosada** (cabecera = jefe). 7 estaciones: 3 combates + 1 **tesoro** + 1 **élite** + boss, con ramas
-  paralelas → **3-4 peleas por pasada** según ruta. Forma/tamaño = **data, rough, iterable**.
+- **Mapa = SUBTE de Buenos Aires** (decisión 2026-06-27): **línea = acto**, **estación = nodo**. El mapa
+  es la **tira lineal** de la línea; desde la estación actual el jugador elige **avanzar 1 o 2 paradas**
+  (líneas más largas podrán permitir 3). Las paradas **salteadas no se pueden elegir después** (una sola
+  pasada): es la decisión de ruta (express vs. local — saltear ahorra peleas pero pierde recompensas).
+  Las **combinaciones** (transbordos A/C/D/E/H) son **decoración** por ahora; convertirlas en
+  **forks/desvíos** riesgo-recompensa que reenganchan es **candidato de playtest** ([[feedback-playtest-driven]]).
+  **Multi-acto eventual**; hoy **un acto**.
+- **Acto 1 = Línea A** (`RunMapLibrary.BuildActo1`): tira de **11 estaciones reales** de **Primera Junta**
+  a **Plaza de Mayo / Casa Rosada** (cabecera = jefe), topología `i → i+1, i+2`. El **esqueleto de
+  estaciones es fijo** (geografía + combinaciones reales: H en Plaza Miserere, C en Lima, D/E en Perú);
+  los **tipos de nodo se sortean por run** (`BuildActo1(IRandomProvider)`: garantiza ≥1 de cada
+  no-combate Shop/Elite/Treasure/Event + Workshop antes del jefe + combates de relleno, barajados) →
+  **replay** sin perder la geografía. `BuildActo1()` sin args = layout **determinista** (tests).
+  Forma/contenido = **data, rough, iterable**.
 - **Variedad por ARQUETIPOS de enemigo curados** (`EncounterDefinition`, §17.5): cada combate enfrenta un
   arquetipo (mazo + unidades iniciales + handicap propio + estilo) sorteado de un pool **sin repetir** en la
   run (`RunState.usedEncounterIds`). Reemplaza el viejo "mazo default opuesto + handicap" (que queda como
@@ -1046,8 +1053,9 @@ Reusa íntegro el motor de combate (§6) — el rival lo controla la **IA** (§1
   que **se suma** al bonus propio del arquetipo. El humano **no** recibe handicap (salvo reliquias, §17.4).
 - **Tipos de nodo** (`MapNodeType`, todos **data**): `Combat`, `Elite` (combate más duro, mejor paga),
   `Boss` (cabecera), `Shop` (tienda), `Event` (decisión), `Workshop` (taller: upgrade/remoción),
-  `Treasure` (oro/reliquia), `Mystery` (resultado oculto). **Implementados en Core:** Combat/Elite/Boss
-  (camino de combate) y Treasure (atómico, otorga oro). Shop/Event/Workshop/Mystery = pasos 8/10.
+  `Treasure` (oro/reliquia), `Mystery` (resultado oculto). **Implementados** (Core + pantalla):
+  Combat/Elite/Boss (camino de combate), Treasure (atómico, otorga oro), Shop/Event/Workshop. `Mystery`
+  = pendiente (queda fuera del sorteo de `BuildActo1`).
 - **Objetivo de la run:** vencer el combate del **jefe** (cabecera de línea, tipo `Boss`) →
   `RunState.status = Won`. **[Seam multi-acto]** con varios actos, vencer un jefe que no es el último
   incrementa `RunState.actIndex` y carga el mapa del próximo acto en vez de ganar (hoy: un acto = Won).

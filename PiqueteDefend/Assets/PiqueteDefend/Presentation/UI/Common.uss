@@ -52,3 +52,49 @@
 .btn--primary:hover {
     background-color: rgb(232, 108, 70);
 }
+
+/* ── HUD de run: oro + reliquias (compartido: mapa, combate, tienda, evento) ──────
+   Íconos sprite-ready vía IconLoader; si falta el PNG, caen a glyph/texto. */
+.hud-gold {
+    flex-direction: row;
+    align-items: center;
+}
+.hud-gold__icon {
+    width: 22px;
+    height: 22px;
+    background-size: contain;
+    font-size: 18px;
+    -unity-text-align: middle-center;
+    margin-right: 4px;
+}
+.hud-gold__value {
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: rgb(255, 217, 64);
+}
+
+.hud-relics {
+    flex-direction: row;
+    align-items: center;
+}
+.relic-chip {
+    flex-direction: row;
+    align-items: center;
+    margin-left: 4px;
+    padding: 2px 4px;
+    border-radius: 6px;
+    background-color: rgba(38, 31, 13, 0.92);
+    border-width: 1px;
+    border-color: rgba(255, 217, 64, 0.35);
+}
+.relic-chip__img {
+    width: 26px;
+    height: 26px;
+    background-size: contain;
+}
+.relic-chip__text {
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: rgb(255, 217, 64);
+    padding: 0 2px;
+}

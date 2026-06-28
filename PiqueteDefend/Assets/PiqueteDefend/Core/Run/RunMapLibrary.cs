@@ -13,9 +13,44 @@ namespace PiqueteDefend.Core
         public const int StartId = 0;
         public const int BossId = 7;
 
-        // Ids del acto 1 (Línea A del subte). Estables para presentación/tests.
+        // Acto 1 = Línea A del subte. Ids estables para presentación/tests.
         public const int Acto1StartId = 0;
-        public const int Acto1BossId = 9;
+        /// <summary>Id del jefe del acto 1 = última parada (cabecera Plaza de Mayo).</summary>
+        public static int Acto1BossId => LineaA.Length - 1;
+
+        /// <summary>Color de la Línea A (celeste).</summary>
+        private const string LineaAColorHex = "#1CA9C9";
+
+        /// <summary>Descriptor de una estación del esqueleto: nombre + combinaciones (flavor). El tipo de
+        /// nodo NO va acá: lo estampa el generador por run.</summary>
+        private readonly struct Station
+        {
+            public readonly string title;
+            public readonly string[] combinations;
+            public Station(string title, string[] combinations = null)
+            {
+                this.title = title;
+                this.combinations = combinations;
+            }
+        }
+
+        /// <summary>Esqueleto de la Línea A para el acto 1 (subconjunto curado, oeste→este: Primera Junta
+        /// → Plaza de Mayo). Geografía y combinaciones reales (H en Plaza Miserere, C en Lima, D/E en
+        /// Perú). El orden y el subconjunto son <b>tunables por playtest</b> ([[feedback-playtest-driven]]).</summary>
+        private static readonly Station[] LineaA =
+        {
+            new Station("Primera Junta"),
+            new Station("Acoyte"),
+            new Station("Río de Janeiro"),
+            new Station("Castro Barros"),
+            new Station("Loria"),
+            new Station("Plaza Miserere", new[] { "H" }),
+            new Station("Congreso"),
+            new Station("Sáenz Peña"),
+            new Station("Lima", new[] { "C" }),
+            new Station("Perú", new[] { "D", "E" }),
+            new Station("Plaza de Mayo"),
+        };
 
         /// <summary>
         /// Mapa default: grafo de puntos a elección con bifurcaciones (no carriles, spec §17.1).
@@ -64,50 +99,87 @@ namespace PiqueteDefend.Core
         }
 
         /// <summary>
-        /// Acto 1 = <b>Línea A del subte</b> (spec §17.6), de Primera Junta (el barrio) hasta Plaza de
-        /// Mayo / Casa Rosada (cabecera = jefe). Mezcla TODOS los tipos de nodo en anillos por distancia,
-        /// con ramas paralelas para que la ruta sea una decisión. El taller cae sobre todas las rutas.
-        /// <code>
-        ///   START Primera Junta (d0) → 1, 2
-        ///   d1: 1 Combat Acoyte → 3,4   · 2 Combat Río de Janeiro → 4,5
-        ///   d2: 3 Treasure Castro Barros → 6 · 4 Event Loria → 6,7 · 5 Shop Plaza Miserere → 7
-        ///   d3: 6 Combat Congreso → 8   · 7 Elite Sáenz Peña → 8
-        ///   d4: 8 Workshop Lima → BOSS
-        ///   d5: BOSS Plaza de Mayo
-        /// </code>
-        /// Cada pasada pelea 3 veces (2 combates/élite + jefe) y pasa por 1-2 nodos no-combate + el taller.
-        /// Soporta multi-acto sin rediseño: ver <see cref="RunState.actIndex"/>. <b>Rough, a iterar por
-        /// playtest</b> ([[feedback-playtest-driven]]).
+        /// Acto 1 = <b>Línea A del subte</b> (spec §17.1/§17.6): tira lineal de estaciones reales, de
+        /// Primera Junta a Plaza de Mayo / Casa Rosada (cabecera = jefe). El jugador avanza
+        /// <b>1 o 2 paradas</b> por turno (topología <c>i → i+1, i+2</c>); las salteadas quedan atrás
+        /// (una sola pasada, spec §17.1). Versión sin RNG: tipos de nodo fijos (determinista, para tests).
+        /// Soporta multi-acto sin rediseño: ver <see cref="RunState.actIndex"/>.
         /// </summary>
-        public static RunMap BuildActo1()
+        public static RunMap BuildActo1() => BuildLineaA(DefaultActo1Types());
+
+        /// <summary>
+        /// Igual que <see cref="BuildActo1()"/> pero con los tipos de nodo <b>sorteados por run</b> (RNG
+        /// inyectado, spec §17.6): el esqueleto de estaciones es fijo y cada partida reparte distinto los
+        /// encuentros (combate/tienda/evento/tesoro/élite), garantizando variedad. Replayabilidad sin
+        /// perder la geografía real de la línea. <b>Rough, a iterar por playtest</b> ([[feedback-playtest-driven]]).
+        /// </summary>
+        public static RunMap BuildActo1(IRandomProvider rng) => BuildLineaA(RollActo1Types(rng));
+
+        /// <summary>Construye el grafo lineal de la Línea A con los tipos dados (uno por estación, en
+        /// orden). Cada parada conecta a las próximas <c>maxJump</c> (salto 1 o 2); la cabecera es
+        /// terminal. <paramref name="types"/> debe tener largo == cantidad de estaciones.</summary>
+        private static RunMap BuildLineaA(IReadOnlyList<MapNodeType> types)
         {
-            // x = avance hacia Plaza de Mayo (oeste→este), y = rama visual (sólo presentación, 0..1).
-            var nodes = new List<MapNode>
+            const int maxJump = 2;   // avanzar 1 o 2 paradas (líneas más largas podrán subir esto)
+            int n = LineaA.Length;
+            var nodes = new List<MapNode>(n);
+            for (int i = 0; i < n; i++)
             {
-                new MapNode(Acto1StartId, MapNodeType.Start, "Primera Junta", 0.02f, 0.50f)
-                    .ConnectTo(1, 2),
+                Station s = LineaA[i];
+                // x = avance hacia Plaza de Mayo (oeste→este); y centrado (tira en una sola línea).
+                float x = n <= 1 ? 0.5f : 0.05f + 0.90f * (i / (float)(n - 1));
+                var node = new MapNode(i, types[i], s.title, x, 0.5f, s.combinations);
+                for (int j = 1; j <= maxJump && i + j < n; j++)
+                    node.ConnectTo(i + j);
+                nodes.Add(node);
+            }
+            return new RunMap(nodes, Acto1StartId, "Línea A", LineaAColorHex);
+        }
 
-                // Anillo 1 (d1) — la calle se calienta.
-                new MapNode(1, MapNodeType.Combat,   "Acoyte",         0.18f, 0.70f).ConnectTo(3, 4),
-                new MapNode(2, MapNodeType.Combat,   "Río de Janeiro", 0.18f, 0.30f).ConnectTo(4, 5),
-
-                // Anillo 2 (d2) — variedad: tesoro / evento / tienda.
-                new MapNode(3, MapNodeType.Treasure, "Castro Barros",  0.36f, 0.82f).ConnectTo(6),
-                new MapNode(4, MapNodeType.Event,    "Loria",          0.36f, 0.50f).ConnectTo(6, 7),
-                new MapNode(5, MapNodeType.Shop,     "Plaza Miserere", 0.36f, 0.18f).ConnectTo(7),
-
-                // Anillo 3 (d3) — el centro pega más fuerte.
-                new MapNode(6, MapNodeType.Combat,   "Congreso",       0.56f, 0.66f).ConnectTo(8),
-                new MapNode(7, MapNodeType.Elite,    "Sáenz Peña",     0.56f, 0.34f).ConnectTo(8),
-
-                // Anillo 4 (d4) — taller antes de la cabecera (sobre toda ruta).
-                new MapNode(8, MapNodeType.Workshop, "Lima",           0.76f, 0.50f).ConnectTo(Acto1BossId),
-
-                // Jefe (d5) — el final.
-                new MapNode(Acto1BossId, MapNodeType.Boss, "Plaza de Mayo", 0.96f, 0.50f),
+        /// <summary>Tipos fijos (determinista) para <see cref="BuildActo1()"/>: Start, Boss en la
+        /// cabecera, Taller justo antes del jefe, y un reparto fijo con variedad.</summary>
+        private static MapNodeType[] DefaultActo1Types()
+        {
+            int n = LineaA.Length;
+            var t = new MapNodeType[n];
+            t[0] = MapNodeType.Start;
+            t[n - 1] = MapNodeType.Boss;
+            t[n - 2] = MapNodeType.Workshop;
+            // Estaciones 1..n-3: especiales + relleno de combate (reparto fijo).
+            var mid = new[]
+            {
+                MapNodeType.Combat, MapNodeType.Treasure, MapNodeType.Combat, MapNodeType.Event,
+                MapNodeType.Shop, MapNodeType.Combat, MapNodeType.Elite, MapNodeType.Combat,
             };
+            for (int i = 1; i <= n - 3; i++) t[i] = mid[(i - 1) % mid.Length];
+            return t;
+        }
 
-            return new RunMap(nodes, Acto1StartId);
+        /// <summary>Tipos sorteados (RNG) para <see cref="BuildActo1(IRandomProvider)"/>: Start y Boss
+        /// fijos, Taller antes del jefe, y las demás estaciones reparten ≥1 de cada tipo no-combate
+        /// (Shop/Elite/Treasure/Event) + combates de relleno, barajados con el RNG inyectado.</summary>
+        private static MapNodeType[] RollActo1Types(IRandomProvider rng)
+        {
+            int n = LineaA.Length;
+            var t = new MapNodeType[n];
+            t[0] = MapNodeType.Start;
+            t[n - 1] = MapNodeType.Boss;
+            t[n - 2] = MapNodeType.Workshop;
+
+            int mid = n - 3;   // estaciones 1..n-3
+            var bag = new List<MapNodeType>(mid)
+            {
+                MapNodeType.Shop, MapNodeType.Elite, MapNodeType.Treasure, MapNodeType.Event,
+            };
+            while (bag.Count < mid) bag.Add(MapNodeType.Combat);
+            // Fisher-Yates con el RNG inyectado.
+            for (int i = bag.Count - 1; i > 0; i--)
+            {
+                int j = rng.Next(i + 1);
+                (bag[i], bag[j]) = (bag[j], bag[i]);
+            }
+            for (int i = 1; i <= mid; i++) t[i] = bag[i - 1];
+            return t;
         }
     }
 }

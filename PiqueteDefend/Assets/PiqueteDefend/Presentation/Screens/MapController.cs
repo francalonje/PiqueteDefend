@@ -7,22 +7,25 @@ using PiqueteDefend.Core;
 namespace PiqueteDefend.Presentation
 {
     /// <summary>
-    /// Pantalla de mapa de la run (spec §17.1): puntos a elección posicionados por sus coords x/y,
-    /// con las conexiones dibujadas como líneas. El jugador clickea un punto disponible (sucesor del
-    /// actual) → arma el combate (<see cref="RunManager.BeginCombat"/>) y abre la escena de juego.
-    /// 2D UI Toolkit (MVP); el diorama 3D queda como mejora futura.
+    /// Pantalla de mapa de la run (spec §17.1): la <b>tira de la línea de subte del acto</b>. Las
+    /// estaciones se posicionan por su <c>x</c> a lo largo de una barra del color de la línea; el
+    /// jugador avanza 1 o 2 paradas (los sucesores del actual quedan resaltados) y las salteadas
+    /// quedan atrás (una sola pasada). Cada parada abre su encuentro (combate/tienda/evento/…).
+    /// Look recreado con UI Toolkit (sin arte de terceros); sprite-ready vía <see cref="IconLoader"/>.
     /// </summary>
     [RequireComponent(typeof(UIDocument))]
     public sealed class MapController : MonoBehaviour
     {
         private const string PanelSettingsResource = "UIPanelSettings";
 
+        // Geometría de la tira (porcentajes del área; coherente con RunMapLibrary.BuildLineaA).
+        private const float DotOffset = 18f;   // px: separación del dot a las etiquetas/combos arriba-abajo.
+
         private VisualElement _area;
-        private VisualElement _edges;
+        private VisualElement _goldRow;
         private Label _goldLabel;
         private VisualElement _relicsBar;
         private Label _toast;
-        private readonly Dictionary<int, VisualElement> _nodeEls = new Dictionary<int, VisualElement>();
 
         private void OnEnable()
         {
@@ -33,7 +36,9 @@ namespace PiqueteDefend.Presentation
             VisualElement root = doc.rootVisualElement;
             if (root == null) return;
 
+            // Fondo: base de menú + override de subte si existe el recurso (hook listo, aparece solo).
             SceneBackground.Apply(root, "bg-menu");
+            SceneBackground.Apply(root, "bg-subte");
             AudioManager.Instance?.PlayMusic(AudioId.MusicFactionSelect);
 
             // Sin run en curso (escena abierta suelta, o run terminada): volvé al menú.
@@ -51,30 +56,34 @@ namespace PiqueteDefend.Presentation
             BuildMap();
         }
 
-        /// <summary>HUD de run (oro + reliquias + toast). Construido en runtime (no depende del UXML).
-        /// Placeholder: las reliquias se muestran como chips con nombre; el sprite va más adelante.</summary>
+        // ── HUD de run (oro + reliquias + toast) ────────────────────────────────────
+
+        /// <summary>HUD de run construido en runtime (no depende del UXML): oro (ícono + número),
+        /// reliquias (chips sprite-ready) y toast de feedback.</summary>
         private void EnsureHud(VisualElement root)
         {
-            if (_goldLabel != null) return;
+            if (_goldRow != null) return;
 
-            _goldLabel = new Label { name = "map-gold" };
-            _goldLabel.style.position = Position.Absolute;
-            _goldLabel.style.top = 12;
-            _goldLabel.style.left = 12;
-            _goldLabel.style.fontSize = 20;
-            _goldLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            _goldLabel.style.color = new Color(1f, 0.85f, 0.25f);   // dorado
-            root.Add(_goldLabel);
+            _goldRow = new VisualElement { name = "map-gold" };
+            _goldRow.AddToClassList("hud-gold");
+            _goldRow.style.position = Position.Absolute;
+            _goldRow.style.top = 12;
+            _goldRow.style.left = 12;
+            VisualElement goldIcon = IconLoader.BuildIcon("gold", "$", "hud-gold__icon");
+            if (goldIcon != null) _goldRow.Add(goldIcon);
+            _goldLabel = new Label();
+            _goldLabel.AddToClassList("hud-gold__value");
+            _goldRow.Add(_goldLabel);
+            root.Add(_goldRow);
 
-            // Barra de reliquias (fila de chips placeholder, arriba a la derecha).
             _relicsBar = new VisualElement { name = "map-relics" };
+            _relicsBar.AddToClassList("hud-relics");
             _relicsBar.style.position = Position.Absolute;
             _relicsBar.style.top = 12;
             _relicsBar.style.right = 12;
             _relicsBar.style.flexDirection = FlexDirection.Row;
             root.Add(_relicsBar);
 
-            // Toast de feedback (centro arriba), p. ej. al sacar una reliquia del tesoro.
             _toast = new Label { name = "map-toast" };
             _toast.style.position = Position.Absolute;
             _toast.style.top = 44;
@@ -93,7 +102,7 @@ namespace PiqueteDefend.Presentation
             if (!RunSession.IsActive) return;
             RunState st = RunSession.Manager.State;
 
-            if (_goldLabel != null) _goldLabel.text = $"Oro: {st.gold}";
+            if (_goldLabel != null) _goldLabel.text = st.gold.ToString();
 
             if (_relicsBar != null)
             {
@@ -101,26 +110,9 @@ namespace PiqueteDefend.Presentation
                 foreach (RelicData relic in st.relics)
                 {
                     if (relic == null) continue;
-                    var chip = new Label(Short(relic.relicName)) { tooltip = $"{relic.relicName}\n{relic.description}" };
-                    chip.AddToClassList("relic-chip");
-                    chip.style.marginLeft = 4;
-                    chip.style.paddingLeft = 6; chip.style.paddingRight = 6;
-                    chip.style.paddingTop = 2; chip.style.paddingBottom = 2;
-                    chip.style.backgroundColor = new Color(0.15f, 0.12f, 0.05f, 0.9f);
-                    chip.style.borderTopLeftRadius = 4; chip.style.borderTopRightRadius = 4;
-                    chip.style.borderBottomLeftRadius = 4; chip.style.borderBottomRightRadius = 4;
-                    chip.style.color = new Color(1f, 0.85f, 0.25f);
-                    chip.style.fontSize = 13;
-                    _relicsBar.Add(chip);
+                    _relicsBar.Add(GameController.BuildRelicChip(relic));
                 }
             }
-        }
-
-        /// <summary>Iniciales del nombre de la reliquia (placeholder hasta tener sprites).</summary>
-        private static string Short(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return "?";
-            return name.Length <= 12 ? name : name.Substring(0, 12) + "…";
         }
 
         private void ShowToast(string text)
@@ -130,84 +122,167 @@ namespace PiqueteDefend.Presentation
             _toast.style.display = DisplayStyle.Flex;
         }
 
+        // ── Tira de la línea ────────────────────────────────────────────────────────
+
         private void BuildMap()
         {
             if (_area == null) return;
             _area.Clear();
-            _nodeEls.Clear();
-
-            // Capa de líneas detrás de los puntos.
-            _edges = new VisualElement { name = "map-edges", pickingMode = PickingMode.Ignore };
-            _edges.style.position = Position.Absolute;
-            _edges.style.left = 0; _edges.style.top = 0; _edges.style.right = 0; _edges.style.bottom = 0;
-            _area.Add(_edges);
 
             RunManager run = RunSession.Manager;
             RunState st = run.State;
             RunMap map = st.map;
+            Color lineColor = LineColor(map);
 
             var available = new HashSet<int>();
             foreach (MapNode n in run.AvailableNodes()) available.Add(n.id);
 
+            DrawLineBar(map, lineColor);
+
             foreach (MapNode node in map.Nodes)
             {
-                var btn = new Button();
-                btn.AddToClassList("map-node");
-                btn.style.left = Length.Percent(Mathf.Clamp01(node.x) * 100f);
-                btn.style.top = Length.Percent(Mathf.Clamp01(node.y) * 100f);
-
-                // Contenido: ícono (sprite-ready) + título + etiqueta de tipo (placeholder para
-                // distinguir tienda/tesoro/evento/etc. mientras no haya íconos propios, spec §17.1).
-                Texture2D icoTex = NodeIcon(node.type);
-                if (icoTex != null)
-                {
-                    var ico = new VisualElement { pickingMode = PickingMode.Ignore };
-                    ico.AddToClassList("map-node__icon");
-                    ico.style.backgroundImage = new StyleBackground(icoTex);
-                    btn.Add(ico);
-                }
-
-                var titleEl = new Label(node.title) { pickingMode = PickingMode.Ignore };
-                titleEl.AddToClassList("map-node__title");
-                btn.Add(titleEl);
-
-                string typeName = NodeTypeName(node.type);
-                if (!string.IsNullOrEmpty(typeName))
-                {
-                    var typeEl = new Label(typeName) { pickingMode = PickingMode.Ignore };
-                    typeEl.AddToClassList("map-node__type");
-                    btn.Add(typeEl);
-                }
-
                 bool isCurrent = node.id == st.currentNodeId;
                 bool isCleared = st.IsCleared(node.id) && !isCurrent;
                 bool isAvailable = available.Contains(node.id);
 
-                // Clase visual por tipo (el USS puede no tener todas; AddToClassList es inofensivo).
-                btn.AddToClassList(NodeTypeClass(node.type));
-                if (isCurrent) btn.AddToClassList("map-node--current");
-                else if (isCleared) btn.AddToClassList("map-node--cleared");
-                else if (isAvailable) btn.AddToClassList("map-node--available");
-                else btn.AddToClassList("map-node--locked");
-
-                if (isAvailable && TryGetNodeAction(node.type, node.id, out System.Action onClick))
-                {
-                    btn.clicked += onClick;
-                }
-                else
-                {
-                    btn.SetEnabled(false);   // no clickeable, pero no por estilo :disabled (mantiene color de estado)
-                    btn.pickingMode = PickingMode.Ignore;
-                }
-
-                _area.Add(btn);
-                _nodeEls[node.id] = btn;
+                BuildStation(node, lineColor, isCurrent, isCleared, isAvailable);
             }
 
             UpdateHud();
+        }
 
-            // Las líneas necesitan el layout ya resuelto: las (re)dibujamos cuando el área tiene geometría.
-            _area.RegisterCallback<GeometryChangedEvent>(_ => DrawEdges());
+        /// <summary>Barra continua del color de la línea, detrás de las estaciones (de la primera x a la
+        /// última, a media altura). Es "la línea" del subte.</summary>
+        private void DrawLineBar(RunMap map, Color lineColor)
+        {
+            float minX = 1f, maxX = 0f;
+            foreach (MapNode n in map.Nodes)
+            {
+                if (n.x < minX) minX = n.x;
+                if (n.x > maxX) maxX = n.x;
+            }
+            if (maxX < minX) return;
+
+            var bar = new VisualElement { name = "map-line", pickingMode = PickingMode.Ignore };
+            bar.AddToClassList("map-line");
+            bar.style.position = Position.Absolute;
+            bar.style.left = Length.Percent(minX * 100f);
+            bar.style.width = Length.Percent((maxX - minX) * 100f);
+            bar.style.top = Length.Percent(50f);
+            bar.style.translate = new StyleTranslate(new Translate(0, Length.Percent(-50f)));
+            bar.style.backgroundColor = lineColor;
+            _area.Add(bar);
+        }
+
+        /// <summary>Una estación: dot (clickeable) sobre la línea, nombre + chip de tipo debajo, badges de
+        /// combinación arriba, y la ficha del jugador si es la parada actual.</summary>
+        private void BuildStation(MapNode node, Color lineColor, bool isCurrent, bool isCleared, bool isAvailable)
+        {
+            Length x = Length.Percent(Mathf.Clamp01(node.x) * 100f);
+            Length mid = Length.Percent(50f);
+
+            // ── Dot (el marcador clickeable) ──
+            var dot = new Button();
+            dot.AddToClassList("map-node");
+            dot.AddToClassList(NodeTypeClass(node.type));
+            if (isCurrent) dot.AddToClassList("map-node--current");
+            else if (isCleared) dot.AddToClassList("map-node--cleared");
+            else if (isAvailable) dot.AddToClassList("map-node--available");
+            else dot.AddToClassList("map-node--locked");
+            dot.style.position = Position.Absolute;
+            dot.style.left = x;
+            dot.style.top = mid;
+            dot.style.translate = new StyleTranslate(new Translate(Length.Percent(-50f), Length.Percent(-50f)));
+            dot.style.borderTopColor = dot.style.borderRightColor =
+                dot.style.borderBottomColor = dot.style.borderLeftColor = lineColor;
+
+            VisualElement icon = IconLoader.BuildIcon("node-" + node.type.ToString().ToLowerInvariant(), null,
+                                                      "map-node__icon");
+            if (icon != null) dot.Add(icon);
+
+            if (isCurrent)
+            {
+                VisualElement ficha = IconLoader.BuildIcon("ficha", "▾", "map-node__ficha");
+                if (ficha != null) dot.Add(ficha);
+            }
+
+            if (isAvailable && TryGetNodeAction(node.type, node.id, out System.Action onClick))
+            {
+                dot.clicked += onClick;
+            }
+            else
+            {
+                dot.SetEnabled(false);
+                dot.pickingMode = PickingMode.Ignore;
+            }
+            _area.Add(dot);
+
+            // ── Etiqueta (nombre + chip de tipo) debajo del dot ──
+            var label = new VisualElement { pickingMode = PickingMode.Ignore };
+            label.AddToClassList("map-station__label");
+            label.AddToClassList(NodeTypeClass(node.type));   // habilita el color por tipo del chip (USS)
+            label.style.position = Position.Absolute;
+            label.style.left = x;
+            label.style.top = mid;
+            label.style.translate = new StyleTranslate(new Translate(Length.Percent(-50f), 0));
+            label.style.marginTop = DotOffset;
+
+            var titleEl = new Label(node.title);
+            titleEl.AddToClassList("map-node__title");
+            label.Add(titleEl);
+
+            string typeName = NodeTypeName(node.type);
+            if (!string.IsNullOrEmpty(typeName))
+            {
+                var typeEl = new Label(typeName);
+                typeEl.AddToClassList("map-node__type");
+                label.Add(typeEl);
+            }
+            _area.Add(label);
+
+            // ── Badges de combinación arriba del dot (decoración, spec §17.1) ──
+            if (node.combinations != null && node.combinations.Count > 0)
+            {
+                var combos = new VisualElement { pickingMode = PickingMode.Ignore };
+                combos.AddToClassList("map-station__combos");
+                combos.style.position = Position.Absolute;
+                combos.style.left = x;
+                combos.style.top = mid;
+                combos.style.translate = new StyleTranslate(new Translate(Length.Percent(-50f), Length.Percent(-100f)));
+                combos.style.marginTop = -DotOffset;
+                foreach (string letter in node.combinations)
+                {
+                    var badge = new Label(letter);
+                    badge.AddToClassList("map-combo");
+                    badge.style.backgroundColor = LineLetterColor(letter);
+                    combos.Add(badge);
+                }
+                _area.Add(combos);
+            }
+        }
+
+        /// <summary>Color de la línea del mapa desde <see cref="RunMap.lineColorHex"/>; celeste si falta.</summary>
+        private static Color LineColor(RunMap map)
+        {
+            if (!string.IsNullOrEmpty(map.lineColorHex) &&
+                ColorUtility.TryParseHtmlString(map.lineColorHex, out Color c))
+                return c;
+            return new Color(0.11f, 0.66f, 0.79f);   // celeste (Línea A) por defecto
+        }
+
+        /// <summary>Color oficial aproximado de cada línea del subte para los badges de combinación.</summary>
+        private static Color LineLetterColor(string letter)
+        {
+            switch (letter)
+            {
+                case "A": return new Color(0.11f, 0.66f, 0.79f);   // celeste
+                case "B": return new Color(0.85f, 0.15f, 0.15f);   // rojo
+                case "C": return new Color(0.16f, 0.34f, 0.70f);   // azul
+                case "D": return new Color(0.05f, 0.45f, 0.35f);   // verde
+                case "E": return new Color(0.45f, 0.20f, 0.55f);   // violeta
+                case "H": return new Color(0.95f, 0.78f, 0.10f);   // amarillo
+                default:  return new Color(0.40f, 0.43f, 0.50f);
+            }
         }
 
         /// <summary>Clase USS por tipo de nodo (spec §17.6).</summary>
@@ -223,8 +298,7 @@ namespace PiqueteDefend.Presentation
             _ => "map-node--combat",
         };
 
-        /// <summary>Nombre legible del tipo, para la etiqueta bajo el título (placeholder hasta tener
-        /// íconos propios). Start no muestra etiqueta.</summary>
+        /// <summary>Nombre legible del tipo, para el chip bajo el nombre de la estación. Start sin chip.</summary>
         private static string NodeTypeName(MapNodeType type) => type switch
         {
             MapNodeType.Combat => "Combate",
@@ -238,26 +312,8 @@ namespace PiqueteDefend.Presentation
             _ => "",
         };
 
-        // Íconos de nodo cargados de Resources/Icons (cache por key, incluye null = falta). Mismo patrón
-        // que GameController.IconTexture: cuando dejes los PNG `node-<tipo>` aparecen solos (sprite-ready).
-        private static readonly Dictionary<string, Texture2D> _nodeIconCache = new Dictionary<string, Texture2D>();
-
-        /// <summary>Textura del ícono de un tipo de nodo por convención <c>Resources/Icons/node-&lt;tipo&gt;</c>
-        /// (node-combat/elite/boss/treasure/shop/event/workshop/mystery). Devuelve null si todavía no existe
-        /// el PNG → el nodo cae al título + etiqueta de tipo.</summary>
-        private static Texture2D NodeIcon(MapNodeType type)
-        {
-            string key = "node-" + type.ToString().ToLowerInvariant();
-            if (!_nodeIconCache.TryGetValue(key, out Texture2D tex))
-            {
-                tex = Resources.Load<Texture2D>("Icons/" + key);
-                _nodeIconCache[key] = tex;
-            }
-            return tex;
-        }
-
         /// <summary>Acción al clickear un nodo disponible, según su tipo. Devuelve false para tipos aún
-        /// no implementados (quedan no-clickeables; el acto 1 no los usa, spec §17.6).</summary>
+        /// no implementados (quedan no-clickeables).</summary>
         private bool TryGetNodeAction(MapNodeType type, int nodeId, out System.Action onClick)
         {
             switch (type)
@@ -271,13 +327,13 @@ namespace PiqueteDefend.Presentation
                     onClick = () => ChooseTreasure(nodeId);
                     return true;
                 case MapNodeType.Workshop:
-                    onClick = () => EnterScene(() => RunSession.Manager.EnterWorkshop(nodeId), "Workshop");
+                    onClick = () => EnterScene(nodeId, () => RunSession.Manager.EnterWorkshop(nodeId), "Workshop");
                     return true;
                 case MapNodeType.Shop:
-                    onClick = () => EnterScene(() => RunSession.Manager.EnterShop(nodeId), "Shop");
+                    onClick = () => EnterScene(nodeId, () => RunSession.Manager.EnterShop(nodeId), "Shop");
                     return true;
                 case MapNodeType.Event:
-                    onClick = () => EnterScene(() => RunSession.Manager.EnterEvent(nodeId), "Event");
+                    onClick = () => EnterScene(nodeId, () => RunSession.Manager.EnterEvent(nodeId), "Event");
                     return true;
                 default:
                     onClick = null;
@@ -285,60 +341,27 @@ namespace PiqueteDefend.Presentation
             }
         }
 
-        /// <summary>Abre la interacción del nodo en el Core y carga su escena (taller/tienda/evento).</summary>
-        private void EnterScene(System.Action open, string scene)
+        // ── Navegación + feedback ───────────────────────────────────────────────────
+
+        /// <summary>Extension point: feedback al avanzar de parada (audio + FX visual). Hoy un sfx simple;
+        /// acá va la animación de la ficha / transición de andén cuando se sumen FX (serán simples).</summary>
+        private void PlayStationAdvanceFx(int targetNodeId)
         {
             AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+            // TODO FX: animar la ficha hacia la parada `targetNodeId`, transición de andén, etc.
+        }
+
+        /// <summary>Abre la interacción del nodo en el Core y carga su escena (taller/tienda/evento).</summary>
+        private void EnterScene(int nodeId, System.Action open, string scene)
+        {
+            PlayStationAdvanceFx(nodeId);
             open();
             SceneManager.LoadScene(scene);
         }
 
-        /// <summary>Dibuja una línea por cada conexión, anclada a los centros ya posicionados.</summary>
-        private void DrawEdges()
-        {
-            if (_edges == null) return;
-            _edges.Clear();
-
-            RunState st = RunSession.Manager.State;
-            foreach (MapNode node in st.map.Nodes)
-            {
-                if (!_nodeEls.TryGetValue(node.id, out VisualElement fromEl)) continue;
-                Vector2 from = Center(fromEl);
-                if (float.IsNaN(from.x)) continue;
-
-                foreach (int toId in node.connections)
-                {
-                    if (!_nodeEls.TryGetValue(toId, out VisualElement toEl)) continue;
-                    Vector2 to = Center(toEl);
-                    if (float.IsNaN(to.x)) continue;
-
-                    Vector2 d = to - from;
-                    float len = d.magnitude;
-                    if (len < 1f) continue;
-                    float angle = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
-
-                    var line = new VisualElement();
-                    line.AddToClassList("map-edge");
-                    if (node.id == st.currentNodeId) line.AddToClassList("map-edge--open");
-                    line.style.left = from.x;
-                    line.style.top = from.y;
-                    line.style.width = len;
-                    line.style.rotate = new Rotate(new Angle(angle, AngleUnit.Degree));
-                    _edges.Add(line);
-                }
-            }
-        }
-
-        private static Vector2 Center(VisualElement el)
-        {
-            Rect r = el.layout;
-            if (float.IsNaN(r.width) || float.IsNaN(r.x)) return new Vector2(float.NaN, float.NaN);
-            return new Vector2(r.x + r.width * 0.5f, r.y + r.height * 0.5f);
-        }
-
         private void ChooseNode(int nodeId)
         {
-            AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+            PlayStationAdvanceFx(nodeId);
             GameEngine engine = RunSession.Manager.BeginCombat(nodeId);
             RunSession.SetPendingCombat(engine);
             SceneManager.LoadScene("Game");
@@ -347,7 +370,7 @@ namespace PiqueteDefend.Presentation
         /// <summary>Tesoro (spec §17.6): da una reliquia (o oro si no quedan) y avanza, sin salir del mapa.</summary>
         private void ChooseTreasure(int nodeId)
         {
-            AudioManager.Instance?.PlaySfx(AudioId.ButtonClick);
+            PlayStationAdvanceFx(nodeId);
             TreasureReward reward = RunSession.Manager.EnterTreasure(nodeId);
             BuildMap();   // refresca oro, reliquias, nodo actual y sucesores disponibles
             ShowToast(reward.IsRelic ? $"¡Reliquia: {reward.relic.relicName}!" : $"+{reward.gold} oro");

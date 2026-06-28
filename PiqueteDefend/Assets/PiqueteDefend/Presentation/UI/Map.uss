@@ -43,43 +43,92 @@
     font-size: 15px;
 }
 
-/* ── Punto del mapa ───────────────────────────────────────────────────────── */
-.map-node {
-    position: absolute;
-    width: 150px;
-    height: 56px;
-    min-width: 0;
-    translate: -50% -50%;            /* centrar el botón sobre su coordenada */
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 4px 6px;
-    border-radius: 10px;
-    border-width: 2px;
-    border-color: rgb(70, 76, 92);
-    background-color: rgb(45, 49, 61);
-    color: rgb(225, 228, 236);
-    font-size: 15px;
-    -unity-font-style: bold;
-    white-space: normal;
+/* ── Tira de la línea de subte ─────────────────────────────────────────────────
+   La barra es "la línea": una franja del color de la línea detrás de las estaciones (color
+   asignado por código desde RunMap.lineColorHex). */
+.map-line {
+    height: 10px;
+    border-radius: 5px;
 }
 
-/* Contenido del nodo: ícono (sprite-ready) + título + chip de tipo. */
+/* Estación = dot circular sobre la línea (botón clickeable). El anillo (border-color) lo pinta el
+   código con el color de la línea; relleno y estado los maneja el USS. */
+.map-node {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border-radius: 13px;
+    border-width: 4px;
+    background-color: rgb(238, 242, 246);
+    align-items: center;
+    justify-content: center;
+    transition-property: scale;
+    transition-duration: 0.1s;
+}
+
+/* Ícono del tipo de parada dentro del dot (sprite-ready; si falta el PNG, el dot queda liso). */
 .map-node__icon {
+    width: 16px;
+    height: 16px;
+    background-size: contain;
+}
+
+/* Ficha del jugador: marcador sobre la parada actual. */
+.map-node__ficha {
+    position: absolute;
+    bottom: 100%;
+    margin-bottom: 2px;
     width: 22px;
     height: 22px;
     background-size: contain;
-    margin-bottom: 1px;
+    font-size: 18px;
+    -unity-font-style: bold;
+    color: rgb(255, 230, 120);
+    -unity-text-align: middle-center;
+}
+
+/* Disponible: próxima parada elegible (avanzar 1-2). Resaltada y clickeable. */
+.map-node--available {
+    width: 30px;
+    height: 30px;
+    border-radius: 15px;
+}
+.map-node--available:hover { scale: 1.18 1.18; }
+
+/* Parada actual (además lleva la ficha encima). */
+.map-node--current {
+    background-color: rgb(255, 246, 214);
+}
+
+/* Parada ya visitada (camino recorrido). */
+.map-node--cleared { opacity: 0.45; }
+
+/* Inalcanzable: salteada o todavía lejana. */
+.map-node--locked { opacity: 0.3; }
+
+/* Jefe = cabecera de la línea (Plaza de Mayo). Dot más grande. */
+.map-node--boss {
+    width: 40px;
+    height: 40px;
+    border-radius: 20px;
+}
+
+/* ── Etiqueta de la estación (nombre + chip de tipo), debajo del dot ──────────── */
+.map-station__label {
+    width: 132px;
+    align-items: center;
 }
 .map-node__title {
-    font-size: 15px;
+    font-size: 12px;
     -unity-font-style: bold;
-    color: rgb(225, 228, 236);
+    color: rgb(232, 236, 244);
     -unity-text-align: middle-center;
     white-space: normal;
 }
-/* Chip de tipo bajo el título: distingue tienda/tesoro/evento/etc. de un vistazo. El color de fondo
-   lo define cada .map-node--<tipo> (abajo); este es el gálibo base. */
+/* Chip de tipo: distingue tienda/tesoro/evento/etc. de un vistazo. Color de fondo por tipo (abajo). */
 .map-node__type {
     margin-top: 2px;
     padding: 0 6px;
@@ -91,47 +140,7 @@
     -unity-text-align: middle-center;
 }
 
-/* Disponible: el jugador puede ir acá AHORA. Resaltado y clickeable. */
-.map-node--available {
-    border-color: rgb(214, 92, 56);
-    background-color: rgb(70, 58, 52);
-}
-.map-node--available:hover {
-    background-color: rgb(96, 78, 68);
-    scale: 1.05 1.05;
-}
-
-/* Punto actual: dónde está parado el jugador. */
-.map-node--current {
-    border-color: rgb(110, 200, 120);
-    background-color: rgb(48, 66, 52);
-}
-
-/* Combate ya ganado (camino recorrido). */
-.map-node--cleared {
-    opacity: 0.5;
-    border-color: rgb(110, 200, 120);
-}
-
-/* Jefe (el más lejano). */
-.map-node--boss {
-    border-color: rgb(214, 64, 64);
-    height: 64px;
-    width: 168px;
-    font-size: 17px;
-}
-.map-node--boss.map-node--available:hover {
-    background-color: rgb(110, 58, 58);
-}
-
-/* Inalcanzable por ahora (no es sucesor del actual). */
-.map-node--locked {
-    opacity: 0.32;
-}
-
-/* ── Color por tipo de nodo (chip de tipo) ────────────────────────────────────
-   Tiñe el chip, NO el borde del nodo: el borde sigue señalando el ESTADO (disponible/actual/
-   despejado/bloqueado). Selector de 2 clases → gana al gálibo base de .map-node__type. */
+/* Color por tipo del chip (la clase de tipo va en .map-station__label; el chip es su descendiente). */
 .map-node--combat   .map-node__type { background-color: rgb(176, 146, 116); }
 .map-node--elite    .map-node__type { background-color: rgb(190, 110, 210); color: rgb(248, 242, 252); }
 .map-node--boss     .map-node__type { background-color: rgb(214, 80, 80);  color: rgb(252, 240, 240); }
@@ -141,13 +150,18 @@
 .map-node--treasure .map-node__type { background-color: rgb(226, 196, 84); }
 .map-node--mystery  .map-node__type { background-color: rgb(160, 140, 205); color: rgb(246, 244, 252); }
 
-/* ── Línea de conexión entre puntos (dibujada por código) ─────────────────── */
-.map-edge {
-    position: absolute;
-    height: 3px;
-    background-color: rgb(86, 92, 110);
-    transform-origin: left center;
+/* ── Badges de combinación arriba del dot (decoración: líneas que cruzan) ─────── */
+.map-station__combos {
+    flex-direction: row;
+    justify-content: center;
 }
-.map-edge--open {
-    background-color: rgb(214, 92, 56);   /* arista hacia un punto disponible */
+.map-combo {
+    width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    margin: 0 1px;
+    font-size: 11px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-center;
 }

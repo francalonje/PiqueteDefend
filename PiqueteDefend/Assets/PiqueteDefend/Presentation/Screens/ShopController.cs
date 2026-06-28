@@ -51,7 +51,7 @@ namespace PiqueteDefend.Presentation
             ShopStock stock = rm.CurrentShop;
             if (stock == null) return;
 
-            if (_goldLabel != null) _goldLabel.text = $"Oro: {rm.State.gold}";
+            GameController.SetGoldDisplay(_goldLabel, rm.State.gold);
             _body.Clear();
 
             // ── Cartas ─────────────────────────────────────────────────────────
@@ -153,7 +153,9 @@ namespace PiqueteDefend.Presentation
             return item;
         }
 
-        /// <summary>Tarjeta placeholder de reliquia (mismo gálibo que una carta). Sprite a futuro.</summary>
+        /// <summary>Tarjeta de reliquia (mismo gálibo que una carta): badge + sprite (sprite-ready vía
+        /// <c>relic-&lt;id&gt;</c> / <c>relic-generic</c>) + nombre + descripción. Si falta el PNG, omite la
+        /// imagen y queda el texto.</summary>
         private static VisualElement BuildRelicCard(RelicData relic)
         {
             var card = new VisualElement();
@@ -161,12 +163,22 @@ namespace PiqueteDefend.Presentation
 
             var badge = new Label("RELIQUIA");
             badge.AddToClassList("relic-card__badge");
+            card.Add(badge);
+
+            Texture2D tex = IconLoader.Texture("relic-" + relic.id) ?? IconLoader.Texture("relic-generic");
+            if (tex != null)
+            {
+                var img = new VisualElement { pickingMode = PickingMode.Ignore };
+                img.AddToClassList("relic-card__img");
+                img.style.backgroundImage = new StyleBackground(tex);
+                card.Add(img);
+            }
+
             var name = new Label(relic.relicName);
             name.AddToClassList("relic-card__name");
             var desc = new Label(relic.description);
             desc.AddToClassList("relic-card__desc");
 
-            card.Add(badge);
             card.Add(name);
             card.Add(desc);
             return card;

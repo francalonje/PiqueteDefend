@@ -122,6 +122,13 @@
     margin-bottom: 8px;
 }
 
+.relic-card__img {
+    width: 92px;
+    height: 92px;
+    background-size: contain;
+    margin-bottom: 10px;
+}
+
 .relic-card__name {
     font-size: 17px;
     -unity-font-style: bold;

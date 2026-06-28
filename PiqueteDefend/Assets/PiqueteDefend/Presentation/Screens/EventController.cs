@@ -42,7 +42,7 @@ namespace PiqueteDefend.Presentation
 
             if (title != null) title.text = ev.title;
             if (body != null) body.text = ev.body;
-            if (gold != null) gold.text = $"Oro: {rm.State.gold}";
+            GameController.SetGoldDisplay(gold, rm.State.gold);
 
             if (choices == null) return;
             choices.Clear();
