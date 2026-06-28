@@ -445,7 +445,7 @@ sesión). Recordatorios de "cómo se hará" (las recetas concretas se completan 
   `Presentation/Resources/Icons/<key>.png` y aparece solo (carga vía `IconLoader`, cache + fallback a
   glyph/texto). Keys en uso: `gold`; `node-combat|elite|boss|treasure|shop|event|workshop|mystery`;
   `relic-generic` y `relic-<id>` (id de `RelicData`); `ficha` (marcador del jugador en el mapa). Fondo de
-  subte del mapa = `Resources/bg-subte` (override de `bg-menu`, hook listo). `IconLoader.BuildIcon(key,
+  subte del mapa = `Resources/bgsubte` (override de `bg-menu`). `IconLoader.BuildIcon(key,
   glyph, clase)` / `IconLoader.Texture(key)` son los helpers; el chip de reliquia y el oro compartidos
   están en `GameController.BuildRelicChip`/`SetGoldDisplay` (clases `relic-chip*`/`hud-gold*` en Common.uss).
 

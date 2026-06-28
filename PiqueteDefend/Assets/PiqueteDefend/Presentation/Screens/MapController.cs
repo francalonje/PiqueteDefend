@@ -36,9 +36,9 @@ namespace PiqueteDefend.Presentation
             VisualElement root = doc.rootVisualElement;
             if (root == null) return;
 
-            // Fondo: base de menú + override de subte si existe el recurso (hook listo, aparece solo).
+            // Fondo: base de menú + override de subte si existe el recurso (aparece solo).
             SceneBackground.Apply(root, "bg-menu");
-            SceneBackground.Apply(root, "bg-subte");
+            SceneBackground.Apply(root, "bgsubte");
             AudioManager.Instance?.PlayMusic(AudioId.MusicFactionSelect);
 
             // Sin run en curso (escena abierta suelta, o run terminada): volvé al menú.
