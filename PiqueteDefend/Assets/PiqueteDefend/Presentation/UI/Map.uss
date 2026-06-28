@@ -50,6 +50,10 @@
     height: 56px;
     min-width: 0;
     translate: -50% -50%;            /* centrar el botón sobre su coordenada */
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 6px;
     border-radius: 10px;
     border-width: 2px;
     border-color: rgb(70, 76, 92);
@@ -58,6 +62,33 @@
     font-size: 15px;
     -unity-font-style: bold;
     white-space: normal;
+}
+
+/* Contenido del nodo: ícono (sprite-ready) + título + chip de tipo. */
+.map-node__icon {
+    width: 22px;
+    height: 22px;
+    background-size: contain;
+    margin-bottom: 1px;
+}
+.map-node__title {
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: rgb(225, 228, 236);
+    -unity-text-align: middle-center;
+    white-space: normal;
+}
+/* Chip de tipo bajo el título: distingue tienda/tesoro/evento/etc. de un vistazo. El color de fondo
+   lo define cada .map-node--<tipo> (abajo); este es el gálibo base. */
+.map-node__type {
+    margin-top: 2px;
+    padding: 0 6px;
+    font-size: 10px;
+    -unity-font-style: bold;
+    color: rgb(18, 20, 26);
+    background-color: rgb(150, 156, 170);
+    border-radius: 5px;
+    -unity-text-align: middle-center;
 }
 
 /* Disponible: el jugador puede ir acá AHORA. Resaltado y clickeable. */
@@ -97,6 +128,18 @@
 .map-node--locked {
     opacity: 0.32;
 }
+
+/* ── Color por tipo de nodo (chip de tipo) ────────────────────────────────────
+   Tiñe el chip, NO el borde del nodo: el borde sigue señalando el ESTADO (disponible/actual/
+   despejado/bloqueado). Selector de 2 clases → gana al gálibo base de .map-node__type. */
+.map-node--combat   .map-node__type { background-color: rgb(176, 146, 116); }
+.map-node--elite    .map-node__type { background-color: rgb(190, 110, 210); color: rgb(248, 242, 252); }
+.map-node--boss     .map-node__type { background-color: rgb(214, 80, 80);  color: rgb(252, 240, 240); }
+.map-node--shop     .map-node__type { background-color: rgb(90, 195, 175); }
+.map-node--event    .map-node__type { background-color: rgb(120, 160, 225); color: rgb(244, 246, 252); }
+.map-node--workshop .map-node__type { background-color: rgb(212, 152, 80); }
+.map-node--treasure .map-node__type { background-color: rgb(226, 196, 84); }
+.map-node--mystery  .map-node__type { background-color: rgb(160, 140, 205); color: rgb(246, 244, 252); }
 
 /* ── Línea de conexión entre puntos (dibujada por código) ─────────────────── */
 .map-edge {

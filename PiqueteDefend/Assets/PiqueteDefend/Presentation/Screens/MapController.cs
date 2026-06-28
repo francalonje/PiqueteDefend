@@ -151,10 +151,33 @@ namespace PiqueteDefend.Presentation
 
             foreach (MapNode node in map.Nodes)
             {
-                var btn = new Button { text = node.title };
+                var btn = new Button();
                 btn.AddToClassList("map-node");
                 btn.style.left = Length.Percent(Mathf.Clamp01(node.x) * 100f);
                 btn.style.top = Length.Percent(Mathf.Clamp01(node.y) * 100f);
+
+                // Contenido: ícono (sprite-ready) + título + etiqueta de tipo (placeholder para
+                // distinguir tienda/tesoro/evento/etc. mientras no haya íconos propios, spec §17.1).
+                Texture2D icoTex = NodeIcon(node.type);
+                if (icoTex != null)
+                {
+                    var ico = new VisualElement { pickingMode = PickingMode.Ignore };
+                    ico.AddToClassList("map-node__icon");
+                    ico.style.backgroundImage = new StyleBackground(icoTex);
+                    btn.Add(ico);
+                }
+
+                var titleEl = new Label(node.title) { pickingMode = PickingMode.Ignore };
+                titleEl.AddToClassList("map-node__title");
+                btn.Add(titleEl);
+
+                string typeName = NodeTypeName(node.type);
+                if (!string.IsNullOrEmpty(typeName))
+                {
+                    var typeEl = new Label(typeName) { pickingMode = PickingMode.Ignore };
+                    typeEl.AddToClassList("map-node__type");
+                    btn.Add(typeEl);
+                }
 
                 bool isCurrent = node.id == st.currentNodeId;
                 bool isCleared = st.IsCleared(node.id) && !isCurrent;
@@ -199,6 +222,39 @@ namespace PiqueteDefend.Presentation
             MapNodeType.Mystery => "map-node--mystery",
             _ => "map-node--combat",
         };
+
+        /// <summary>Nombre legible del tipo, para la etiqueta bajo el título (placeholder hasta tener
+        /// íconos propios). Start no muestra etiqueta.</summary>
+        private static string NodeTypeName(MapNodeType type) => type switch
+        {
+            MapNodeType.Combat => "Combate",
+            MapNodeType.Elite => "Élite",
+            MapNodeType.Boss => "Jefe",
+            MapNodeType.Shop => "Tienda",
+            MapNodeType.Event => "Evento",
+            MapNodeType.Workshop => "Taller",
+            MapNodeType.Treasure => "Tesoro",
+            MapNodeType.Mystery => "Misterio",
+            _ => "",
+        };
+
+        // Íconos de nodo cargados de Resources/Icons (cache por key, incluye null = falta). Mismo patrón
+        // que GameController.IconTexture: cuando dejes los PNG `node-<tipo>` aparecen solos (sprite-ready).
+        private static readonly Dictionary<string, Texture2D> _nodeIconCache = new Dictionary<string, Texture2D>();
+
+        /// <summary>Textura del ícono de un tipo de nodo por convención <c>Resources/Icons/node-&lt;tipo&gt;</c>
+        /// (node-combat/elite/boss/treasure/shop/event/workshop/mystery). Devuelve null si todavía no existe
+        /// el PNG → el nodo cae al título + etiqueta de tipo.</summary>
+        private static Texture2D NodeIcon(MapNodeType type)
+        {
+            string key = "node-" + type.ToString().ToLowerInvariant();
+            if (!_nodeIconCache.TryGetValue(key, out Texture2D tex))
+            {
+                tex = Resources.Load<Texture2D>("Icons/" + key);
+                _nodeIconCache[key] = tex;
+            }
+            return tex;
+        }
 
         /// <summary>Acción al clickear un nodo disponible, según su tipo. Devuelve false para tipos aún
         /// no implementados (quedan no-clickeables; el acto 1 no los usa, spec §17.6).</summary>

@@ -565,6 +565,15 @@
     white-space: normal;
 }
 
+/* Slot de carta para usar el visual .card FUERA del abanico (recompensa/tienda/taller): reserva el
+   gálibo fijo en el flujo. Sin esto, .card (position:absolute) colapsa y las cartas se amontonan. */
+.card-slot {
+    position: relative;
+    width: 160px;
+    height: 240px;
+    flex-shrink: 0;
+}
+
 /* Carta del abanico: posición/rotación las fija LayoutHand (inline). El pivote
    abajo-centro hace que abran como un abanico real y que al enderezarse/crecer en
    hover lo hagan desde la base. El hover (subir, enderezar, crecer, traer al frente)

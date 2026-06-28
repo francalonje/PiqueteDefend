@@ -1673,6 +1673,18 @@ namespace PiqueteDefend.Presentation
         /// Público y estático para reusarlo fuera del combate (p. ej. la pantalla de recompensa de la run,
         /// spec §17.2). Usa las clases <c>.card*</c> de <c>Game.uss</c>: la escena que lo muestre debe
         /// importar ese stylesheet.</summary>
+        /// <summary>Envuelve el visual de carta en un slot de tamaño fijo (relative, flex-shrink:0) para
+        /// usarlo FUERA del abanico de la mano. En la mano la carta es position:absolute (la coloca
+        /// LayoutHand), por lo que NO reserva lugar en el flujo: en recompensa/tienda/taller se amontonan
+        /// sin este contenedor (spec §17.2/§17.6). El slot mantiene el gálibo 160×240 de <c>.card</c>.</summary>
+        public static VisualElement BuildCardSlot(CardData card, int inflationPercent = 0)
+        {
+            var slot = new VisualElement();
+            slot.AddToClassList("card-slot");
+            slot.Add(BuildCardVisual(card, inflationPercent));
+            return slot;
+        }
+
         public static VisualElement BuildCardVisual(CardData card, int inflationPercent = 0)
         {
             var el = new VisualElement();

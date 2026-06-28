@@ -51,7 +51,7 @@ namespace PiqueteDefend.Presentation
             {
                 var item = new VisualElement();
                 item.AddToClassList("shop-item");
-                item.Add(GameController.BuildCardVisual(card));
+                item.Add(GameController.BuildCardSlot(card));
 
                 CardData captured = card;
                 var btn = new Button(() => Remove(captured)) { text = "Quitar" };

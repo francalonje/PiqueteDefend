@@ -66,7 +66,7 @@ namespace PiqueteDefend.Presentation
                 foreach (CardData card in stock.cards)
                 {
                     CardData captured = card;
-                    grid.Add(BuyItem(GameController.BuildCardVisual(card), stock.cardPrice,
+                    grid.Add(BuyItem(GameController.BuildCardSlot(card), stock.cardPrice,
                                      rm.State.gold >= stock.cardPrice, () => Buy(() => rm.BuyCard(captured))));
                 }
             }
@@ -104,7 +104,7 @@ namespace PiqueteDefend.Presentation
                 foreach (CardData card in rm.State.deck)
                 {
                     CardData captured = card;
-                    grid.Add(BuyItem(GameController.BuildCardVisual(card), stock.removalPrice,
+                    grid.Add(BuyItem(GameController.BuildCardSlot(card), stock.removalPrice,
                                      rm.State.gold >= stock.removalPrice,
                                      () => Buy(() => rm.BuyRemoval(captured)), "Quitar"));
                 }
